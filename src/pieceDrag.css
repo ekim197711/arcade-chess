@@ -1,0 +1,6 @@
+.chessboard .drag-square { touch-action: none; user-select: none; -webkit-user-select: none; }
+.chessboard .drag-square .chess-piece { pointer-events: none; }
+.chessboard .drag-square[data-dragging] .chess-piece { opacity: 0; }
+.chessboard .drag-square[data-dragging] { cursor: grabbing; }
+.piece-drag-ghost { position: fixed; left: 0; top: 0; width: 80px; height: 80px; visibility: hidden; display: block; pointer-events: none; z-index: 10000; filter: drop-shadow(0 8px 8px #0006); }
+.piece-drag-ghost img { pointer-events: none; user-select: none; }
