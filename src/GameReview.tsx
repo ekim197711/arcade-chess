@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Chess } from "chess.js";
 import type { MoveAnalysis } from "./bot";
+import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
@@ -25,6 +26,7 @@ function readReviewPreferences(fallbackTheme: PieceStyle): ReviewPreferences {
 type Props = {
   pgn: string;
   opponent: string;
+  opponentElo: number;
   playerName: string;
   theme: PieceStyle;
   color: PieceColor;
@@ -33,7 +35,7 @@ type Props = {
   onClose: () => void;
 };
 
-export function GameReview({ pgn, opponent, playerName, theme, color, light, dark, onClose }: Props) {
+export function GameReview({ pgn, opponent, opponentElo, playerName, theme, color, light, dark, onClose }: Props) {
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
   const { eventMode, moveSeconds, showCoordinates, theme: reviewTheme } = preferences;
   const [savingFailed, setSavingFailed] = useState(false);
@@ -78,6 +80,8 @@ export function GameReview({ pgn, opponent, playerName, theme, color, light, dar
     game.loadPgn(pgn);
     return game.history({ verbose: true });
   }, [pgn]);
+  const skillRatings = useMemo(() => evaluateReviewSkills(moves, analyses, color), [moves, analyses, color]);
+  const playerElo = useMemo(() => evaluatePlayerElo(moves, analyses, color), [moves, analyses, color]);
   const move = moves[ply - 1];
   const analysis = analyses[ply - 1];
   const boardRating = analysis ? moveRating(analysis) : { key: "pending", label: "Analyzing move", icon: "..." };
@@ -91,6 +95,8 @@ export function GameReview({ pgn, opponent, playerName, theme, color, light, dar
 
   useEffect(() => {
     let worker: Worker | undefined;
+    setAnalyses({});
+    setFailed(false);
     try {
       worker = new Worker(new URL("./review.worker.ts", import.meta.url), { type: "module" });
       worker.onmessage = (event: MessageEvent<{ index?: number; analysis?: MoveAnalysis; error?: boolean; done?: boolean }>) => {
@@ -166,6 +172,26 @@ export function GameReview({ pgn, opponent, playerName, theme, color, light, dar
         <h2 id="review-title">Game review</h2>
         <button type="button" onClick={onClose} >Back to home</button>
       </header>
+      <section className="review-skills" aria-labelledby="review-skills-title">
+        <div className="review-elo-scores" aria-label="Player Elo scores">
+          <div><span>{playerName} · ESTIMATE</span><strong>{playerElo === null ? "—" : `~${playerElo}`}</strong><small>{playerElo === null ? "Three analyzed moves needed" : "Estimated from this game"}</small></div>
+          <div><span>{opponent} · LADDER RATING</span><strong>{opponentElo}</strong><small>Progression rating</small></div>
+        </div>
+        <h3 id="review-skills-title">Your estimated Elo by skill</h3>
+        <p className="review-note">{playerName} · {color === "w" ? "White" : "Black"} · {failed ? "Partial analysis" : Object.keys(analyses).length < moves.length ? "Updating as moves are analyzed" : "Game analysis complete"}</p>
+        <dl className="review-skill-grid">
+          {skillRatings.map((skill) => <div key={skill.name}>
+            <dt>{skill.name}</dt>
+            <dd>{skill.elo === null ? <span className="review-skill-empty">Not enough moves</span> : <><strong>~{skill.elo}</strong> <span>Elo</span></>}</dd>
+            <small>{skill.moves} analyzed {skill.moves === 1 ? "move" : "moves"}{skill.moves < 3 ? " · 3 needed" : ""}</small>
+          </div>)}
+        </dl>
+        <details className="review-skill-method">
+          <summary>How these estimates work</summary>
+          <p>Rough single-game estimates from average move-evaluation loss, not official or calibrated Elo ratings. Opening covers the first 10 moves per side; Endgame covers positions with at most 13 points of combined non-pawn, non-king material. Tactics covers captures, checks, promotions and forcing analyzed lines, including missed opportunities. Strategy covers quiet moves between opening and endgame. Tactical moves can also count toward a game phase.</p>
+          <p>At least 3 analyzed moves are needed per skill; small samples are less reliable. Lower average loss produces a higher estimate on a 400–2400 scale, rounded to 50 Elo. The review engine has limited depth, so deeper tactics may change the assessment.</p>
+        </details>
+      </section>
       <div className="rating-legend">{RATINGS.map((rating) => <span key={rating.label} className={`move-rating rating-${rating.key}`}><b aria-hidden="true">{rating.icon}</b> {rating.label}</span>)}</div>
       <div className="review-layout">
         <aside className="review-move-column" aria-label="All game moves">

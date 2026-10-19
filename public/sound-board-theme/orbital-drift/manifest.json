@@ -1,0 +1,54 @@
+{
+  "id": "orbital-drift",
+  "name": "Orbital Drift",
+  "description": "Brief weightless pulses without lingering trails.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.038,
+      "peakDbFS": -31.8
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.054,
+      "peakDbFS": -28.6
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.082,
+      "peakDbFS": -28.9
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.118,
+      "peakDbFS": -28.0
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.077,
+      "peakDbFS": -29.4
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.088,
+      "peakDbFS": -31.0
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.073,
+      "peakDbFS": -31.6
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.085,
+      "peakDbFS": -30.4
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.111,
+      "peakDbFS": -28.4
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

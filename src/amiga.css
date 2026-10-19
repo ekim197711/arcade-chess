@@ -15,6 +15,19 @@
     --gold: #ffbe43;
 }
 
+.hud-player-info > strong,
+.hud-player-name-row > strong,
+.hud-stat strong,
+.app-shell .opponent-info > strong {
+    color: var(--white);
+}
+
+.hud-label,
+.pilot-status,
+.hud-stat strong small {
+    color: var(--muted);
+}
+
 body {
     background: #050608;
 }
@@ -198,12 +211,8 @@ body {
 .player-bar,
 .quip-box,
 .rematch-button {
-    border-color: #5b73d9;
-    background: linear-gradient(
-        145deg,
-        rgba(25, 43, 116, 0.97),
-        rgba(11, 19, 62, 0.98)
-    );
+    border-color: var(--line);
+    background: var(--panel);
     box-shadow:
         inset 1px 1px rgba(224, 238, 255, 0.16),
         3px 4px 0 rgba(2, 5, 23, 0.8);
@@ -683,13 +692,13 @@ body {
 }
 
 .square-light.square-last {
-    background: var(--board-square-light, #d8bd91);
-    box-shadow: inset 0 0 0 4px #50e4ff, inset 0 0 0 5px #163c59;
+    background: color-mix(in srgb, #f39a45 20%, var(--board-square-light, #d8bd91));
+    box-shadow: inset 0 0 0 2px rgba(243, 154, 69, 0.48);
 }
 
 .square-dark.square-last {
-    background: var(--board-square-dark, #352317);
-    box-shadow: inset 0 0 0 4px #50e4ff, inset 0 0 0 5px #163c59;
+    background: color-mix(in srgb, #f39a45 24%, var(--board-square-dark, #352317));
+    box-shadow: inset 0 0 0 2px rgba(243, 154, 69, 0.48);
 }
 
 .white-piece-glyph {
@@ -1196,6 +1205,19 @@ body {
 }
 
 .piece-theme-option:disabled { cursor: progress; opacity: 0.65; }
+
+.sound-theme-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.sound-theme-option {
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+}
 
 .piece-theme-picker {
     border-color: #5266b1;

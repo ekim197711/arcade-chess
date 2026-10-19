@@ -10,6 +10,23 @@
     box-shadow: 0 20px 80px #000a;
 }
 .game-review::backdrop { background: #030712dc; }
+.review-skills { margin-top: 20px; padding: 16px; border: 1px solid #536bb3; border-radius: 8px; background: #162555; }
+.review-skills > .review-note { margin: 8px 0 14px; }
+.review-elo-scores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.review-elo-scores > div { display: grid; gap: 5px; padding: 12px 14px; border: 1px solid #536bb3; border-radius: 6px; background: #0c163b; }
+.review-elo-scores span { color: #91e9ff; font-size: 11px; letter-spacing: .04em; }
+.review-elo-scores strong { color: #eff5ff; font-size: 26px; font-variant-numeric: tabular-nums; }
+.review-elo-scores small { color: #c4d0f5; font-size: 12px; }
+.review-skill-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.review-skill-grid > div { padding: 14px; border-radius: 6px; background: #0c163b; }
+.review-skill-grid dt { color: #c4d0f5; font-size: 14px; }
+.review-skill-grid dd { margin: 8px 0; color: #91e9ff; }
+.review-skill-grid strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.review-skill-grid small, .review-skill-empty { color: #c4d0f5; font-size: 12px; }
+.review-skill-method { margin-top: 14px; color: #c4d0f5; font-size: 12px; line-height: 1.5; }
+.review-skill-method summary { cursor: pointer; color: #91e9ff; }
+.review-skill-method summary:focus-visible { outline: 2px solid #85e7ff; outline-offset: 3px; }
+@media (max-width: 760px) { .review-skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .review-elo-scores { grid-template-columns: 1fr; } }
 .game-review header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .game-review h2, .game-review h3 { margin: 0; color: #f4f7ff; }
 .game-review button {

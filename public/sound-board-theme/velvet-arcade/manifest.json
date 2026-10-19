@@ -1,0 +1,54 @@
+{
+  "id": "velvet-arcade",
+  "name": "Velvet Arcade",
+  "description": "Tiny rounded retro blips, low and mellow.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.038,
+      "peakDbFS": -33.4
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.053,
+      "peakDbFS": -30.1
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.082,
+      "peakDbFS": -30.2
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.118,
+      "peakDbFS": -29.6
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.076,
+      "peakDbFS": -30.9
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.087,
+      "peakDbFS": -32.7
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.072,
+      "peakDbFS": -32.2
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.085,
+      "peakDbFS": -32.5
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.11,
+      "peakDbFS": -30.0
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

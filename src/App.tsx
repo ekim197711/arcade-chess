@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Chess, type Square } from "chess.js";
+import { Chess, type Color, type Square } from "chess.js";
 import {
   createClient,
   type Session,
@@ -29,6 +29,7 @@ import {
   Menu,
   Music2,
   RotateCcw,
+  Settings,
   Trophy,
   Volume2,
   X,
@@ -218,7 +219,10 @@ const BOSS_EXCUSES = [
 const STORAGE_KEY = "neon-knights-progress-v1";
 const SAVED_MATCH_KEY = "neon-knights-saved-match-v1";
 const SOUND_KEY = "neon-knights-sound-v1";
+const SOUND_THEME_KEY = "arcade-chess-sound-theme-v1";
 const MUSIC_KEY = "neon-knights-music-v1";
+const SFX_VOLUME_KEY = "neon-knights-sfx-volume-v1";
+const MUSIC_VOLUME_KEY = "neon-knights-music-volume-v1";
 const PIECE_THEME_KEY = "arcade-chess-piece-theme-v1";
 const BOARD_COLORS_KEY = "arcade-chess-board-colors-v1";
 const BOARD_SIZE_KEY = "arcade-chess-board-size-v1";
@@ -235,6 +239,15 @@ const BOARD_PALETTES = [
 type BoardPaletteId = (typeof BOARD_PALETTES)[number]["id"];
 type BoardColors = { light: string; dark: string };
 const DEFAULT_BOARD_PALETTE: BoardPaletteId = "classic";
+const SOUND_THEMES = [
+  "bamboo-garden",
+  "felt-piano",
+  "moonlit-glass",
+  "orbital-drift",
+  "paper-wood",
+  "velvet-arcade",
+] as const;
+type SoundTheme = (typeof SOUND_THEMES)[number];
 const ACCOUNT_STORAGE_PREFIX = "neon-knights-account-v1:";
 const PENDING_STORAGE_PREFIX = "neon-knights-pending-v1:";
 const MERGE_STORAGE_PREFIX = "neon-knights-merge-v1:";
@@ -528,9 +541,70 @@ type ArcadeSound =
   | "navigate"
   | "drag";
 
+type BoardSound = "select" | "move" | "check" | "checkmate" | "capture" | "lost" | "en-passant" | "castling" | "timeout" | "resign";
+
+function readSoundTheme(): SoundTheme {
+  try {
+    const saved = localStorage.getItem(SOUND_THEME_KEY);
+    const legacyThemes: Record<string, SoundTheme> = {
+      crystal: "moonlit-glass", "felt-garden": "bamboo-garden", "quiet-pebbles": "paper-wood",
+      "retro-arcade": "velvet-arcade", "royal-fanfare": "felt-piano", "sci-fi": "orbital-drift",
+      "soft-minimal": "bamboo-garden", "wooden-board": "paper-wood",
+      "glass-orbit": "moonlit-glass", "rainy-cafe": "felt-piano", woodland: "paper-wood",
+      "moon-chimes": "moonlit-glass", "soft-8bit": "velvet-arcade",
+    };
+    return SOUND_THEMES.find((theme) => theme === saved) ?? legacyThemes[saved ?? ""] ?? "velvet-arcade";
+  } catch {
+    return "velvet-arcade";
+  }
+}
+
+function playBoardSound(kind: BoardSound, enabled: boolean, theme: SoundTheme) {
+  if (!enabled) return;
+  try {
+    const soundFiles: Record<BoardSound, string> = {
+      select: "select", move: "move", check: "check", checkmate: "checkmate",
+      capture: "capture-opponent", lost: "piece-lost", "en-passant": "en-passant",
+      castling: "castle", timeout: "timeout", resign: "timeout",
+    };
+    const audio = new Audio(`/sound-board-theme/${theme}/${soundFiles[kind]}.wav`);
+    audio.volume = 0.65 * arcadeSfxVolume;
+    void audio.play().catch(() => {});
+  } catch {
+    // Audio is optional; gameplay remains available if the browser blocks it.
+  }
+}
+
+function boardSoundForMove(move: {
+  flags: string;
+  san: string;
+  color: Color;
+  captured?: string;
+}, game: Chess, playerColor: Color): BoardSound {
+  if (game.isCheckmate()) return "checkmate";
+  if (move.san.endsWith("+")) return "check";
+  if (move.flags.includes("e")) return "en-passant";
+  if (move.flags.includes("k") || move.flags.includes("q")) return "castling";
+  if (move.captured) return move.color === playerColor ? "capture" : "lost";
+  return "move";
+}
+
 let audioContext: AudioContext | null = null;
 let musicAudio: HTMLAudioElement | null = null;
 let musicTrack: MusicTrack = "home";
+let arcadeSfxVolume = 0.7;
+let arcadeMusicVolume = 0.7;
+
+function readVolume(key: string, fallback: number) {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === null) return fallback;
+    const volume = Number(saved);
+    return Number.isFinite(volume) ? Math.max(0, Math.min(100, volume)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function getAudioContext() {
   audioContext ??= new AudioContext();
@@ -606,7 +680,7 @@ function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
         start + duration * 0.65,
       );
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume * arcadeSfxVolume), start + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       oscillator.connect(gain);
       gain.connect(context.destination);
@@ -632,7 +706,7 @@ function startArcadeMusic(track: MusicTrack = musicTrack) {
       musicAudio = new Audio(MUSIC_SOURCES[track]);
       musicAudio.loop = true;
       musicAudio.preload = "auto";
-      musicAudio.volume = 0.2;
+      musicAudio.volume = 0.3 * arcadeMusicVolume;
     } else if (musicTrack !== track) {
       musicAudio.pause();
       musicAudio.src = MUSIC_SOURCES[track];
@@ -661,7 +735,7 @@ function resultFor(
 function readPageRoute() {
   const route = window.location.hash.slice(1);
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route)
+  return /^(home|roster|battle|settings)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route)
     ? route
     : "home";
 }
@@ -733,6 +807,8 @@ function App() {
       return true;
     }
   });
+  const [sfxVolume, setSfxVolume] = useState(() => readVolume(SFX_VOLUME_KEY, 70));
+  const [soundTheme, setSoundTheme] = useState<SoundTheme>(() => readSoundTheme());
   const [musicEnabled, setMusicEnabled] = useState(() => {
     try {
       return localStorage.getItem(MUSIC_KEY) !== "off";
@@ -740,6 +816,7 @@ function App() {
       return true;
     }
   });
+  const [musicVolume, setMusicVolume] = useState(() => readVolume(MUSIC_VOLUME_KEY, 70));
   const [pieceTheme, setPieceTheme] = useState<PieceStyle>(() =>
     readPieceTheme(),
   );
@@ -818,7 +895,6 @@ function App() {
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const moodTimer = useRef<number | undefined>(undefined);
-  const opponentLineTimer = useRef<number | undefined>(undefined);
 
   const game = useMemo(() => restoreGame(pgn), [pgn]);
   const fen = game.fen();
@@ -963,12 +1039,39 @@ function App() {
   }, [soundEnabled]);
 
   useEffect(() => {
+    arcadeSfxVolume = sfxVolume / 100;
+    try {
+      localStorage.setItem(SFX_VOLUME_KEY, String(sfxVolume));
+    } catch {
+      /* The volume remains available for this session. */
+    }
+  }, [sfxVolume]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SOUND_THEME_KEY, soundTheme);
+    } catch {
+      /* The selected sound theme remains available for this session. */
+    }
+  }, [soundTheme]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(MUSIC_KEY, musicEnabled ? "on" : "off");
     } catch {
       /* Ignore unavailable storage. */
     }
   }, [musicEnabled]);
+
+  useEffect(() => {
+    arcadeMusicVolume = musicVolume / 100;
+    if (musicAudio) musicAudio.volume = 0.3 * arcadeMusicVolume;
+    try {
+      localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
+    } catch {
+      /* The volume remains available for this session. */
+    }
+  }, [musicVolume]);
 
   useEffect(() => {
     try {
@@ -1361,7 +1464,6 @@ function App() {
     () => () => {
       window.clearTimeout(toastTimer.current);
       window.clearTimeout(moodTimer.current);
-      window.clearTimeout(opponentLineTimer.current);
     },
     [],
   );
@@ -1424,6 +1526,7 @@ function App() {
     boss.chessColor,
     screen,
     soundEnabled,
+    soundTheme,
     currentResult,
   ]);
 
@@ -1476,15 +1579,6 @@ function App() {
     }
     window.clearTimeout(moodTimer.current);
     moodTimer.current = window.setTimeout(() => setOpponentMood(null), 1500);
-    window.clearTimeout(opponentLineTimer.current);
-    opponentLineTimer.current = window.setTimeout(
-      () => setOpponentLine(null),
-      4200,
-    );
-    playArcadeSound(
-      capturingColor === playerColor ? "capture" : "lost",
-      soundEnabled,
-    );
   }
 
   function fallbackBotMove(positionFen: string) {
@@ -1520,12 +1614,15 @@ function App() {
         promotion: move.promotion ?? "q",
       });
       const finishMove = () => {
+        setOpponentLine(null);
         setLastMove({ from: move.from, to: move.to });
-        setSelectedSquare(null);
+        setSelectedSquare((selected) =>
+          selected && next.get(selected)?.color === playerColor ? selected : null,
+        );
         setPgn(next.pgn());
         setThinking(false);
         if (result.captured) showCaptureReaction(result.color);
-        else playArcadeSound("move", soundEnabled);
+        playBoardSound(boardSoundForMove(result, next, playerColor), soundEnabled, soundTheme);
       };
       finishMove();
     } catch {
@@ -1544,7 +1641,7 @@ function App() {
         return false;
       setPremove({ from, to });
       setSelectedSquare(null);
-      playArcadeSound("select", soundEnabled);
+      playBoardSound("select", soundEnabled, soundTheme);
       return true;
     }
     if (thinking || game.turn() === boss.chessColor) return false;
@@ -1552,11 +1649,12 @@ function App() {
     try {
       const move = next.move({ from, to, promotion: "q" });
       const finishMove = () => {
+        setOpponentLine(null);
         setPgn(next.pgn());
         setLastMove({ from, to });
         setSelectedSquare(null);
         if (move.captured) showCaptureReaction(move.color);
-        else playArcadeSound("move", soundEnabled);
+        playBoardSound(boardSoundForMove(move, next, playerColor), soundEnabled, soundTheme);
       };
       finishMove();
       return true;
@@ -1574,12 +1672,11 @@ function App() {
     }
     if (piece?.color === playerColor) {
       const isDeselecting = square === selectedSquare;
-      playArcadeSound(isDeselecting ? "deselect" : "select", soundEnabled);
+      if (!isDeselecting) playBoardSound("select", soundEnabled, soundTheme);
       if (premove) setPremove(null);
       setSelectedSquare(isDeselecting ? null : square);
       return;
     }
-    if (selectedSquare) playArcadeSound("deselect", soundEnabled);
     setSelectedSquare(null);
   }
 
@@ -1613,7 +1710,6 @@ function App() {
     setOpponentMood(null);
     setOpponentLine(null);
     window.clearTimeout(moodTimer.current);
-    window.clearTimeout(opponentLineTimer.current);
     setScreen("roster");
     showToast("MATCH SAVED — RESUME IT FROM THE ROSTER");
   }
@@ -1635,13 +1731,13 @@ function App() {
     setOpponentMood(null);
     setOpponentLine(null);
     window.clearTimeout(moodTimer.current);
-    window.clearTimeout(opponentLineTimer.current);
     finishedFen.current = "";
     setScreen("battle");
   }
 
   function resignMatch() {
     if (currentResult) return;
+    playBoardSound("resign", soundEnabled, soundTheme);
     setResigned(true);
     setPremove(null);
     setSelectedSquare(null);
@@ -1674,7 +1770,6 @@ function App() {
     setOpponentMood(null);
     setOpponentLine(null);
     window.clearTimeout(moodTimer.current);
-    window.clearTimeout(opponentLineTimer.current);
     finishedFen.current = "";
     playArcadeSound("start", soundEnabled);
   }
@@ -1767,7 +1862,7 @@ function App() {
         >
           <img
             className="brand-logo"
-            src="/arcade-chess-logo.jpg"
+            src="/brand/chess-arcade-logo.png"
             alt="Arcade Chess"
           />
         </a>
@@ -1782,6 +1877,17 @@ function App() {
           </span>
         </nav>
         <div className="top-actions">
+          <button
+            className={`sound-button settings-button ${screen === "settings" ? "sound-on" : ""}`}
+            type="button"
+            onClick={() => setScreen(screen === "settings" ? "home" : "settings")}
+            aria-label={screen === "settings" ? "Close settings" : "Open settings"}
+            title="Settings"
+            aria-current={screen === "settings" ? "page" : undefined}
+          >
+            <Settings size={17} />
+            <span>SETTINGS</span>
+          </button>
           <button
             className={`sound-button ${musicEnabled ? "sound-on" : ""}`}
             onClick={toggleMusic}
@@ -1821,6 +1927,83 @@ function App() {
       </header>
 
       <main id="top" className={screen === "review" ? "review-main" : undefined}>
+        {screen === "settings" && (
+          <section className="settings-page" aria-labelledby="settings-title">
+            <div className="settings-page-heading">
+              <div>
+                <span className="settings-eyebrow"><i /> ARCADE // OPTIONS</span>
+                <h1 id="settings-title">Game <em>settings</em></h1>
+                <p>Choose your board, pieces, and arcade sound.</p>
+              </div>
+              <button className="settings-back" type="button" onClick={() => setScreen("home")}>
+                <ChevronLeft size={15} /> BACK TO ARCADE
+              </button>
+            </div>
+
+            <div className="settings-grid">
+              <section className="settings-card" aria-label="Piece themes">
+                <h2>Piece set</h2>
+                <p>Choose the look of your chess pieces.</p>
+                <div className="piece-theme-options piece-set-options" role="group" aria-label="Choose a chess piece design">
+                  {PIECE_CHOICES.map((choice) => (
+                    <button className="piece-theme-option" type="button" key={choice.id} aria-label={`Use ${choice.label} piece design`} aria-pressed={pieceTheme === choice.id} disabled={loadingPieceStyle} onClick={() => void changePieceStyle(choice.id)}>
+                      <span className="piece-theme-icon" aria-hidden="true"><PieceArtwork type="q" color="w" theme={choice.id} /></span>
+                      <span>{choice.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="settings-card" aria-label="Board themes">
+                <h2>Board colors</h2>
+                <p>Pick a palette for the chessboard.</p>
+                <div className="board-palette-options" role="group" aria-label="Choose a board color layout">
+                  {BOARD_PALETTES.map((palette) => (
+                    <button className="piece-theme-option board-palette-option" type="button" key={palette.id} aria-label={`Use the ${palette.label.toLowerCase()} board colors`} aria-pressed={boardPaletteId === palette.id} onClick={() => setBoardPaletteId(palette.id)}>
+                      <span className="board-palette-preview" aria-hidden="true" style={{ "--palette-light": palette.light, "--palette-dark": palette.dark } as CSSProperties & Record<`--${string}`, string>}><i /><i /><i /><i /></span>
+                      <span>{palette.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="settings-card" aria-label="Sound theme">
+                <h2>Sound theme</h2>
+                <p>Choose a soft sound palette for every chess action.</p>
+                <div className="sound-theme-options" role="group" aria-label="Choose board sound effects">
+                  {SOUND_THEMES.map((theme) => (
+                    <button className="piece-theme-option sound-theme-option" type="button" key={theme} aria-pressed={soundTheme === theme} aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`} onClick={() => setSoundTheme(theme)}>
+                      {theme.replaceAll("-", " ").toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="settings-card settings-audio-card" aria-label="Audio settings">
+                <h2>Audio</h2>
+                <p>Control music and sound effects independently.</p>
+                <button className="settings-toggle" type="button" aria-pressed={musicEnabled} onClick={toggleMusic}>
+                  <span><Music2 size={17} /> Arcade music</span><b>{musicEnabled ? "ON" : "OFF"}</b>
+                </button>
+                <label className="settings-range-label settings-volume-label" htmlFor="settings-music-volume"><span>MUSIC VOLUME</span><strong>{musicVolume}%</strong></label>
+                <input id="settings-music-volume" className="settings-range" type="range" min="0" max="100" step="1" value={musicVolume} aria-label="Music volume" onChange={(event) => setMusicVolume(Number(event.currentTarget.value))} />
+                <button className="settings-toggle" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((value) => !value)}>
+                  <span>{soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />} Sound effects</span><b>{soundEnabled ? "ON" : "OFF"}</b>
+                </button>
+                <label className="settings-range-label settings-volume-label" htmlFor="settings-sfx-volume"><span>SFX VOLUME</span><strong>{sfxVolume}%</strong></label>
+                <input id="settings-sfx-volume" className="settings-range" type="range" min="0" max="100" step="1" value={sfxVolume} aria-label="Sound effects volume" onChange={(event) => setSfxVolume(Number(event.currentTarget.value))} />
+              </section>
+
+              <section className="settings-card settings-size-card" aria-label="Board size">
+                <h2>Board size</h2>
+                <p>Adjust the chessboard width during a match.</p>
+                <label className="settings-range-label" htmlFor="settings-board-size"><span>SIZE</span><strong>{boardWidth ?? 520}px</strong></label>
+                <input id="settings-board-size" className="settings-range" type="range" min="300" max="760" step="10" value={boardWidth ?? 520} onChange={(event) => setBoardWidth(Number(event.currentTarget.value))} />
+                <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>RESET TO AUTO SIZE</button>
+              </section>
+            </div>
+          </section>
+        )}
         {screen === "home" && (
           <section className="arcade-cabinet" aria-labelledby="hero-title">
             <div className="arcade-cabinet-topline">
@@ -1910,18 +2093,31 @@ function App() {
                 <i />
               </div>
               <div className="hud-player-info">
-                <div className="hud-label">CURRENT PILOT</div>
-                <strong>{user ? playerName : "GUEST PLAYER"}</strong>
-                <span className="pilot-status">
-                  <span />{" "}
-                  {user
-                    ? cloudSyncError
-                      ? "SYNC PENDING — LOCAL COPY"
-                      : authReady
-                        ? "CLOUD SAVE ACTIVE"
-                        : "SYNCING ACCOUNT..."
-                    : "LOCAL SAVE ACTIVE"}
-                </span>
+                <div className="hud-player-name-row">
+                  <strong>{user ? playerName : "GUEST PLAYER"}</strong>
+                  {savedMatch && (
+                    <button
+                      className="resume-match-button"
+                      type="button"
+                      onClick={() => resumeSavedMatch(savedMatch)}
+                      aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
+                    >
+                      RESUME <ArrowRight size={13} />
+                    </button>
+                  )}
+                </div>
+                {!savedMatch && user && (
+                  <span className="pilot-status">
+                    <span />{" "}
+                    {user
+                      ? cloudSyncError
+                        ? "SYNC PENDING — LOCAL COPY"
+                        : authReady
+                          ? "CLOUD SAVE ACTIVE"
+                          : "SYNCING ACCOUNT..."
+                      : null}
+                  </span>
+                )}
               </div>
             </div>
             <div className="hud-stat">
@@ -1955,7 +2151,7 @@ function App() {
         {screen === "home" && <MatchHistory matches={history} onReview={(id) => setScreen(`review/${id}`)} />}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
-          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} />
+          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} />
         ) : <section className="game-review"><h2>Game not found</h2><p>This game is not saved in this browser.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {(screen === "roster" || screen === "battle") && (
           <section
@@ -2212,6 +2408,30 @@ function App() {
                                 <i />
                               </span>
                               <span>{palette.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                      <section
+                        className="piece-theme-picker sound-theme-picker"
+                        aria-label="Board sound theme"
+                      >
+                        <h3 className="piece-theme-heading">SOUND THEME</h3>
+                        <div
+                          className="sound-theme-options"
+                          role="group"
+                          aria-label="Choose board sound effects"
+                        >
+                          {SOUND_THEMES.map((theme) => (
+                            <button
+                              className="piece-theme-option sound-theme-option"
+                              type="button"
+                              key={theme}
+                              aria-pressed={soundTheme === theme}
+                              aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`}
+                              onClick={() => setSoundTheme(theme)}
+                            >
+                              {theme.replaceAll("-", " ").toUpperCase()}
                             </button>
                           ))}
                         </div>

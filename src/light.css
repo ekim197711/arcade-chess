@@ -258,6 +258,7 @@ body,
 }
 
 .hud-player-info > strong,
+.hud-player-name-row > strong,
 .hud-stat strong,
 .section-heading h2,
 .opponent-info > strong,
@@ -575,7 +576,7 @@ body,
 }
 
 .square-dark.square-last {
-    background: #ae90dc;
+    background: color-mix(in srgb, #f39a45 24%, var(--board-square-dark, #66705f));
 }
 
 .white-piece-glyph {
@@ -2689,7 +2690,16 @@ body,
 }
 
 .brand {
+    width: 120px;
     min-width: 0;
+}
+
+.brand-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 72px;
+    object-fit: contain;
 }
 
 .top-nav .nav-active {
@@ -2903,9 +2913,9 @@ main {
 .player-bar,
 .quip-box,
 .rematch-button {
-    border: 1px solid #e3e8e2;
+    border: 1px solid var(--line);
     border-radius: 14px;
-    background: #fff;
+    background: var(--panel);
     box-shadow: 0 8px 24px rgba(33, 47, 36, 0.04);
 }
 
@@ -3461,11 +3471,11 @@ main {
 }
 
 .square-last {
-    background: #e2d994;
+    background: color-mix(in srgb, #f39a45 22%, var(--board-square-light, #bfc4b0));
 }
 
 .square-dark.square-last {
-    background: #b7b774;
+    background: color-mix(in srgb, #f39a45 24%, var(--board-square-dark, #66705f));
 }
 
 .square-target::before {
@@ -4384,6 +4394,22 @@ main {
 @media (max-width: 420px) {
     .piece-theme-option {
         font-size: 8px;
+    }
+}
+
+@media (max-width: 760px) {
+    .brand {
+        width: 90px;
+    }
+
+    .brand-logo {
+        max-height: 54px;
+    }
+}
+
+@media (max-width: 420px) {
+    .brand {
+        width: 72px;
     }
 }
 
