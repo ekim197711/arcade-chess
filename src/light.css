@@ -4060,6 +4060,8 @@ main {
     }
 
     .app-shell-battle .game-layout {
+        /* Side-panel content must not enlarge the board's viewport-sized row. */
+        grid-template-rows: minmax(0, 1fr);
         grid-template-columns: clamp(150px, 16vw, 250px) minmax(0, 1fr) clamp(150px, 16vw, 250px);
         align-items: stretch;
         gap: 12px;
@@ -4086,6 +4088,7 @@ main {
     }
 
     .app-shell-battle .cabinet-body {
+        grid-template-rows: minmax(0, 1fr);
         min-height: 0;
         display: grid;
         flex: 1;
@@ -4101,8 +4104,8 @@ main {
     }
 
     .app-shell-battle .board-frame {
-        /* The coordinate frame is 16px taller than it is wide. */
-        width: min(100%, calc(100cqh - 16px), var(--board-width, 100cqw));
+        /* Coordinates add 16px; reserve another 12px for the beveled bottom edge. */
+        width: min(100%, calc(100cqh - 28px), var(--board-width, 100cqw));
         padding: 8px;
     }
 
@@ -4146,6 +4149,24 @@ main {
         min-height: 0;
         overflow: hidden;
         padding: 12px;
+    }
+
+    .app-shell-battle .opponent-column {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .app-shell-battle .opponent-column .side-column-content,
+    .app-shell-battle .side-panel .side-column-content {
+        flex: 1 1 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #6f83da #111b43;
+    }
+
+    .app-shell-battle .opponent-column .side-column-content > * {
+        flex-shrink: 0;
     }
 
     .app-shell-battle .quip-box {

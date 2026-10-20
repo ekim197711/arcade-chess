@@ -13,7 +13,6 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import {
-  ArrowDownToLine,
   ArrowRight,
   Bookmark,
   Flag,
@@ -23,7 +22,6 @@ import {
   ChevronRight,
   Flame,
   Gamepad2,
-  Github,
   LockKeyhole,
   LogIn,
   Menu,
@@ -37,6 +35,7 @@ import {
 import { legalTargets } from "./bot";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import { DragSquare } from "./DragSquare";
+import { AuthForm } from "./AuthForm";
 import { BoardResizeHandle } from "./BoardResizeHandle";
 import { GameReview } from "./GameReview";
 import { MatchHistory, MatchResult } from "./MatchHistory";
@@ -44,7 +43,8 @@ import { readHistory, saveHistory, type ArchivedMatch } from "./matchArchive";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const authRedirectError = new URLSearchParams(window.location.hash.slice(1)).has("error") || new URLSearchParams(window.location.search).has("error");
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase: SupabaseClient | null =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey)
@@ -724,8 +724,9 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [cloudSyncError, setCloudSyncError] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authMessage, setAuthMessage] = useState("");
+  const [authOpen, setAuthOpen] = useState(() => authRedirectError || new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery");
+  const [recoveringPassword, setRecoveringPassword] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery");
+  const [accountMessage, setAccountMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try {
       return localStorage.getItem(SOUND_KEY) !== "off";
@@ -765,6 +766,7 @@ function App() {
     BOARD_PALETTES[0];
   const [opponentColumnCollapsed, setOpponentColumnCollapsed] = useState(false);
   const [playerColumnCollapsed, setPlayerColumnCollapsed] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
   const [history, setHistory] = useState(readHistory);
   const [historyError, setHistoryError] = useState(false);
@@ -791,6 +793,7 @@ function App() {
   const [excuseIndex, setExcuseIndex] = useState(0);
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
   const [pgn, setPgn] = useState("");
+  const [historyMoveIndex, setHistoryMoveIndex] = useState<number | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(
@@ -821,6 +824,14 @@ function App() {
   const opponentLineTimer = useRef<number | undefined>(undefined);
 
   const game = useMemo(() => restoreGame(pgn), [pgn]);
+  const moveHistory = useMemo(() => game.history({ verbose: true }), [game]);
+  const historicalMove = historyMoveIndex === null ? undefined : moveHistory[historyMoveIndex];
+  const viewingHistory = historicalMove !== undefined;
+  const displayedGame = useMemo(
+    () => historicalMove ? new Chess(historicalMove.after) : game,
+    [game, historicalMove],
+  );
+  const displayedLastMove = historicalMove ?? lastMove;
   const fen = game.fen();
   const boss = BOSSES[bossIndex] ?? BOSSES[0]!;
   const playerColor: PieceColor = boss.chessColor === "w" ? "b" : "w";
@@ -836,23 +847,23 @@ function App() {
       w: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
       b: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
     };
-    for (const move of game.history({ verbose: true })) {
+    for (const move of moveHistory.slice(0, historyMoveIndex === null ? undefined : historyMoveIndex + 1)) {
       if (move.captured) {
         const capturedColor = move.color === "w" ? "b" : "w";
         counts[capturedColor][move.captured] += 1;
       }
     }
     return counts;
-  }, [game]);
+  }, [moveHistory, historyMoveIndex]);
   const materialOnBoard = useMemo(() => {
     const totals: Record<PieceColor, number> = { w: 0, b: 0 };
-    for (const rank of game.board()) {
+    for (const rank of displayedGame.board()) {
       for (const piece of rank) {
         if (piece) totals[piece.color] += MATERIAL_POINTS[piece.type];
       }
     }
     return totals;
-  }, [game]);
+  }, [displayedGame]);
   const materialAdvantage =
     materialOnBoard[playerColor] - materialOnBoard[boss.chessColor];
   const materialLeadLabel =
@@ -868,11 +879,11 @@ function App() {
         ? "material-boss-ahead"
         : "material-even";
   const legalMoves = useMemo(() => {
-    if (!selectedSquare) return [];
+    if (viewingHistory || !selectedSquare) return [];
     return premoveTurn
       ? getPremoveTargets(fen, selectedSquare, playerColor)
       : legalTargets(fen, selectedSquare);
-  }, [fen, playerColor, premoveTurn, selectedSquare]);
+  }, [fen, playerColor, premoveTurn, selectedSquare, viewingHistory]);
   const currentResult = resigned ? "loss" : resultFor(game, boss.chessColor);
   useEffect(() => {
     if (screen !== "battle") return;
@@ -1204,8 +1215,13 @@ function App() {
       });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void loadAccount(session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveringPassword(true);
+        setAuthOpen(true);
+      }
+      // Defer Supabase queries until the auth callback has released its lock.
+      window.setTimeout(() => { if (active) void loadAccount(session); }, 0);
     });
     return () => {
       active = false;
@@ -1535,7 +1551,7 @@ function App() {
   }
 
   function makeMove(from: Square, to: Square) {
-    if (currentResult) return false;
+    if (viewingHistory || currentResult) return false;
     if (premoveTurn) {
       if (
         game.get(from)?.color !== playerColor ||
@@ -1566,7 +1582,7 @@ function App() {
   }
 
   function handleSquareClick(square: Square) {
-    if (currentResult || (thinking && !premoveTurn)) return;
+    if (viewingHistory || currentResult || (thinking && !premoveTurn)) return;
     const piece = game.get(square);
     if (selectedSquare && legalMoves.includes(square)) {
       makeMove(selectedSquare, square);
@@ -1619,6 +1635,7 @@ function App() {
   }
 
   function resumeSavedMatch(match: SavedMatch) {
+    setHistoryMoveIndex(null);
     matchId.current = match.id ?? crypto.randomUUID();
     matchStarted.current = history.find((item) => item.id === matchId.current)?.startedAt ?? new Date().toISOString();
     const restored = restoreGame(match.pgn);
@@ -1659,6 +1676,7 @@ function App() {
   }
 
   function newGame(index = bossIndex) {
+    setHistoryMoveIndex(null);
     matchId.current = crypto.randomUUID();
     matchStarted.current = new Date().toISOString();
     if (savedMatch?.bossIndex === index) clearSavedMatch(index);
@@ -1679,29 +1697,22 @@ function App() {
     playArcadeSound("start", soundEnabled);
   }
 
-  async function signIn(provider: "google" | "facebook" | "github") {
-    if (!supabase) {
-      setAuthMessage(
-        "Add your Supabase URL and anon key to .env.local to enable account sign-in. Guest progress is saved on this device.",
-      );
-      return;
-    }
-    setAuthMessage("");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) setAuthMessage(error.message);
-  }
-
   async function signOut() {
-    if (supabase) await supabase.auth.signOut();
+    if (supabase) {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      } catch {
+        setAccountMessage("Could not sign out. Please try again.");
+        return;
+      }
+    }
+    setAccountMessage("");
     setUser(null);
     setAuthOpen(false);
     showToast("SIGNED OUT — GUEST MODE ACTIVE");
   }
 
-  const moveHistory = game.history({ verbose: true });
 
   useEffect(() => {
     if (!premove) return;
@@ -1733,9 +1744,9 @@ function App() {
 
   useEffect(() => {
     const moveLog = moveLogRef.current;
-    if (screen !== "battle" || !moveLog) return;
+    if (screen !== "battle" || !moveLog || viewingHistory) return;
     moveLog.scrollTop = moveLog.scrollHeight;
-  }, [moveHistory.length, screen]);
+  }, [moveHistory.length, screen, viewingHistory]);
 
   return (
     <div
@@ -1759,8 +1770,21 @@ function App() {
       }}
     >
       <div className="crt-overlay" aria-hidden="true" />
-      <header className="topbar">
+      <header className={`topbar ${navigationCollapsed ? "is-collapsed" : ""}`}>
+        <button
+          type="button"
+          className="navigation-toggle"
+          aria-label={navigationCollapsed ? "Expand top navigation" : "Collapse top navigation"}
+          aria-expanded={!navigationCollapsed}
+          aria-controls="navigation-brand navigation-flow navigation-actions"
+          title={navigationCollapsed ? "Expand navigation" : "Collapse navigation"}
+          onClick={() => setNavigationCollapsed((value) => !value)}
+        >
+          <ChevronRight size={16} aria-hidden="true" />
+          <span>{navigationCollapsed ? "SHOW NAV" : "HIDE NAV"}</span>
+        </button>
         <a
+          id="navigation-brand"
           className="brand"
           href="#home"
           aria-label="Arcade Chess home"
@@ -1771,7 +1795,7 @@ function App() {
             alt="Arcade Chess"
           />
         </a>
-        <nav className="top-nav" aria-label="Game flow">
+        <nav id="navigation-flow" className="top-nav" aria-label="Game flow">
           <span className="nav-link nav-active" aria-current="step">
             <span className="nav-pip" />
             {screen === "battle"
@@ -1781,7 +1805,7 @@ function App() {
                 : "ARCADE // READY"}
           </span>
         </nav>
-        <div className="top-actions">
+        <div id="navigation-actions" className="top-actions">
           <button
             className={`sound-button ${musicEnabled ? "sound-on" : ""}`}
             onClick={toggleMusic}
@@ -1814,7 +1838,7 @@ function App() {
             </button>
           ) : (
             <button className="login-button" onClick={() => setAuthOpen(true)}>
-              <LogIn size={15} /> <span>LOG IN</span>
+              <LogIn size={15} /> <span>JOIN / LOG IN</span>
             </button>
           )}
         </div>
@@ -2276,16 +2300,16 @@ function App() {
                               {boardRanks.map((rank) =>
                                 boardFiles.map((file, fileIndex) => {
                                   const square = `${file}${rank}` as Square;
-                                  const piece = game.get(square);
+                                  const piece = displayedGame.get(square);
                                   const isLight =
                                     (rank + FILES.indexOf(file)) % 2 === 0;
                                   const isLegal = legalMoves.includes(square);
                                   const isPremoveTarget =
                                     premoveTurn && isLegal;
-                                  const isSelected = selectedSquare === square;
+                                  const isSelected = !viewingHistory && selectedSquare === square;
                                   const isLast =
-                                    lastMove?.from === square ||
-                                    lastMove?.to === square;
+                                    displayedLastMove?.from === square ||
+                                    displayedLastMove?.to === square;
                                   const pieceName = piece
                                     ? `${piece.color === playerColor ? "Your" : "Boss"} ${PIECE_NAMES[piece.type]}`
                                     : "empty square";
@@ -2297,8 +2321,8 @@ function App() {
                                       aria-pressed={isSelected}
                                       onClick={() => handleSquareClick(square)}
                                       square={square}
-                                      canDrag={piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
-                                      positionKey={fen}
+                                      canDrag={!viewingHistory && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
+                                      positionKey={displayedGame.fen()}
                                       artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
                                         playArcadeSound("drag", soundEnabled);
@@ -2513,6 +2537,15 @@ function App() {
                         <span>MOVE HISTORY</span>
                         <i />
                       </div>
+                      {viewingHistory && (
+                        <button
+                          type="button"
+                          className="history-return"
+                          onClick={() => setHistoryMoveIndex(null)}
+                        >
+                          Viewing {Math.floor(historyMoveIndex! / 2) + 1}{historicalMove.color === "w" ? "." : "..."} {historicalMove.san} · Return to live game
+                        </button>
+                      )}
                       <div
                         className="move-log"
                         ref={moveLogRef}
@@ -2527,9 +2560,17 @@ function App() {
                           </div>
                         ) : (
                           moveHistory.map((move, index) => (
-                            <div
-                              className={`move-log-row ${index === moveHistory.length - 1 ? "move-log-current" : ""}`}
+                            <button
+                              type="button"
+                              className={`move-log-row ${index === (historyMoveIndex ?? moveHistory.length - 1) ? "move-log-current" : ""}`}
                               key={`${move.color}-${move.from}-${move.to}-${index}`}
+                              aria-label={`View position after ${Math.floor(index / 2) + 1}${move.color === "w" ? "." : "..."} ${move.san}`}
+                              aria-pressed={index === (historyMoveIndex ?? moveHistory.length - 1)}
+                              onClick={() => {
+                                setSelectedSquare(null);
+                                setPremove(null);
+                                setHistoryMoveIndex(index === moveHistory.length - 1 ? null : index);
+                              }}
                             >
                               <span className="move-turn">
                                 {String(Math.floor(index / 2) + 1).padStart(
@@ -2545,7 +2586,7 @@ function App() {
                               <span className="move-coords">
                                 {move.from}→{move.to}
                               </span>
-                            </div>
+                            </button>
                           ))
                         )}
                       </div>
@@ -2602,7 +2643,7 @@ function App() {
             <div className="modal-emblem">
               <Gamepad2 size={25} />
             </div>
-            {user ? (
+            {user && !recoveringPassword ? (
               <>
                 <div className="modal-eyebrow">
                   <span /> PLAYER PROFILE
@@ -2615,7 +2656,7 @@ function App() {
                 <p className="modal-description">
                   {cloudSyncError
                     ? "Some progress is saved locally and will retry when connectivity returns."
-                    : "Your arcade run is synced. Keep climbing the leaderboard."}
+                    : !authReady ? "Loading your saved progress..." : "Your arcade run is synced. Keep climbing the leaderboard."}
                 </p>
                 <div className="account-stats">
                   <span>
@@ -2631,63 +2672,20 @@ function App() {
                 >
                   <LogIn size={16} /> SIGN OUT
                 </button>
+                {accountMessage && <p className="auth-feedback auth-error" role="alert">{accountMessage}</p>}
               </>
             ) : (
-              <>
-                <div className="modal-eyebrow">
-                  <span /> ARCADE ID // OPTIONAL
-                </div>
-                <h2 id="auth-title">
-                  SAVE YOUR
-                  <br />
-                  <em>HIGH SCORE</em>
-                </h2>
-                <p className="modal-description">
-                  Sign in to sync progress between machines. Or keep playing as
-                  a guest — your run saves on this device.
-                </p>
-                <div className="social-login-list">
-                  <button
-                    className="social-button google-button"
-                    onClick={() => void signIn("google")}
-                  >
-                    <span className="google-g">G</span> CONTINUE WITH GOOGLE{" "}
-                    <ArrowRight size={15} />
-                  </button>
-                  <button
-                    className="social-button"
-                    onClick={() => void signIn("facebook")}
-                  >
-                    <span className="facebook-f">f</span> CONTINUE WITH FACEBOOK{" "}
-                    <ArrowRight size={15} />
-                  </button>
-                  <button
-                    className="social-button"
-                    onClick={() => void signIn("github")}
-                  >
-                    <Github size={16} /> CONTINUE WITH GITHUB{" "}
-                    <ArrowRight size={15} />
-                  </button>
-                </div>
-                {authMessage && (
-                  <p className="auth-message" role="alert">
-                    {authMessage}
-                  </p>
-                )}
-                {!authReady && (
-                  <p className="auth-message">Checking your arcade ID…</p>
-                )}
-                <button
-                  className="guest-link"
-                  onClick={() => setAuthOpen(false)}
-                >
-                  <ArrowDownToLine size={14} /> KEEP PLAYING AS GUEST
-                </button>
-                <p className="privacy-note">
-                  <LockKeyhole size={11} /> YOUR PROGRESS STAYS YOURS. NO SPAM,
-                  JUST CHECKMATE.
-                </p>
-              </>
+              <AuthForm
+                client={supabase}
+                redirectError={authRedirectError}
+                recovering={recoveringPassword}
+                onRecoveryComplete={() => {
+                  setRecoveringPassword(false);
+                  setAuthOpen(false);
+                  showToast("PASSWORD UPDATED");
+                }}
+                onGuest={() => setAuthOpen(false)}
+              />
             )}
           </section>
         </div>

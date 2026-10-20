@@ -15,6 +15,64 @@
     --gold: #ffbe43;
 }
 
+.navigation-toggle {
+    order: 4;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 28px;
+    margin-left: 12px;
+    padding: 4px 8px;
+    border: 1px solid #5266b1;
+    border-radius: 4px;
+    background: #111b43;
+    color: #d4dcfa;
+    font: 10px var(--mono);
+    cursor: pointer;
+}
+
+.navigation-toggle:hover { background: #1a2a64; }
+button.move-log-row {
+    width: 100%;
+    flex-shrink: 0;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid #334479;
+    background: transparent;
+    color: #d4dcfa;
+    cursor: pointer;
+}
+button.move-log-row:hover { background: #1a2a64; }
+button.move-log-row.move-log-current { background: #253b72; color: #c7ff3d; }
+.history-return {
+    flex-shrink: 0;
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid #5266b1;
+    border-radius: 4px;
+    background: #111b43;
+    color: #9feaff;
+    font: 11px/1.5 var(--mono);
+    cursor: pointer;
+}
+.navigation-toggle svg { transform: rotate(-90deg); }
+.topbar.is-collapsed .navigation-toggle svg { transform: rotate(90deg); }
+.topbar.is-collapsed > :not(.navigation-toggle) { display: none; }
+.topbar.is-collapsed,
+.app-shell-battle > .topbar.is-collapsed {
+    height: 32px;
+    min-height: 32px;
+    flex: 0 0 32px;
+    justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+    .navigation-toggle { margin-left: 6px; padding: 4px; }
+    .navigation-toggle span { display: none; }
+}
+
 body {
     background: #050608;
 }
