@@ -1,11 +1,21 @@
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 export const PIECE_CHOICES = [
+  { id: "arctic-3d", label: "Arctic 3D" },
+  { id: "candy-3d", label: "Candy 3D" },
   { id: "classic-2d", label: "Classic 2D" },
+  { id: "egypt-3d", label: "Egypt 3D" },
+  { id: "forest-3d", label: "Forest 3D" },
+  { id: "gothic-3d", label: "Gothic 3D" },
   { id: "granite-3d", label: "Granite 3D" },
   { id: "medieval-3d", label: "Medieval 3D" },
+  { id: "norse-3d", label: "Norse 3D" },
+  { id: "ocean-3d", label: "Ocean 3D" },
+  { id: "samurai-3d", label: "Samurai 3D" },
   { id: "scifi-3d", label: "Sci-Fi 3D" },
+  { id: "space-3d", label: "Space 3D" },
   { id: "sports-3d", label: "Sports 3D" },
+  { id: "steampunk-3d", label: "Steampunk 3D" },
 ] as const;
 
 export type PieceStyle = (typeof PIECE_CHOICES)[number]["id"];

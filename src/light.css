@@ -2476,6 +2476,16 @@ body,
     animation: boss-miniature-hover 2.6s ease-in-out infinite;
 }
 
+.boss-character-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+}
+
 .boss-portrait-gem {
     position: absolute;
     z-index: 3;

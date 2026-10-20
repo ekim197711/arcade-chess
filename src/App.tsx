@@ -112,6 +112,29 @@ const BOSS_NAMES = [
   "Matchpoint Max",
   "Checkmate Cindy",
 ];
+const BOSS_CHARACTER_SLUGS: Record<string, string> = {
+  "Blunder Benny": "blunder-benny",
+  "Pawnshop Penny": "pawnshop-penny",
+  "Forklift Frankie": "forklift-frankie",
+  "Rook'n'Roll Ricky": "rook-n-roll-ricky",
+  "Double-Step Dixie": "double-step-dixie",
+  "Checkers Chuck": "checkers-chuck",
+  "Gambit Gus": "gambit-gus",
+  "En Passant Eddie": "en-passant-eddie",
+  "Castle Crash Casey": "castle-crash-casey",
+  "Pinball Piper": "pinball-piper",
+  "Knight Shift Nate": "knight-shift-nate",
+  "Bishop Bop Beatrice": "bishop-bop-beatrice",
+  "Backrank Benny": "backrank-benny",
+  "Skewer Scooter": "skewer-scooter",
+  "Battery Belle": "battery-belle",
+};
+
+function bossPortrait(character: string, expression = "focused"): string {
+  // Belle only has a focused portrait until her remaining expressions arrive.
+  const availableExpression = character === "battery-belle" ? "focused" : expression;
+  return `/characters/${character}/${availableExpression}.png`;
+}
 const BOSS_MASCOTS = [
   "👹",
   "🦊",
@@ -143,6 +166,26 @@ const BOSS_ARCHETYPES = [
       "That move belongs in the blunder museum!",
       "Keep feeding me pieces, button-masher.",
       "Your king's already writing its resignation.",
+      "That wasn't a fork. You just dropped the cutlery.",
+      "Your knight took an L. Literally and emotionally.",
+      "{pilot}, is this an opening or a garage sale?",
+      "Your pawns want a union. The working conditions are awful.",
+      "I've seen scarier attacks from a low-battery notification.",
+      "Your bishop went diagonal just to avoid this conversation.",
+      "You call it a sacrifice. I call it free delivery.",
+      "Your king moves one square because that's all he can afford.",
+      "Your rook has spent so long in that corner it's paying rent.",
+      "{pilot}, your attack came with batteries not included.",
+      "That pawn's not passed. It's just lost.",
+      "Your king tried to castle. The mortgage was declined.",
+      "Your pieces are holding a meeting. You're not invited.",
+      "I've seen tighter formations in a bag of popcorn.",
+      "Your knight jumps over pieces to avoid being seen with them.",
+      "That move came straight from the bottom of the cereal box.",
+      "Your bishop's praying. I'm starting to understand why.",
+      "I'd explain the threat, but your king just fainted.",
+      "Your pawn reached the other side and asked for a different manager.",
+      "Your plan has more holes than my victory socks.",
     ],
   },
   {
@@ -153,6 +196,26 @@ const BOSS_ARCHETYPES = [
       "I've got more strategy in my boot screen!",
       "Your queen called. She wants a better pilot.",
       "Stop polishing that blunder and resign!",
+      "Your queen has nine directions: eight away from you, plus quit.",
+      "{pilot}, your strategy has the structural integrity of soup.",
+      "That move needs a loading screen and an apology.",
+      "Your rook asked for a transfer. To checkers.",
+      "I set a trap. You brought snacks and moved in.",
+      "Your pieces aren't hanging. They're doing extreme yoga.",
+      "You developed your pieces straight into my lunch break.",
+      "Even the undo button needs a minute after that one.",
+      "Your position has been rated E for Easily Captured.",
+      "{pilot}, did you select hard mode for your own pieces?",
+      "Your queen rage-quit. That's why she left the board.",
+      "That move unlocked an achievement: Oh No, Again.",
+      "Your combo is blunder, blunder, loading screen.",
+      "I'd offer you a hint, but we'd need a bigger text box.",
+      "Your strategy guide is just a picture of crossed fingers.",
+      "Your king's health bar just filed a complaint.",
+      "You found the secret level. It's underneath rock bottom.",
+      "That move had a cutscene. Everyone skipped it.",
+      "Your pieces keep respawning in my trophy cabinet.",
+      "Even the attract mode is trying to look away.",
     ],
   },
   {
@@ -163,6 +226,26 @@ const BOSS_ARCHETYPES = [
       "I could mate you with my eyes closed!",
       "Nice move. Did you borrow it from a pigeon?",
       "Your king's in more danger than a floppy in a magnet shop!",
+      "{pilot}, your defense has a welcome mat.",
+      "Your king went for a swim. I brought the shark music.",
+      "I smell a tactic. Oh, wait. That's your position burning.",
+      "Your opening book appears to be a takeaway menu.",
+      "That pawn push had all the menace of a damp sock.",
+      "You're playing the long game. The very, very wrong game.",
+      "Your knight needs a satnav and a responsible adult.",
+      "You left that piece undefended. I respect the buffet format.",
+      "{pilot}, your king's escape route is a waterslide into my mouth.",
+      "Your attack made a splash. Mostly from falling overboard.",
+      "I circled your weakness. Then ran out of pencil.",
+      "Your pawn chain is held together with wet spaghetti.",
+      "That knight is less cavalry, more pony ride outside a supermarket.",
+      "Your queen's on a fishing trip. Shame about the hook.",
+      "You're in deep water. Your rook appears to be inflatable.",
+      "Your defense is a lifeguard who's afraid of water.",
+      "I didn't bait that trap. You brought your own worm.",
+      "Your king packed a snorkel. I admire the optimism.",
+      "Your pieces formed a school. Nobody's passing.",
+      "That move was chum. Very thoughtful of you.",
     ],
   },
   {
@@ -173,6 +256,26 @@ const BOSS_ARCHETYPES = [
       "Your tactics are a rounding error, meatbag!",
       "I've seen better defense on a loading screen.",
       "Surrender now; save what's left of your dignity.",
+      "Error 404: compensation for that sacrifice not found.",
+      "{pilot}, I ran your plan through spellcheck. It suggested 'panic'.",
+      "Your king's firewall is made of cardboard.",
+      "Scanning for threats... found one mildly annoyed pawn.",
+      "I put your tactics in the recycle bin. It spat them back.",
+      "Your position requires a patch. Possibly a whole new board.",
+      "Beep boop. That blunder is now backed up to the cloud.",
+      "Your pieces have entered power-saving mode. Permanently.",
+      "{pilot}, your king has requested two-factor protection.",
+      "I simulated your victory. The program crashed from disbelief.",
+      "Your plan fits in one byte. Seven bits are still available.",
+      "Task failed successfully. Your queen is gone.",
+      "Your knight has Bluetooth. Unfortunately, it's paired with checkers.",
+      "I asked the printer for your winning chances. It sent a blank page.",
+      "Your bishop is running diagonally on Windows 95.",
+      "Your defense uses the password 'password'.",
+      "I'm not overheating. I'm laughing in binary.",
+      "Your king clicked 'accept all threats'.",
+      "Your tactics are still buffering. I'll capture something while we wait.",
+      "I benchmarked your opening. The toaster won.",
     ],
   },
   {
@@ -183,6 +286,26 @@ const BOSS_ARCHETYPES = [
       "I predicted that blunder before you were born!",
       "Your opening was an invitation to get crushed.",
       "This is the part where the hero loses, rookie.",
+      "I prepared a villain speech. Your move was funnier.",
+      "{pilot}, that castle has a revolving door.",
+      "Your counterattack arrived with a tiny white flag.",
+      "I was going to set a trap, but you dug your own.",
+      "Your queen deserves a better supporting cast.",
+      "That wasn't a gambit. That was a donation with extra steps.",
+      "Your master plan has a suspicious number of question marks.",
+      "I ordered an epic battle. This came with training wheels.",
+      "{pilot}, even my evil cat thinks that was excessive.",
+      "My henchmen built a death ray. Your moves are cheaper.",
+      "I'd reveal my evil plan, but yours is doing all the work.",
+      "Your rescue mission now requires a rescue mission.",
+      "Your king's dramatic escape is just walking into another threat.",
+      "That bishop has the energy of a substitute henchman.",
+      "I practiced my evil laugh. Please stop making me snort.",
+      "Your queen came to defeat me and stayed for the dental plan.",
+      "Your plot armor appears to be made of tissue paper.",
+      "The prophecy mentioned a worthy opponent. Are they parking?",
+      "You stormed my fortress through the gift shop.",
+      "Your heroic comeback has been postponed due to missing heroes.",
     ],
   },
   {
@@ -193,6 +316,26 @@ const BOSS_ARCHETYPES = [
       "I have more processing power in one pawn.",
       "Your best move is to pull the plug and run.",
       "Checkmate is coming. Try not to cry in 16-bit.",
+      "{pilot}, your king is now accepting thoughts and prayers.",
+      "I breathe fire. You blunder fuel. We make a great team.",
+      "Your fortress is three pawns in a trench coat.",
+      "That move will look lovely on my victory screen.",
+      "Your endgame needs a sequel where you still have pieces.",
+      "I hoard gold. Apparently you hoard positional problems.",
+      "Your knight brought a wooden sword to a dragon fight.",
+      "Insert another coin. This one's paying for my snacks.",
+      "{pilot}, I sneezed and your kingside became a historical site.",
+      "Your rook is crunchy. Is there another one?",
+      "Your knight's brave speech lasted longer than your attack.",
+      "I sleep on treasure. You'll be sleeping on that blunder.",
+      "Your king offered me a pawn. I asked if it came in a family bucket.",
+      "That castle isn't fireproof. It's barely chessproof.",
+      "Your army brought marshmallows. Finally, a sensible plan.",
+      "My hoard has gold, jewels, and all your missing pieces.",
+      "You sent a knight to slay me. He asked for a selfie.",
+      "Your attack tickled. Do the other wing.",
+      "Your queen demanded a rematch. I admire her frequent-flyer spirit.",
+      "The final boss music started. Your king asked to turn it down.",
     ],
   },
 ];
@@ -202,6 +345,7 @@ const BOSSES = Array.from({ length: 59 }, (_, index) => {
     name: BOSS_NAMES[index]!,
     elo: 100 + index * 50,
     icon: BOSS_MASCOTS[index % BOSS_MASCOTS.length]!,
+    character: BOSS_CHARACTER_SLUGS[BOSS_NAMES[index]!],
     color: archetype.color,
     chessColor: index % 2 === 0 ? ("w" as const) : ("b" as const),
     taunts: archetype.taunts,
@@ -353,7 +497,7 @@ type PendingResult = {
 };
 type BotMoveData = { from: Square; to: Square; promotion?: string };
 type Premove = { from: Square; to: Square };
-type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string };
+type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
 
 const EMPTY_PROGRESS: Progress = {
@@ -589,6 +733,19 @@ function playBoardSound(kind: BoardSound, enabled: boolean, theme: SoundTheme) {
   }
 }
 
+let soundThemePreview: HTMLAudioElement | null = null;
+function previewSoundTheme(theme: SoundTheme, enabled: boolean) {
+  if (!enabled) return;
+  try {
+    soundThemePreview?.pause();
+    soundThemePreview = new Audio(`/sound-board-theme/${theme}/preview.wav`);
+    soundThemePreview.volume = 0.65 * arcadeSfxVolume;
+    void soundThemePreview.play().catch(() => {});
+  } catch {
+    // Theme previews are optional; gameplay remains available if audio is blocked.
+  }
+}
+
 function boardSoundForMove(move: {
   flags: string;
   san: string;
@@ -796,7 +953,9 @@ function readSavedMatch(): SavedMatch | null {
     return {
       bossIndex: value.bossIndex!,
       pgn: value.pgn,
-      id: value.id,
+      id: typeof value.id === "string" ? value.id : undefined,
+      startedAt: typeof value.startedAt === "string" && Number.isFinite(Date.parse(value.startedAt))
+        ? value.startedAt : undefined,
       tauntIndex: Math.max(0, Math.floor(Number(value.tauntIndex) || 0)),
     };
   } catch {
@@ -878,8 +1037,10 @@ function App() {
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
   const [history, setHistory] = useState(readHistory);
   const [historyError, setHistoryError] = useState(false);
-  const matchId = useRef<string>(crypto.randomUUID());
-  const matchStarted = useRef(new Date().toISOString());
+  const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
+  const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
+  const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
+  const matchSaveFailed = useRef(false);
   const [route, setRoute] = useState(readPageRoute);
   const screen = route.split("/")[0];
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
@@ -890,21 +1051,23 @@ function App() {
   }, []);
   const selectedMatch = history.find((match) => match.id === route.split("/")[1]);
   const [bossIndex, setBossIndex] = useState(() =>
-    Math.min(readProgress().bossesDefeated, BOSSES.length - 1),
-  );
-  const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(() =>
-    readSavedMatch(),
+    savedMatch?.bossIndex ?? Math.min(readProgress().bossesDefeated, BOSSES.length - 1),
   );
 
   const [coinCount, setCoinCount] = useState(readCoinCount);
-  const [tauntIndex, setTauntIndex] = useState(0);
+  const [tauntIndex, setTauntIndex] = useState(savedMatch?.tauntIndex ?? 0);
   const [excuseIndex, setExcuseIndex] = useState(0);
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
-  const [pgn, setPgn] = useState("");
+  const [pgn, setPgn] = useState(savedMatch?.pgn ?? "");
+  const [reviewPly, setReviewPly] = useState<number | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(
-    null,
+    () => {
+      const moves = restoreGame(savedMatch?.pgn ?? "").history({ verbose: true });
+      const move = moves[moves.length - 1];
+      return move ? { from: move.from, to: move.to } : null;
+    },
   );
   const [thinking, setThinking] = useState(false);
   const [resigned, setResigned] = useState(false);
@@ -931,10 +1094,19 @@ function App() {
 
   const game = useMemo(() => restoreGame(pgn), [pgn]);
   const fen = game.fen();
+  const moveHistory = useMemo(() => game.history({ verbose: true }), [game]);
+  const reviewing = reviewPly !== null;
+  const viewedMove = reviewing ? moveHistory[reviewPly - 1] : null;
+  const viewedGame = useMemo(
+    () => viewedMove ? new Chess(viewedMove.after) : game,
+    [game, viewedMove],
+  );
+  const viewedLastMove = reviewing ? viewedMove : lastMove;
   const boss = BOSSES[bossIndex] ?? BOSSES[0]!;
   const playerColor: PieceColor = boss.chessColor === "w" ? "b" : "w";
   const premoveTurn =
     screen === "battle" &&
+    !reviewing &&
     game.turn() === boss.chessColor &&
     !game.isGameOver() &&
     !resigned;
@@ -945,23 +1117,23 @@ function App() {
       w: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
       b: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
     };
-    for (const move of game.history({ verbose: true })) {
+    for (const move of moveHistory.slice(0, reviewPly ?? moveHistory.length)) {
       if (move.captured) {
         const capturedColor = move.color === "w" ? "b" : "w";
         counts[capturedColor][move.captured] += 1;
       }
     }
     return counts;
-  }, [game]);
+  }, [moveHistory, reviewPly]);
   const materialOnBoard = useMemo(() => {
     const totals: Record<PieceColor, number> = { w: 0, b: 0 };
-    for (const rank of game.board()) {
+    for (const rank of viewedGame.board()) {
       for (const piece of rank) {
         if (piece) totals[piece.color] += MATERIAL_POINTS[piece.type];
       }
     }
     return totals;
-  }, [game]);
+  }, [viewedGame]);
   const materialAdvantage =
     materialOnBoard[playerColor] - materialOnBoard[boss.chessColor];
   const materialLeadLabel =
@@ -977,12 +1149,26 @@ function App() {
         ? "material-boss-ahead"
         : "material-even";
   const legalMoves = useMemo(() => {
-    if (!selectedSquare) return [];
+    if (reviewing || !selectedSquare) return [];
     return premoveTurn
       ? getPremoveTargets(fen, selectedSquare, playerColor)
       : legalTargets(fen, selectedSquare);
-  }, [fen, playerColor, premoveTurn, selectedSquare]);
+  }, [fen, playerColor, premoveTurn, reviewing, selectedSquare]);
   const currentResult = resigned ? "loss" : resultFor(game, boss.chessColor);
+  // Save both sides' moves, including positions where the bot still needs to play.
+  useEffect(() => {
+    if (screen === "battle" && !currentResult) persistCurrentMatch();
+  }, [pgn, bossIndex, tauntIndex, screen, currentResult, matchId.current]);
+  const bossExpression =
+    currentResult === "win"
+      ? "lost"
+      : currentResult === "loss"
+        ? "won"
+        : opponentMood === "angry"
+          ? "angry"
+          : opponentMood === "happy"
+            ? "taunting"
+            : "focused";
   useEffect(() => {
     if (screen !== "battle") return;
     const record: ArchivedMatch = {
@@ -1038,10 +1224,10 @@ function App() {
   }, [screen, bossIndex]);
 
   useEffect(() => {
-    if (bossIndex > progress.bossesDefeated) {
+    if (bossIndex > progress.bossesDefeated && savedMatch?.bossIndex !== bossIndex) {
       newGame(progress.bossesDefeated);
     }
-  }, [bossIndex, progress.bossesDefeated]);
+  }, [bossIndex, progress.bossesDefeated, savedMatch?.bossIndex]);
 
   useEffect(() => {
     try {
@@ -1504,6 +1690,7 @@ function App() {
   useEffect(() => {
     if (
       screen !== "battle" ||
+      reviewing ||
       currentResult ||
       game.turn() !== boss.chessColor ||
       game.isGameOver()
@@ -1561,6 +1748,7 @@ function App() {
     soundEnabled,
     soundTheme,
     currentResult,
+    reviewing,
   ]);
 
   function showToast(message: string) {
@@ -1597,6 +1785,15 @@ function App() {
     }
   }
 
+  function tauntBoss() {
+    if (screen !== "battle" || currentResult) return;
+    setOpponentMood("angry");
+    setOpponentLine({ label: "TAUNT", text: currentTaunt });
+    setTauntIndex((index) => index + 1);
+    window.clearTimeout(moodTimer.current);
+    moodTimer.current = window.setTimeout(() => setOpponentMood(null), 2500);
+  }
+
   function showCaptureReaction(capturingColor: PieceColor) {
     const bossCaptured = capturingColor === boss.chessColor;
     setOpponentMood(bossCaptured ? "happy" : "angry");
@@ -1612,6 +1809,11 @@ function App() {
     }
     window.clearTimeout(moodTimer.current);
     moodTimer.current = window.setTimeout(() => setOpponentMood(null), 1500);
+  }
+
+  function chooseSoundTheme(theme: SoundTheme) {
+    setSoundTheme(theme);
+    previewSoundTheme(theme, soundEnabled);
   }
 
   function fallbackBotMove(positionFen: string) {
@@ -1665,7 +1867,7 @@ function App() {
   }
 
   function makeMove(from: Square, to: Square) {
-    if (currentResult) return false;
+    if (currentResult || reviewing) return false;
     if (premoveTurn) {
       if (
         game.get(from)?.color !== playerColor ||
@@ -1697,7 +1899,7 @@ function App() {
   }
 
   function handleSquareClick(square: Square) {
-    if (currentResult || (thinking && !premoveTurn)) return;
+    if (reviewing || currentResult || (thinking && !premoveTurn)) return;
     const piece = game.get(square);
     if (selectedSquare && legalMoves.includes(square)) {
       makeMove(selectedSquare, square);
@@ -1727,16 +1929,22 @@ function App() {
     setSavedMatch(null);
   }
 
-  function saveMatchForLater() {
-    if (currentResult) return;
-    const match = { bossIndex, pgn, tauntIndex, id: matchId.current };
+  function persistCurrentMatch() {
+    const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current };
     try {
       localStorage.setItem(SAVED_MATCH_KEY, JSON.stringify(match));
     } catch {
-      showToast("MATCH COULD NOT BE SAVED — KEEP PLAYING");
-      return;
+      if (!matchSaveFailed.current) showToast("MATCH COULD NOT BE SAVED — KEEP PLAYING");
+      matchSaveFailed.current = true;
+      return false;
     }
+    matchSaveFailed.current = false;
     setSavedMatch(match);
+    return true;
+  }
+
+  function saveMatchForLater() {
+    if (currentResult || !persistCurrentMatch()) return;
     setPremove(null);
     setSelectedSquare(null);
     setThinking(false);
@@ -1748,8 +1956,9 @@ function App() {
   }
 
   function resumeSavedMatch(match: SavedMatch) {
+    setReviewPly(null);
     matchId.current = match.id ?? crypto.randomUUID();
-    matchStarted.current = history.find((item) => item.id === matchId.current)?.startedAt ?? new Date().toISOString();
+    matchStarted.current = match.startedAt ?? history.find((item) => item.id === matchId.current)?.startedAt ?? new Date().toISOString();
     const restored = restoreGame(match.pgn);
     const restoredMoves = restored.history({ verbose: true });
     const lastMove = restoredMoves[restoredMoves.length - 1];
@@ -1788,6 +1997,7 @@ function App() {
   }
 
   function newGame(index = bossIndex) {
+    setReviewPly(null);
     matchId.current = crypto.randomUUID();
     matchStarted.current = new Date().toISOString();
     if (savedMatch?.bossIndex === index) clearSavedMatch(index);
@@ -1829,11 +2039,15 @@ function App() {
     showToast("SIGNED OUT — GUEST MODE ACTIVE");
   }
 
-  const moveHistory = game.history({ verbose: true });
+  function viewHistoryMove(ply: number) {
+    setReviewPly(ply === moveHistory.length ? null : ply);
+    setPremove(null);
+    setSelectedSquare(null);
+  }
 
   useEffect(() => {
     if (!premove) return;
-    if (screen !== "battle" || game.isGameOver()) {
+    if (reviewing || screen !== "battle" || game.isGameOver()) {
       setPremove(null);
       setSelectedSquare(null);
       return;
@@ -1857,13 +2071,14 @@ function App() {
     screen,
     soundEnabled,
     thinking,
+    reviewing,
   ]);
 
   useEffect(() => {
     const moveLog = moveLogRef.current;
-    if (screen !== "battle" || !moveLog) return;
+    if (reviewing || screen !== "battle" || !moveLog) return;
     moveLog.scrollTop = moveLog.scrollHeight;
-  }, [moveHistory.length, screen]);
+  }, [moveHistory.length, screen, reviewing]);
 
   return (
     <div
@@ -2005,7 +2220,7 @@ function App() {
                 <p>Choose a soft sound palette for every chess action.</p>
                 <div className="sound-theme-options" role="group" aria-label="Choose board sound effects">
                   {SOUND_THEMES.map((theme) => (
-                    <button className="piece-theme-option sound-theme-option" type="button" key={theme} aria-pressed={soundTheme === theme} aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`} onClick={() => setSoundTheme(theme)}>
+                    <button className="piece-theme-option sound-theme-option" type="button" key={theme} aria-pressed={soundTheme === theme} aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`} onClick={() => chooseSoundTheme(theme)}>
                       {theme.replaceAll("-", " ").toUpperCase()}
                     </button>
                   ))}
@@ -2271,9 +2486,17 @@ function App() {
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="boss-line-portrait" aria-hidden="true">
-                          <span className="boss-portrait-mascot">
-                            {entry.icon}
-                          </span>
+                          {entry.character ? (
+                            <img
+                              className="boss-character-image"
+                              src={bossPortrait(entry.character)}
+                              alt=""
+                            />
+                          ) : (
+                            <span className="boss-portrait-mascot">
+                              {entry.icon}
+                            </span>
+                          )}
                         </span>
                         <span className="boss-line-name">
                           <strong>{entry.name}</strong>
@@ -2337,18 +2560,30 @@ function App() {
                     >
                       <section className="player-bar opponent-bar">
                         <div className="opponent-summary">
-                          <div
+                          <button
+                            type="button"
                             className={`opponent-portrait boss-${boss.color}`}
+                            onClick={tauntBoss}
+                            aria-label={`Provoke ${boss.name}`}
+                            title="Click to provoke the boss"
+                            disabled={Boolean(currentResult)}
                           >
-                            <span>
-                              {opponentMood === "angry"
-                                ? "😠"
-                                : opponentMood === "happy"
-                                  ? "😄"
-                                  : boss.icon}
-                            </span>
+                            {boss.character ? (
+                              <img
+                                src={bossPortrait(boss.character, bossExpression)}
+                                alt=""
+                              />
+                            ) : (
+                              <span>
+                                {opponentMood === "angry"
+                                  ? "😠"
+                                  : opponentMood === "happy"
+                                    ? "😄"
+                                    : boss.icon}
+                              </span>
+                            )}
                             <i />
-                          </div>
+                          </button>
                           <div className="opponent-info">
                             <span className="hud-label">OPPONENT</span>
                             <strong>{boss.name}</strong>
@@ -2370,6 +2605,32 @@ function App() {
                           </div>
                         )}
                       </section>
+                      <div className="opponent-actions opponent-actions-stacked">
+                        <button
+                          className="opponent-action-button resign-action"
+                          type="button"
+                          onClick={resignMatch}
+                          disabled={Boolean(currentResult)}
+                        >
+                          <Flag size={15} /> RESIGN
+                        </button>
+                        <button
+                          className="opponent-action-button resign-action try-again-action"
+                          type="button"
+                          onClick={() => newGame()}
+                          disabled={thinking}
+                        >
+                          <RotateCcw size={15} /> TRY AGAIN
+                        </button>
+                        <button
+                          className="opponent-action-button save-later-action"
+                          type="button"
+                          onClick={saveMatchForLater}
+                          disabled={Boolean(currentResult)}
+                        >
+                          <Bookmark size={15} /> SAVE FOR LATER
+                        </button>
+                      </div>
                       <section
                         className="piece-theme-picker"
                         aria-label="Piece designs"
@@ -2462,39 +2723,13 @@ function App() {
                               key={theme}
                               aria-pressed={soundTheme === theme}
                               aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`}
-                              onClick={() => setSoundTheme(theme)}
+                              onClick={() => chooseSoundTheme(theme)}
                             >
                               {theme.replaceAll("-", " ").toUpperCase()}
                             </button>
                           ))}
                         </div>
                       </section>
-                      <div className="opponent-actions opponent-actions-stacked">
-                        <button
-                          className="opponent-action-button resign-action"
-                          type="button"
-                          onClick={resignMatch}
-                          disabled={Boolean(currentResult)}
-                        >
-                          <Flag size={15} /> RESIGN
-                        </button>
-                        <button
-                          className="opponent-action-button resign-action try-again-action"
-                          type="button"
-                          onClick={() => newGame()}
-                          disabled={thinking}
-                        >
-                          <RotateCcw size={15} /> TRY AGAIN
-                        </button>
-                        <button
-                          className="opponent-action-button save-later-action"
-                          type="button"
-                          onClick={saveMatchForLater}
-                          disabled={Boolean(currentResult)}
-                        >
-                          <Bookmark size={15} /> SAVE FOR LATER
-                        </button>
-                      </div>
                     </div>
                   </aside>
                   <article className="cabinet" aria-label="Chess game">
@@ -2524,12 +2759,12 @@ function App() {
                             <div
                               className="chessboard"
                               role="group"
-                              aria-label={`Chess board. You are playing as ${playerColor === "w" ? "white" : "black"}.`}
+                              aria-label={`Chess board. ${reviewing ? `Reviewing after move ${Math.ceil(reviewPly / 2)} ${viewedMove?.san}.` : `You are playing as ${playerColor === "w" ? "white" : "black"}.`}`}
                             >
                               {boardRanks.map((rank) =>
                                 boardFiles.map((file, fileIndex) => {
                                   const square = `${file}${rank}` as Square;
-                                  const piece = game.get(square);
+                                  const piece = viewedGame.get(square);
                                   const isLight =
                                     (rank + FILES.indexOf(file)) % 2 === 0;
                                   const isLegal = legalMoves.includes(square);
@@ -2537,8 +2772,8 @@ function App() {
                                     premoveTurn && isLegal;
                                   const isSelected = selectedSquare === square;
                                   const isLast =
-                                    lastMove?.from === square ||
-                                    lastMove?.to === square;
+                                    viewedLastMove?.from === square ||
+                                    viewedLastMove?.to === square;
                                   const pieceName = piece
                                     ? `${piece.color === playerColor ? "Your" : "Boss"} ${PIECE_NAMES[piece.type]}`
                                     : "empty square";
@@ -2550,8 +2785,8 @@ function App() {
                                       aria-pressed={isSelected}
                                       onClick={() => handleSquareClick(square)}
                                       square={square}
-                                      canDrag={piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
-                                      positionKey={fen}
+                                      canDrag={!reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
+                                      positionKey={viewedGame.fen()}
                                       artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
                                         playBoardSound("select", soundEnabled, soundTheme);
@@ -2649,7 +2884,9 @@ function App() {
                           <span className="hud-label">YOU</span>
                           <strong>{user ? playerName : "GUEST PLAYER"}</strong>
                           <span className="opponent-quip">
-                            {currentResult === "win"
+                            {reviewing
+                              ? "Reviewing an earlier position."
+                              : currentResult === "win"
                               ? "Boss down. Next challenger?"
                               : "Your move, challenger."}
                           </span>
@@ -2658,7 +2895,9 @@ function App() {
                               className={`turn-light ${thinking ? "turn-thinking" : ""}`}
                             />
                             <span>
-                              {currentResult
+                              {reviewing
+                                ? "REVIEWING MOVE"
+                                : currentResult
                                 ? "MATCH OVER"
                                 : thinking
                                   ? "BOT THINKING"
@@ -2766,6 +3005,14 @@ function App() {
                         <span>MOVE HISTORY</span>
                         <i />
                       </div>
+                      {reviewing && (
+                        <div className="history-review-controls" role="status">
+                          <span>VIEWING {Math.ceil(reviewPly / 2)}{viewedMove?.color === "w" ? "." : "..."} {viewedMove?.san}</span>
+                          <button type="button" onClick={() => setReviewPly(null)}>
+                            RESUME
+                          </button>
+                        </div>
+                      )}
                       <div
                         className="move-log"
                         ref={moveLogRef}
@@ -2780,9 +3027,13 @@ function App() {
                           </div>
                         ) : (
                           moveHistory.map((move, index) => (
-                            <div
-                              className={`move-log-row ${index === moveHistory.length - 1 ? "move-log-current" : ""}`}
+                            <button
+                              type="button"
+                              className={`move-log-row ${index === (reviewPly ?? moveHistory.length) - 1 ? "move-log-current" : ""}`}
                               key={`${move.color}-${move.from}-${move.to}-${index}`}
+                              onClick={() => viewHistoryMove(index + 1)}
+                              aria-pressed={index === (reviewPly ?? moveHistory.length) - 1}
+                              aria-label={`${index === moveHistory.length - 1 ? "Resume at" : "View"} move ${Math.floor(index / 2) + 1}${move.color === "w" ? "." : "..."} ${move.san}`}
                             >
                               <span className="move-turn">
                                 {String(Math.floor(index / 2) + 1).padStart(
@@ -2798,7 +3049,7 @@ function App() {
                               <span className="move-coords">
                                 {move.from}→{move.to}
                               </span>
-                            </div>
+                            </button>
                           ))
                         )}
                       </div>

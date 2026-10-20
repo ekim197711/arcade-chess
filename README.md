@@ -23,6 +23,7 @@ The browser uses only the Supabase anon key. Never put a service-role key in a `
 ## Game notes
 
 - Legal chess moves, check, checkmate, draws, move history, and promotions are handled by `chess.js`.
+- The current match saves automatically after each player and boss move in this browser. Reloading the battle restores it; use Resume from the roster when returning later. Starting another match replaces the saved match, and finishing or resigning clears it.
 - The current local opponent is a lightweight minimax/search prototype running in a Web Worker, with intentionally varied play. Boss ratings are progression targets, **not calibrated Elo ratings**. For reliable 100–3000 Elo opponents, replace `src/bot.ts` with Stockfish WebAssembly and tune/test each boss strength.
 - Background music uses separate looping tracks from `public/music` for the landing page, boss selection, and chess battle. Arcade sound effects are synthesized with the Web Audio API. Music and sound effects have independent controls, and browsers may wait for the first user interaction before starting audio.
 - Guest scores remain on the current device. Signing in merges locally stored and account-stored counters; it does not provide an anti-cheat leaderboard. Failed cloud game results stay queued locally and retry on the next sign-in or when connectivity returns.
