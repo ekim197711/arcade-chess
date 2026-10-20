@@ -562,14 +562,28 @@ function readSoundTheme(): SoundTheme {
 function playBoardSound(kind: BoardSound, enabled: boolean, theme: SoundTheme) {
   if (!enabled) return;
   try {
+    const context = getAudioContext();
+    if (context.state === "suspended") void context.resume();
     const soundFiles: Record<BoardSound, string> = {
       select: "select", move: "move", check: "check", checkmate: "checkmate",
       capture: "capture-opponent", lost: "piece-lost", "en-passant": "en-passant",
       castling: "castle", timeout: "timeout", resign: "timeout",
     };
-    const audio = new Audio(`/sound-board-theme/${theme}/${soundFiles[kind]}.wav`);
-    audio.volume = 0.65 * arcadeSfxVolume;
-    void audio.play().catch(() => {});
+    const url = `/sound-board-theme/${theme}/${soundFiles[kind]}.wav`;
+    void loadBoardSoundBuffer(url, context).then((buffer) => {
+      if (context.state === "suspended") return context.resume().then(() => buffer);
+      return buffer;
+    }).then((buffer) => {
+      const source = context.createBufferSource();
+      const gain = context.createGain();
+      source.buffer = buffer;
+      gain.gain.setValueAtTime(0.65 * arcadeSfxVolume, context.currentTime);
+      source.connect(gain);
+      gain.connect(context.destination);
+      source.start();
+    }).catch(() => {
+      // Audio is optional; gameplay remains available if the browser blocks it.
+    });
   } catch {
     // Audio is optional; gameplay remains available if the browser blocks it.
   }
@@ -609,6 +623,25 @@ function readVolume(key: string, fallback: number) {
 function getAudioContext() {
   audioContext ??= new AudioContext();
   return audioContext;
+}
+
+const boardSoundBuffers = new Map<string, Promise<AudioBuffer>>();
+function loadBoardSoundBuffer(url: string, context: AudioContext) {
+  let buffer = boardSoundBuffers.get(url);
+  if (!buffer) {
+    buffer = fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Sound file unavailable: ${url}`);
+        return response.arrayBuffer();
+      })
+      .then((data) => context.decodeAudioData(data))
+      .catch((error: unknown) => {
+        boardSoundBuffers.delete(url);
+        throw error;
+      });
+    boardSoundBuffers.set(url, buffer);
+  }
+  return buffer;
 }
 
 function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
@@ -2521,7 +2554,7 @@ function App() {
                                       positionKey={fen}
                                       artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
-                                        playArcadeSound("drag", soundEnabled);
+                                        playBoardSound("select", soundEnabled, soundTheme);
                                         if (premove) setPremove(null);
                                         setSelectedSquare(square);
                                       }}
