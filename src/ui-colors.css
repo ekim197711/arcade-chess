@@ -1,0 +1,102 @@
+/* Shared UI colors. Future themes can override these tokens on .app-shell
+   alongside --panel, --panel-2 and --line, keeping text and surfaces paired. */
+:root {
+    --text-primary: #f4f5f7;
+    --text-secondary: #d5d8df;
+    --text-muted: #b8bec9;
+    --text-on-control: #f4f5f7;
+    --text-feedback: #ffceda;
+    --surface-feedback: #401e38;
+    --focus-ring: var(--text-primary);
+}
+
+.app-shell {
+    --surface-control: var(--panel-2);
+    --surface-control-hover: var(--panel);
+    --surface-dialog: var(--panel);
+    --border-control: var(--line);
+}
+
+.topbar .nav-link {
+    color: var(--text-secondary);
+}
+
+.topbar .nav-active,
+.topbar .nav-link:hover {
+    color: var(--text-primary);
+}
+
+.topbar .sound-button,
+.topbar .login-button,
+.topbar .profile-chip,
+.modal-card .modal-close,
+.modal-card .social-button {
+    color: var(--text-on-control);
+    background: var(--surface-control);
+    border-color: var(--border-control);
+}
+
+.topbar .sound-button:hover,
+.topbar .login-button:hover,
+.topbar .profile-chip:hover,
+.modal-card .modal-close:hover,
+.modal-card .social-button:hover {
+    color: var(--text-on-control);
+    background: var(--surface-control-hover);
+    border-color: var(--text-muted);
+}
+
+.topbar .sound-button svg,
+.topbar .profile-name,
+.modal-card .social-button > svg:last-child,
+.modal-card .google-g,
+.modal-card .facebook-f {
+    color: inherit;
+}
+
+.modal-card {
+    color: var(--text-primary);
+    background: var(--surface-dialog);
+}
+
+.modal-card h2,
+.modal-card h2 em {
+    color: var(--text-primary);
+    text-shadow: none;
+}
+
+.modal-card .modal-description,
+.modal-card .help-steps p {
+    color: var(--text-secondary);
+}
+
+.modal-card .modal-eyebrow,
+.modal-card .privacy-note,
+.modal-card .help-footnote {
+    color: var(--text-muted);
+}
+
+.modal-card .guest-link {
+    color: var(--text-secondary);
+}
+
+.modal-card .guest-link:hover {
+    color: var(--text-primary);
+}
+
+.modal-card .account-stats > span {
+    color: var(--text-on-control);
+    background: var(--surface-control);
+    border-color: var(--border-control);
+}
+
+.modal-card .auth-message {
+    color: var(--text-feedback);
+    background: var(--surface-feedback);
+}
+
+.topbar button:focus-visible,
+.modal-card button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+}
