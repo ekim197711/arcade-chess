@@ -1,4 +1,4 @@
-import { Chess, type Move, type Square } from "chess.js";
+import { Chess, type Move, type Square } from "./chess";
 
 const PIECE_VALUE: Record<string, number> = {
   p: 100,

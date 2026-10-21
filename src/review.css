@@ -87,6 +87,9 @@
 .history-item:hover { border-color: #85e7ff; background: #213467; }
 .history-item > span:first-child { flex: 1; min-width: 180px; }
 .history-item small { display: block; color: #c4d0f5; margin-top: 7px; line-height: 1.5; }
+.match-style { padding: 5px 9px; border: 1px solid; border-radius: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.match-style-standard { color: #a6efff; border-color: #4289ad; background: #14364d; }
+.match-style-freestyle { color: #ffe1a0; border-color: #ad7bc4; background: #48265e; }
 .match-outcome { font-weight: bold; }
 .outcome-win { color: #adffd2; }
 .outcome-loss { color: #ffb3bd; }

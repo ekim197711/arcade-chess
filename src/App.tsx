@@ -1,11 +1,18 @@
+import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
+import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor } from "./bossArtwork";
+import {
+  EMPTY_PROGRESS, LEGACY_STAGE_TO_RUNG, normalizeProgress, mergeProgress,
+  hasProgress, applyResult, ladderClears, type Progress, type PendingResult,
+} from "./progress";
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
 } from "react";
-import { Chess, type Color, type Square } from "chess.js";
+import { Chess, freestyleFen, type PlayMode, type Color, type Square } from "./chess";
 import {
   createClient,
   type Session,
@@ -39,6 +46,7 @@ import { legalTargets } from "./bot";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import { DragSquare } from "./DragSquare";
 import { BoardResizeHandle } from "./BoardResizeHandle";
+import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
 import { GameReview } from "./GameReview";
 import { MatchHistory, MatchResult } from "./MatchHistory";
 import { readHistory, saveHistory, type ArchivedMatch } from "./matchArchive";
@@ -51,90 +59,6 @@ const supabase: SupabaseClient | null =
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
-const BOSS_NAMES = [
-  "Blunder Benny",
-  "Pawnshop Penny",
-  "Forklift Frankie",
-  "Rook'n'Roll Ricky",
-  "Double-Step Dixie",
-  "Checkers Chuck",
-  "Gambit Gus",
-  "En Passant Eddie",
-  "Castle Crash Casey",
-  "Pinball Piper",
-  "Knight Shift Nate",
-  "Bishop Bop Beatrice",
-  "Backrank Benny",
-  "Skewer Scooter",
-  "Queen's Gambit Quinn",
-  "Fork Attack Freya",
-  "Battery Belle",
-  "Tempo Tasha",
-  "Rook Rocket Ruby",
-  "Sacrifice Sam",
-  "Counterpunch Cody",
-  "Outpost Ollie",
-  "Promotion Polly",
-  "Mate-in-Two Milo",
-  "Zwischen Zoe",
-  "Tactic-Tap Theo",
-  "Pawn Storm Petra",
-  "Pin-Prick Percy",
-  "Queen Sweep Queenie",
-  "Theoretical Terry",
-  "Endgame Eddie",
-  "Zugzwang Zelda",
-  "Rook Lift Rufus",
-  "Exchange Xander",
-  "Sicilian Sid",
-  "King's Indian Kit",
-  "Nimzo Niko",
-  "Catalan Cora",
-  "Alekhine Alice",
-  "Grunfeld Greta",
-  "Maroczy Marla",
-  "Blitz Baroness Bea",
-  "Grandmaster Gus",
-  "Vishy Victor",
-  "Deep Blue Deirdre",
-  "Opening Oracle Orion",
-  "Engine Emmett",
-  "Checkpoint Celine",
-  "Clockwork Cormac",
-  "Mate-in-One Marnie",
-  "Endboss Evelyn",
-  "Crowncrusher Clara",
-  "Royal Rumble Rafi",
-  "Check Raid Ramon",
-  "Mate Collector Mabel",
-  "Fortress Fiona",
-  "Tournament Titan Toby",
-  "Matchpoint Max",
-  "Checkmate Cindy",
-];
-const BOSS_CHARACTER_SLUGS: Record<string, string> = {
-  "Blunder Benny": "blunder-benny",
-  "Pawnshop Penny": "pawnshop-penny",
-  "Forklift Frankie": "forklift-frankie",
-  "Rook'n'Roll Ricky": "rook-n-roll-ricky",
-  "Double-Step Dixie": "double-step-dixie",
-  "Checkers Chuck": "checkers-chuck",
-  "Gambit Gus": "gambit-gus",
-  "En Passant Eddie": "en-passant-eddie",
-  "Castle Crash Casey": "castle-crash-casey",
-  "Pinball Piper": "pinball-piper",
-  "Knight Shift Nate": "knight-shift-nate",
-  "Bishop Bop Beatrice": "bishop-bop-beatrice",
-  "Backrank Benny": "backrank-benny",
-  "Skewer Scooter": "skewer-scooter",
-  "Battery Belle": "battery-belle",
-};
-
-function bossPortrait(character: string, expression = "focused"): string {
-  // Belle only has a focused portrait until her remaining expressions arrive.
-  const availableExpression = character === "battery-belle" ? "focused" : expression;
-  return `/characters/${character}/${availableExpression}.png`;
-}
 const BOSS_MASCOTS = [
   "👹",
   "🦊",
@@ -345,7 +269,7 @@ const BOSSES = Array.from({ length: 59 }, (_, index) => {
     name: BOSS_NAMES[index]!,
     elo: 100 + index * 50,
     icon: BOSS_MASCOTS[index % BOSS_MASCOTS.length]!,
-    character: BOSS_CHARACTER_SLUGS[BOSS_NAMES[index]!],
+    character: resolveBossCharacter(BOSS_NAMES[index]!, __BOSS_PORTRAITS__),
     color: archetype.color,
     chessColor: index % 2 === 0 ? ("w" as const) : ("b" as const),
     taunts: archetype.taunts,
@@ -383,15 +307,6 @@ const BOARD_PALETTES = [
 type BoardPaletteId = (typeof BOARD_PALETTES)[number]["id"];
 type BoardColors = { light: string; dark: string };
 const DEFAULT_BOARD_PALETTE: BoardPaletteId = "classic";
-const SOUND_THEMES = [
-  "bamboo-garden",
-  "felt-piano",
-  "moonlit-glass",
-  "orbital-drift",
-  "paper-wood",
-  "velvet-arcade",
-] as const;
-type SoundTheme = (typeof SOUND_THEMES)[number];
 const ACCOUNT_STORAGE_PREFIX = "neon-knights-account-v1:";
 const PENDING_STORAGE_PREFIX = "neon-knights-pending-v1:";
 const MERGE_STORAGE_PREFIX = "neon-knights-merge-v1:";
@@ -481,71 +396,16 @@ function getMaterialPoints(pieces: Record<MedievalPieceType, number>) {
   );
 }
 
-type Progress = {
-  wins: number;
-  losses: number;
-  streak: number;
-  bestStreak: number;
-  bossesDefeated: number;
-  progressionVersion: number;
-};
-type PendingResult = {
-  id: string;
-  result: "win" | "loss";
-  bossIndex: number;
-  progressionVersion: number;
-};
 type BotMoveData = { from: Square; to: Square; promotion?: string };
 type Premove = { from: Square; to: Square };
+type PromotionPiece = "q" | "r" | "b" | "n";
+type PromotionMove = { from: Square; to: Square; fen: string; matchId: string };
+const PROMOTION_CHOICES: { type: PromotionPiece; label: string }[] = [
+  { type: "q", label: "Queen" }, { type: "r", label: "Rook" },
+  { type: "b", label: "Bishop" }, { type: "n", label: "Knight" },
+];
 type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
-
-const EMPTY_PROGRESS: Progress = {
-  wins: 0,
-  losses: 0,
-  streak: 0,
-  bestStreak: 0,
-  bossesDefeated: 0,
-  progressionVersion: 2,
-};
-const LEGACY_BOSS_UNLOCK_WINS = [0, 1, 2, 4, 7, 11, 16];
-const LEGACY_STAGE_TO_RUNG = [0, 5, 12, 20, 30, 42, 58];
-const LEGACY_CLEARS_TO_RUNG = [0, 5, 12, 20, 30, 42, 58, 59];
-
-function normalizeProgress(
-  value: Partial<Progress> | null | undefined,
-): Progress {
-  const wins = Math.max(0, Number(value?.wins) || 0);
-  const oldStage = LEGACY_BOSS_UNLOCK_WINS.reduce(
-    (stage, threshold, index) => (wins >= threshold ? index : stage),
-    0,
-  );
-  const oldClearCount =
-    value?.bossesDefeated === undefined
-      ? oldStage
-      : Math.min(7, Math.max(0, Math.floor(Number(value.bossesDefeated) || 0)));
-  const migratedRung =
-    value?.bossesDefeated === undefined
-      ? (LEGACY_STAGE_TO_RUNG[oldStage] ?? 0)
-      : (LEGACY_CLEARS_TO_RUNG[oldClearCount] ?? 0);
-  const progressionVersion = Number(value?.progressionVersion) || 0;
-  return {
-    wins,
-    losses: Math.max(0, Number(value?.losses) || 0),
-    streak: Math.max(0, Number(value?.streak) || 0),
-    bestStreak: Math.max(0, Number(value?.bestStreak) || 0),
-    bossesDefeated: Math.min(
-      BOSSES.length,
-      Math.max(
-        0,
-        progressionVersion < 2
-          ? migratedRung
-          : Number(value?.bossesDefeated) || 0,
-      ),
-    ),
-    progressionVersion: 2,
-  };
-}
 
 function readProgress(key = STORAGE_KEY): Progress {
   try {
@@ -556,22 +416,6 @@ function readProgress(key = STORAGE_KEY): Progress {
   } catch {
     return EMPTY_PROGRESS;
   }
-}
-
-function mergeProgress(account: Progress, guest: Progress): Progress {
-  return {
-    wins: account.wins + guest.wins,
-    losses: account.losses + guest.losses,
-    streak: Math.max(account.streak, guest.streak),
-    bestStreak: Math.max(
-      account.bestStreak,
-      guest.bestStreak,
-      account.streak,
-      guest.streak,
-    ),
-    bossesDefeated: Math.max(account.bossesDefeated, guest.bossesDefeated),
-    progressionVersion: 2,
-  };
 }
 
 function newEventId() {
@@ -629,7 +473,8 @@ function readPendingResults(userId: string): PendingResult[] {
             Number(event.progressionVersion) >= 2
               ? Math.max(0, Math.min(BOSSES.length - 1, event.bossIndex ?? 0))
               : (LEGACY_STAGE_TO_RUNG[oldIndex] ?? 0),
-          progressionVersion: 2,
+          progressionVersion: 3,
+          mode: event.mode === "freestyle" ? "freestyle" as const : "standard" as const,
         },
       ];
     });
@@ -648,29 +493,6 @@ function writePendingResults(userId: string, events: PendingResult[]) {
   }
 }
 
-function hasProgress(progress: Progress) {
-  return (
-    progress.wins > 0 ||
-    progress.losses > 0 ||
-    progress.bossesDefeated > 0 ||
-    progress.bestStreak > 0
-  );
-}
-
-function applyResult(progress: Progress, event: PendingResult): Progress {
-  if (event.result === "win") {
-    const streak = progress.streak + 1;
-    return {
-      ...progress,
-      wins: progress.wins + 1,
-      streak,
-      bestStreak: Math.max(progress.bestStreak, streak),
-      bossesDefeated: Math.max(progress.bossesDefeated, event.bossIndex + 1),
-    };
-  }
-  return { ...progress, losses: progress.losses + 1, streak: 0 };
-}
-
 type ArcadeSound =
   | "move"
   | "capture"
@@ -685,49 +507,32 @@ type ArcadeSound =
   | "navigate"
   | "drag";
 
-type BoardSound = "select" | "move" | "check" | "checkmate" | "capture" | "lost" | "en-passant" | "castling" | "timeout" | "resign";
-
 function readSoundTheme(): SoundTheme {
-  try {
-    const saved = localStorage.getItem(SOUND_THEME_KEY);
-    const legacyThemes: Record<string, SoundTheme> = {
-      crystal: "moonlit-glass", "felt-garden": "bamboo-garden", "quiet-pebbles": "paper-wood",
-      "retro-arcade": "velvet-arcade", "royal-fanfare": "felt-piano", "sci-fi": "orbital-drift",
-      "soft-minimal": "bamboo-garden", "wooden-board": "paper-wood",
-      "glass-orbit": "moonlit-glass", "rainy-cafe": "felt-piano", woodland: "paper-wood",
-      "moon-chimes": "moonlit-glass", "soft-8bit": "velvet-arcade",
-    };
-    return SOUND_THEMES.find((theme) => theme === saved) ?? legacyThemes[saved ?? ""] ?? "velvet-arcade";
-  } catch {
-    return "velvet-arcade";
-  }
+  try { return resolveSoundTheme(localStorage.getItem(SOUND_THEME_KEY)); }
+  catch { return resolveSoundTheme(null); }
 }
 
+let lastBoardSound: Promise<number> = Promise.resolve(0);
 function playBoardSound(kind: BoardSound, enabled: boolean, theme: SoundTheme) {
   if (!enabled) return;
   try {
     const context = getAudioContext();
     if (context.state === "suspended") void context.resume();
-    const soundFiles: Record<BoardSound, string> = {
-      select: "select", move: "move", check: "check", checkmate: "checkmate",
-      capture: "capture-opponent", lost: "piece-lost", "en-passant": "en-passant",
-      castling: "castle", timeout: "timeout", resign: "timeout",
-    };
-    const url = `/sound-board-theme/${theme}/${soundFiles[kind]}.wav`;
-    void loadBoardSoundBuffer(url, context).then((buffer) => {
-      if (context.state === "suspended") return context.resume().then(() => buffer);
-      return buffer;
-    }).then((buffer) => {
+    const asset = boardSoundAsset(theme, kind);
+    const resultCue = kind === "win" || kind === "lose";
+    const previous = resultCue ? lastBoardSound : Promise.resolve(0);
+    lastBoardSound = Promise.all([loadBoardSoundBuffer(asset.url, context), previous]).then(async ([buffer, previousEnd]) => {
+      if (context.state === "suspended") await context.resume();
+      const start = resultCue ? Math.max(context.currentTime, previousEnd) : context.currentTime;
       const source = context.createBufferSource();
       const gain = context.createGain();
       source.buffer = buffer;
-      gain.gain.setValueAtTime(0.65 * arcadeSfxVolume, context.currentTime);
+      gain.gain.setValueAtTime(asset.volume * arcadeSfxVolume, start);
       source.connect(gain);
       gain.connect(context.destination);
-      source.start();
-    }).catch(() => {
-      // Audio is optional; gameplay remains available if the browser blocks it.
-    });
+      source.start(start);
+      return start + buffer.duration;
+    }).catch(() => 0);
   } catch {
     // Audio is optional; gameplay remains available if the browser blocks it.
   }
@@ -737,9 +542,11 @@ let soundThemePreview: HTMLAudioElement | null = null;
 function previewSoundTheme(theme: SoundTheme, enabled: boolean) {
   if (!enabled) return;
   try {
+    const asset = soundPreviewAsset(theme);
     soundThemePreview?.pause();
-    soundThemePreview = new Audio(`/sound-board-theme/${theme}/preview.wav`);
-    soundThemePreview.volume = 0.65 * arcadeSfxVolume;
+    if (!asset) return;
+    soundThemePreview = new Audio(asset.url);
+    soundThemePreview.volume = asset.volume * arcadeSfxVolume;
     void soundThemePreview.play().catch(() => {});
   } catch {
     // Theme previews are optional; gameplay remains available if audio is blocked.
@@ -968,18 +775,7 @@ function getPremoveTargets(
   square: Square,
   color: PieceColor,
 ): Square[] {
-  const fields = fen.split(" ");
-  fields[1] = color;
-  fields[3] = "-";
-  const position = new Chess(fields.join(" "));
-  // chess.js supports pseudo-legal generation at runtime, but omits legal:false from its types.
-  const pseudoMoves = (
-    position.moves as unknown as (
-      this: Chess,
-      options: { square: Square; verbose: true; legal: false },
-    ) => Array<{ to: Square }>
-  ).call(position, { square, verbose: true, legal: false });
-  return pseudoMoves.map((move) => move.to);
+  return new Chess(fen).premoveTargets(square, color);
 }
 
 function App() {
@@ -1050,17 +846,35 @@ function App() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   const selectedMatch = history.find((match) => match.id === route.split("/")[1]);
+  const [playMode, setPlayMode] = useState<PlayMode>(() => {
+    const savedMode = savedMatch ? restoreGame(savedMatch.pgn).mode : "standard";
+    if (screen === "battle") return savedMode;
+    try {
+      const mode = localStorage.getItem("arcade-chess-ladder-mode");
+      return mode === "freestyle" || mode === "standard" ? mode : savedMode;
+    } catch { return savedMode; }
+  });
+  const activeMode = useRef(playMode);
+  activeMode.current = playMode;
+  useEffect(() => {
+    try { localStorage.setItem("arcade-chess-ladder-mode", playMode); } catch { /* Keep the selected ladder in memory. */ }
+  }, [playMode]);
   const [bossIndex, setBossIndex] = useState(() =>
-    savedMatch?.bossIndex ?? Math.min(readProgress().bossesDefeated, BOSSES.length - 1),
+    savedMatch && restoreGame(savedMatch.pgn).mode === playMode ? savedMatch.bossIndex
+      : Math.min(ladderClears(readProgress(), playMode), BOSSES.length - 1),
   );
 
   const [coinCount, setCoinCount] = useState(readCoinCount);
+  const [coinAnimationReady, setCoinAnimationReady] = useState(false);
+  const coinAnimation = useRef<CoinInsertAnimationHandle>(null);
+  const markCoinAnimationReady = useCallback(() => setCoinAnimationReady(true), []);
   const [tauntIndex, setTauntIndex] = useState(savedMatch?.tauntIndex ?? 0);
   const [excuseIndex, setExcuseIndex] = useState(0);
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
   const [pgn, setPgn] = useState(savedMatch?.pgn ?? "");
   const [reviewPly, setReviewPly] = useState<number | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
+  const [promotionMove, setPromotionMove] = useState<PromotionMove | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(
     () => {
@@ -1088,11 +902,14 @@ function App() {
 
   const authDialogRef = useRef<HTMLElement | null>(null);
   const helpDialogRef = useRef<HTMLElement | null>(null);
+  const promotionDialogRef = useRef<HTMLElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const moodTimer = useRef<number | undefined>(undefined);
 
   const game = useMemo(() => restoreGame(pgn), [pgn]);
+  const savedMode = useMemo(() => savedMatch ? restoreGame(savedMatch.pgn).mode : null, [savedMatch]);
+  const canResumeSelectedMatch = savedMatch?.bossIndex === bossIndex && savedMode === playMode;
   const fen = game.fen();
   const moveHistory = useMemo(() => game.history({ verbose: true }), [game]);
   const reviewing = reviewPly !== null;
@@ -1186,6 +1003,7 @@ function App() {
   }, [pgn, currentResult, screen, bossIndex]);
   useEffect(() => { setHistoryError(!saveHistory(history)); }, [history]);
   const progress = user ? (accountProgress ?? EMPTY_PROGRESS) : guestProgress;
+  const clearedBosses = ladderClears(progress, playMode);
 
   const playerName =
     user?.user_metadata?.full_name ??
@@ -1224,10 +1042,10 @@ function App() {
   }, [screen, bossIndex]);
 
   useEffect(() => {
-    if (bossIndex > progress.bossesDefeated && savedMatch?.bossIndex !== bossIndex) {
-      newGame(progress.bossesDefeated);
+    if (bossIndex > clearedBosses && !canResumeSelectedMatch) {
+      setBossIndex(Math.min(clearedBosses, BOSSES.length - 1));
     }
-  }, [bossIndex, progress.bossesDefeated, savedMatch?.bossIndex]);
+  }, [bossIndex, clearedBosses, canResumeSelectedMatch]);
 
   useEffect(() => {
     try {
@@ -1357,7 +1175,7 @@ function App() {
   }, [screen, musicEnabled]);
 
   useEffect(() => {
-    const dialog = authOpen
+    const dialog = promotionMove ? promotionDialogRef.current : authOpen
       ? authDialogRef.current
       : helpOpen
         ? helpDialogRef.current
@@ -1381,6 +1199,7 @@ function App() {
         event.preventDefault();
         setAuthOpen(false);
         setHelpOpen(false);
+        setPromotionMove(null);
         return;
       }
       if (event.key !== "Tab") return;
@@ -1410,7 +1229,7 @@ function App() {
       if (restoreFocusRef.current?.isConnected) restoreFocusRef.current.focus();
       restoreFocusRef.current = null;
     };
-  }, [authOpen, helpOpen]);
+  }, [authOpen, helpOpen, promotionMove]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1446,7 +1265,7 @@ function App() {
         );
         setAccountProgress(cachedProgress);
         setBossIndex(
-          Math.min(cachedProgress.bossesDefeated, BOSSES.length - 1),
+          Math.min(ladderClears(cachedProgress, activeMode.current), BOSSES.length - 1),
         );
         setAuthReady(true);
         return;
@@ -1463,6 +1282,8 @@ function App() {
             p_event_id: event.id,
             p_result: event.result,
             p_boss_index: event.bossIndex,
+
+            p_mode: event.mode,
           },
         );
         if (!active || request !== loadSequence.current) return;
@@ -1488,6 +1309,8 @@ function App() {
             p_streak: guest.streak,
             p_best_streak: guest.bestStreak,
             p_bosses_defeated: guest.bossesDefeated,
+
+            p_freestyle_bosses_defeated: guest.freestyleBossesDefeated,
           },
         );
         if (!active || request !== loadSequence.current) return;
@@ -1511,7 +1334,7 @@ function App() {
         syncedProgress = pending.reduce(applyResult, syncedProgress);
       }
       setAccountProgress(syncedProgress);
-      setBossIndex(Math.min(syncedProgress.bossesDefeated, BOSSES.length - 1));
+      setBossIndex(Math.min(ladderClears(syncedProgress, activeMode.current), BOSSES.length - 1));
       setAuthReady(true);
     };
 
@@ -1549,6 +1372,8 @@ function App() {
           p_event_id: event.id,
           p_result: event.result,
           p_boss_index: event.bossIndex,
+
+          p_mode: event.mode,
         });
         if (activeUserId.current !== userId) return;
         if (error) break;
@@ -1572,6 +1397,8 @@ function App() {
           p_streak: guest.streak,
           p_best_streak: guest.bestStreak,
           p_bosses_defeated: guest.bossesDefeated,
+
+          p_freestyle_bosses_defeated: guest.freestyleBossesDefeated,
         });
         if (activeUserId.current !== userId) return;
         if (error) {
@@ -1618,7 +1445,8 @@ function App() {
       id: newEventId(),
       result,
       bossIndex,
-      progressionVersion: 2,
+      progressionVersion: 3,
+      mode: game.mode,
     });
     writePendingResults(userId, pending);
     await retryPendingProgress(userId);
@@ -1643,7 +1471,8 @@ function App() {
         wins: previous.wins + 1,
         streak: previous.streak + 1,
         bestStreak: Math.max(previous.bestStreak, previous.streak + 1),
-        bossesDefeated: Math.max(previous.bossesDefeated, bossIndex + 1),
+        [game.mode === "freestyle" ? "freestyleBossesDefeated" : "bossesDefeated"]:
+          Math.max(ladderClears(previous, game.mode), bossIndex + 1),
       });
       if (user && supabase) {
         setAccountProgress((previous) =>
@@ -1655,7 +1484,7 @@ function App() {
       } else {
         setGuestProgress(update);
       }
-      playArcadeSound("win", soundEnabled);
+      playBoardSound("win", soundEnabled, soundTheme);
       showToast("STAGE CLEAR! BOSS DEFEATED");
     } else if (currentResult === "loss") {
       const update = (previous: Progress): Progress => ({
@@ -1673,6 +1502,7 @@ function App() {
       } else {
         setGuestProgress(update);
       }
+      playBoardSound("lose", soundEnabled, soundTheme);
       showToast("CONTINUE? YOUR RUN ENDS HERE");
     } else {
       showToast("DRAW GAME — NO CONTINUE LOST");
@@ -1757,10 +1587,10 @@ function App() {
     toastTimer.current = window.setTimeout(() => setToast(""), 2600);
   }
 
-  function handleHomePlay() {
+  function handleHomePlay(mode: PlayMode) {
     if (coinCount < 1) return;
     setCoinCount((count) => Math.max(0, count - 1));
-    setBossIndex(Math.min(progress.bossesDefeated, BOSSES.length - 1));
+    changePlayMode(mode);
     setScreen("roster");
     playArcadeSound("start", soundEnabled);
   }
@@ -1772,7 +1602,7 @@ function App() {
       return;
     }
     setCoinCount((count) => Math.min(MAX_CREDITS, count + 1));
-    playArcadeSound("coin", soundEnabled);
+    if (!coinAnimation.current?.play()) playArcadeSound("coin", soundEnabled);
   }
 
   function toggleMusic() {
@@ -1866,8 +1696,8 @@ function App() {
     }
   }
 
-  function makeMove(from: Square, to: Square) {
-    if (currentResult || reviewing) return false;
+  function makeMove(from: Square, to: Square, promotion?: PromotionPiece) {
+    if (currentResult || reviewing || (promotionMove && !promotion)) return false;
     if (premoveTurn) {
       if (
         game.get(from)?.color !== playerColor ||
@@ -1881,8 +1711,13 @@ function App() {
     }
     if (thinking || game.turn() === boss.chessColor) return false;
     const next = restoreGame(pgn);
+    if (!promotion && next.moves({ square: from, verbose: true }).some(move => move.to === to && move.promotion)) {
+      setPromotionMove({ from, to, fen, matchId: matchId.current });
+      setSelectedSquare(null);
+      return true;
+    }
     try {
-      const move = next.move({ from, to, promotion: "q" });
+      const move = next.move({ from, to, promotion });
       const finishMove = () => {
         setOpponentLine(null);
         setPgn(next.pgn());
@@ -1894,12 +1729,13 @@ function App() {
       finishMove();
       return true;
     } catch {
+      playBoardSound("invalid", soundEnabled, soundTheme);
       return false;
     }
   }
 
   function handleSquareClick(square: Square) {
-    if (reviewing || currentResult || (thinking && !premoveTurn)) return;
+    if (promotionMove || reviewing || currentResult || (thinking && !premoveTurn)) return;
     const piece = game.get(square);
     if (selectedSquare && legalMoves.includes(square)) {
       makeMove(selectedSquare, square);
@@ -1964,6 +1800,7 @@ function App() {
     const lastMove = restoredMoves[restoredMoves.length - 1];
     setBossIndex(match.bossIndex);
     setPgn(match.pgn);
+    setPlayMode(restored.mode);
     setTauntIndex(match.tauntIndex);
     setPremove(null);
     setSelectedSquare(null);
@@ -1979,16 +1816,20 @@ function App() {
 
   function resignMatch() {
     if (currentResult) return;
-    playBoardSound("resign", soundEnabled, soundTheme);
     setResigned(true);
     setPremove(null);
     setSelectedSquare(null);
     setThinking(false);
   }
 
+  function changePlayMode(mode: PlayMode) {
+    setPlayMode(mode);
+    setBossIndex(Math.min(ladderClears(progress, mode), BOSSES.length - 1));
+  }
+
   function fightBoss(index: number) {
-    if (index < 0 || index >= BOSSES.length || index > progress.bossesDefeated) return;
-    if (savedMatch?.bossIndex === index) {
+    if (index < 0 || index >= BOSSES.length || index > clearedBosses) return;
+    if (savedMatch?.bossIndex === index && savedMode === playMode) {
       resumeSavedMatch(savedMatch);
     } else {
       newGame(index);
@@ -2002,7 +1843,7 @@ function App() {
     matchStarted.current = new Date().toISOString();
     if (savedMatch?.bossIndex === index) clearSavedMatch(index);
     setBossIndex(index);
-    setPgn("");
+    setPgn(playMode === "freestyle" ? new Chess(freestyleFen()).pgn() : "");
     setPremove(null);
     setSelectedSquare(null);
     setLastMove(null);
@@ -2046,6 +1887,13 @@ function App() {
   }
 
   useEffect(() => {
+    if (promotionMove && (screen !== "battle" || reviewing || currentResult ||
+      promotionMove.fen !== fen || promotionMove.matchId !== matchId.current)) {
+      setPromotionMove(null);
+    }
+  }, [promotionMove, screen, reviewing, currentResult, fen]);
+
+  useEffect(() => {
     if (!premove) return;
     if (reviewing || screen !== "battle" || game.isGameOver()) {
       setPremove(null);
@@ -2082,7 +1930,12 @@ function App() {
 
   return (
     <div
-      className={`app-shell ${screen === "battle" ? "app-shell-battle" : ""}`}
+      className={`app-shell ${screen === "battle" ? "app-shell-battle" : ""} ${
+        ((screen === "review" || screen === "result") && selectedMatch
+          ? selectedMatch.pgn.includes('[Variant "Chess960"]')
+          : screen === "battle" ? game.mode === "freestyle" : playMode === "freestyle")
+          ? "app-shell-freestyle" : ""
+      }`}
       onClickCapture={(event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
@@ -2091,7 +1944,7 @@ function App() {
           !control ||
           control.closest(".square") ||
           control.matches(
-            ".hero-cta, .boss-card, .boss-line-locked, .fight-button, .try-again-action, .result-overlay button",
+            ".hero-cta, .boss-card, .boss-line-locked, .fight-button, .arcade-coin-button, .try-again-action, .result-overlay button",
           )
         )
           return;
@@ -2220,8 +2073,8 @@ function App() {
                 <p>Choose a soft sound palette for every chess action.</p>
                 <div className="sound-theme-options" role="group" aria-label="Choose board sound effects">
                   {SOUND_THEMES.map((theme) => (
-                    <button className="piece-theme-option sound-theme-option" type="button" key={theme} aria-pressed={soundTheme === theme} aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`} onClick={() => chooseSoundTheme(theme)}>
-                      {theme.replaceAll("-", " ").toUpperCase()}
+                    <button className="piece-theme-option sound-theme-option" type="button" key={theme.id} aria-pressed={soundTheme === theme.id} aria-label={`Use ${theme.name} sound theme`} title={theme.description} onClick={() => chooseSoundTheme(theme.id)}>
+                      {theme.name}
                     </button>
                   ))}
                 </div>
@@ -2265,6 +2118,7 @@ function App() {
 
             <div className="arcade-screen-bezel">
               <div className="arcade-screen">
+                <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
                 <div className="arcade-screen-copy">
                   <span className="arcade-screen-kicker">
                     59 CHALLENGERS · ONE CHAMPION
@@ -2302,6 +2156,7 @@ function App() {
                 className="arcade-coin-button"
                 type="button"
                 onClick={insertCoin}
+                disabled={!coinAnimationReady}
                 aria-label={`Insert one coin. ${coinCount} ${coinCount === 1 ? "credit" : "credits"} available`}
               >
                 <span className="arcade-slot" aria-hidden="true">
@@ -2313,17 +2168,33 @@ function App() {
                 </small>
               </button>
 
-              <button
-                className="arcade-play-button"
-                type="button"
-                onClick={handleHomePlay}
-                disabled={coinCount < 1}
-                aria-label="Play using one credit"
-              >
-                <i aria-hidden="true" />
-                <span>PLAY</span>
-                <ArrowRight size={21} />
-              </button>
+              <section className="boss-run-card" aria-labelledby="boss-run-title">
+                <div className="boss-run-heading">
+                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
+                  <span>1 CREDIT PER RUN</span>
+                </div>
+                <div className="boss-run-options">
+                  {(["standard", "freestyle"] as const).map((mode) => (
+                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
+                      <button className="boss-run-button" type="button"
+                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
+                        <span>{mode === "standard" ? "Standard" : "Freestyle"}</span>
+                        <ArrowRight size={17} aria-hidden="true" />
+                      </button>
+                      {savedMatch && savedMode === mode && (
+                        <button
+                          className="resume-match-button"
+                          type="button"
+                          onClick={() => resumeSavedMatch(savedMatch)}
+                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
+                        >
+                          RESUME <ArrowRight size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
             <div className="arcade-cabinet-base" aria-hidden="true">
               <span />
@@ -2343,16 +2214,6 @@ function App() {
               <div className="hud-player-info">
                 <div className="hud-player-name-row">
                   <strong>{user ? playerName : "GUEST PLAYER"}</strong>
-                  {savedMatch && (
-                    <button
-                      className="resume-match-button"
-                      type="button"
-                      onClick={() => resumeSavedMatch(savedMatch)}
-                      aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
-                    >
-                      RESUME <ArrowRight size={13} />
-                    </button>
-                  )}
                 </div>
                 {!savedMatch && user && (
                   <span className="pilot-status">
@@ -2368,14 +2229,26 @@ function App() {
                 )}
               </div>
             </div>
-            <div className="hud-stat">
+            <div className="hud-stat hud-stat-standard">
               <span className="stat-icon stat-cyan">
                 <Trophy size={16} />
               </span>
               <div>
-                <span className="hud-label">BOSSES BEATEN</span>
+                <span className="hud-label">STANDARD BOSSES BEATEN</span>
                 <strong>
                   {String(progress.bossesDefeated).padStart(2, "0")}
+                  <small> / {BOSSES.length}</small>
+                </strong>
+              </div>
+            </div>
+            <div className="hud-stat hud-stat-freestyle">
+              <span className="stat-icon">
+                <Trophy size={16} />
+              </span>
+              <div>
+                <span className="hud-label">FREESTYLE BOSSES BEATEN</span>
+                <strong>
+                  {String(progress.freestyleBossesDefeated).padStart(2, "0")}
                   <small> / {BOSSES.length}</small>
                 </strong>
               </div>
@@ -2416,9 +2289,20 @@ function App() {
                   <div>
                     <div className="section-kicker">CHOOSE AN OPPONENT</div>
                     <h1 id="boss-select-title">
-                      CHALLENGER <em>LADDER</em>
+                      {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
                     </h1>
-                    <p>Beat each challenger to unlock the next.</p>
+                    <p>Beat each challenger to unlock the next in this ladder. Standard and Freestyle progress independently.</p>
+                    <div className="play-mode-picker">
+                      <label htmlFor="play-mode">PLAY MODE</label>
+                      <select id="play-mode" value={playMode} onChange={(event) => changePlayMode(event.target.value as PlayMode)}>
+                        <option value="standard">Standard chess</option>
+                        <option value="freestyle">Freestyle chess (Chess960)</option>
+                      </select>
+                      <p>{playMode === "freestyle"
+                        ? "A random starting position with matching back ranks, opposite-color bishops, and the king between the rooks. Normal chess rules apply. To castle, move your king onto your rook; they finish on g/f or c/d."
+                        : "The traditional starting position and standard chess rules."}</p>
+                      {savedMatch && <small>Resume keeps the saved position. Choosing a different mode starts a new game and replaces your saved match.</small>}
+                    </div>
                   </div>
                 </div>
 
@@ -2426,18 +2310,18 @@ function App() {
                   className="boss-select-list"
                   ref={rosterListRef}
                   role="group"
-                  aria-label="Challenger ladder. Select an unlocked row to start a match."
+                  aria-label={`${playMode === "freestyle" ? "Freestyle" : "Standard"} ladder. Select an unlocked row to start a match.`}
                 >
                   <div className="roster-fight-dock">
                     <div className="roster-fight-target">
                       <span>
-                        {savedMatch?.bossIndex === bossIndex
+                        {canResumeSelectedMatch
                           ? "SAVED MATCH"
                           : "NEXT CHALLENGER"}
                       </span>
                       <strong>{boss.name}</strong>
                       <small>
-                        {savedMatch?.bossIndex === bossIndex
+                        {canResumeSelectedMatch
                           ? "Resume your saved game"
                           : `${boss.elo} ELO`}
                       </small>
@@ -2446,11 +2330,11 @@ function App() {
                       className="fight-button"
                       type="button"
                       onClick={() => fightBoss(bossIndex)}
-                      aria-label={`${savedMatch?.bossIndex === bossIndex ? "Resume saved match" : "Fight"} against ${boss.name}, ${boss.elo} Elo`}
+                      aria-label={`${canResumeSelectedMatch ? "Resume saved match" : "Fight"} against ${boss.name}, ${boss.elo} Elo`}
                     >
                       <Zap size={16} fill="currentColor" />
                       <span>
-                        {savedMatch?.bossIndex === bossIndex
+                        {canResumeSelectedMatch
                           ? "Resume"
                           : "Fight!"}
                       </span>
@@ -2458,8 +2342,8 @@ function App() {
                     </button>
                   </div>
                   {BOSSES.map((entry, index) => {
-                    const locked = index > progress.bossesDefeated;
-                    const cleared = index < progress.bossesDefeated;
+                    const locked = index > clearedBosses;
+                    const cleared = index < clearedBosses;
                     const selected = index === bossIndex;
                     return (
                       <button
@@ -2486,10 +2370,10 @@ function App() {
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="boss-line-portrait" aria-hidden="true">
-                          {entry.character ? (
+                          {portraitFor(entry.character, __BOSS_PORTRAITS__) ? (
                             <img
                               className="boss-character-image"
-                              src={bossPortrait(entry.character)}
+                              src={portraitFor(entry.character, __BOSS_PORTRAITS__)}
                               alt=""
                             />
                           ) : (
@@ -2568,9 +2452,9 @@ function App() {
                             title="Click to provoke the boss"
                             disabled={Boolean(currentResult)}
                           >
-                            {boss.character ? (
+                            {portraitFor(boss.character, __BOSS_PORTRAITS__, bossExpression) ? (
                               <img
-                                src={bossPortrait(boss.character, bossExpression)}
+                                src={portraitFor(boss.character, __BOSS_PORTRAITS__, bossExpression)}
                                 alt=""
                               />
                             ) : (
@@ -2720,12 +2604,13 @@ function App() {
                             <button
                               className="piece-theme-option sound-theme-option"
                               type="button"
-                              key={theme}
-                              aria-pressed={soundTheme === theme}
-                              aria-label={`Use ${theme.replaceAll("-", " ")} sound theme`}
-                              onClick={() => chooseSoundTheme(theme)}
+                              key={theme.id}
+                              aria-pressed={soundTheme === theme.id}
+                              aria-label={`Use ${theme.name} sound theme`}
+                              title={theme.description}
+                              onClick={() => chooseSoundTheme(theme.id)}
                             >
-                              {theme.replaceAll("-", " ").toUpperCase()}
+                              {theme.name}
                             </button>
                           ))}
                         </div>
@@ -2733,6 +2618,7 @@ function App() {
                     </div>
                   </aside>
                   <article className="cabinet" aria-label="Chess game">
+                    {game.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
                     <div className="cabinet-body">
                       <div className="board-stage">
                         <div
@@ -2785,7 +2671,7 @@ function App() {
                                       aria-pressed={isSelected}
                                       onClick={() => handleSquareClick(square)}
                                       square={square}
-                                      canDrag={!reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
+                                      canDrag={!promotionMove && !reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
                                       positionKey={viewedGame.fen()}
                                       artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
@@ -3079,6 +2965,32 @@ function App() {
           >
             <X size={13} />
           </button>
+        </div>
+      )}
+
+      {promotionMove && screen === "battle" && !reviewing && !currentResult && promotionMove.fen === fen && promotionMove.matchId === matchId.current && (
+        <div className="modal-backdrop">
+          <section ref={promotionDialogRef} className="modal-card promotion-modal" role="dialog"
+            aria-modal="true" aria-labelledby="promotion-title" aria-describedby="promotion-description">
+            <h2 id="promotion-title">Promote your pawn</h2>
+            <p id="promotion-description">Choose a piece for your pawn on {promotionMove.to}.</p>
+            <div className="promotion-options">
+              {PROMOTION_CHOICES.map(choice => (
+                <button key={choice.type} type="button" className="promotion-option" aria-label={`Promote to ${choice.label}`}
+                  onClick={() => {
+                    const pending = promotionMove;
+                    setPromotionMove(null);
+                    if (pending.fen === fen && pending.matchId === matchId.current) {
+                      makeMove(pending.from, pending.to, choice.type);
+                    }
+                  }}>
+                  <span className="promotion-artwork" aria-hidden="true"><PieceArtwork type={choice.type} color={playerColor} theme={pieceTheme} fitToSquare /></span>
+                  <span>{choice.label}</span>
+                </button>
+              ))}
+            </div>
+            <button className="promotion-cancel" type="button" onClick={() => setPromotionMove(null)}>Cancel</button>
+          </section>
         </div>
       )}
 

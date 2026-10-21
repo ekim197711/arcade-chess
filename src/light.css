@@ -4030,6 +4030,7 @@ main {
     .app-shell-battle {
         height: 100vh;
         height: 100svh;
+        height: 100dvh;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -4081,6 +4082,7 @@ main {
 
     .app-shell-battle .game-layout {
         grid-template-columns: clamp(150px, 16vw, 250px) minmax(0, 1fr) clamp(150px, 16vw, 250px);
+        grid-template-rows: minmax(0, 1fr);
         align-items: stretch;
         gap: 12px;
         min-height: 0;
@@ -4121,8 +4123,8 @@ main {
     }
 
     .app-shell-battle .board-frame {
-        /* The coordinate frame is 16px taller than it is wide. */
-        width: min(100%, calc(100cqh - 16px), var(--board-width, 100cqw));
+        /* Allow 16px for coordinates and 16px for the bottom bevel/shadow. */
+        width: min(100%, calc(100cqh - 32px), var(--board-width, 100cqw));
         padding: 8px;
     }
 
@@ -4168,6 +4170,28 @@ main {
         padding: 12px;
     }
 
+    .app-shell-battle .opponent-column {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .app-shell-battle .opponent-column .side-column-content,
+    .app-shell-battle .side-panel .side-column-content {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+
+    .app-shell-battle .side-column-content > * {
+        flex-shrink: 0;
+    }
+
+    .app-shell-battle .freestyle-notice {
+        flex: 0 0 auto;
+    }
+
     .app-shell-battle .quip-box {
         margin-top: 0;
     }
@@ -4177,14 +4201,22 @@ main {
     }
 
     .app-shell-battle .move-log {
-        min-height: 0;
+        min-height: 160px;
         max-height: none;
-        flex: 1;
+        flex: 1 0 160px;
     }
 
     .app-shell-battle .rematch-button {
         flex: 0 0 auto;
         margin-top: 12px;
+    }
+}
+
+@media (max-width: 760px) {
+    .app-shell-battle .board-frame {
+        /* Reserve space for the header, mode notice, coordinates and bevel. */
+        width: min(100%, calc(100svh - 200px), var(--board-width, 100%));
+        width: min(100%, calc(100dvh - 200px), var(--board-width, 100%));
     }
 }
 

@@ -37,7 +37,7 @@ try {
 
   await page.goto(url);
   await page.getByRole('button', { name: /^Insert one coin/ }).click();
-  await page.getByRole('button', { name: 'Play using one credit' }).click();
+  await page.getByRole('button', { name: 'Standard', exact: true }).click();
   await page.getByRole('button', { name: /^Fight against/ }).click();
   const opening = await waitForMoves(1);
   const move = chess(opening.pgn).moves({ verbose: true }).find(move => move.from === 'e7') ?? chess(opening.pgn).moves({ verbose: true })[0];

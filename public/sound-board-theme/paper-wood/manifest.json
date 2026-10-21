@@ -1,0 +1,69 @@
+{
+  "id": "paper-wood",
+  "name": "Paper & Wood",
+  "description": "Small dry wooden ticks with a trace of paper texture.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.046,
+      "peakDbFS": -33.6
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.066,
+      "peakDbFS": -30.3
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.098,
+      "peakDbFS": -29.5
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.14,
+      "peakDbFS": -29.7
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.091,
+      "peakDbFS": -31.3
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.106,
+      "peakDbFS": -33.5
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.09,
+      "peakDbFS": -33.8
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.104,
+      "peakDbFS": -31.7
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.125,
+      "peakDbFS": -30.4
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.227,
+      "peakDbFS": -28.8
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.234,
+      "peakDbFS": -31.0
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.125,
+      "peakDbFS": -33.9
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

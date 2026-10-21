@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react";
 import { Star } from "lucide-react";
-import { Chess } from "chess.js";
+import { Chess } from "./chess";
 import type { ArchivedMatch } from "./matchArchive";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
+function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
 export function MatchHistory({ matches, onReview }: { matches: ArchivedMatch[]; onReview: (id: string) => void }) {
   return <section className="game-review history-page" aria-labelledby="history-title">
     <header><h2 id="history-title">Historic games</h2><span>{matches.length} saved</span></header>
@@ -11,6 +12,7 @@ export function MatchHistory({ matches, onReview }: { matches: ArchivedMatch[]; 
     {!matches.length ? <p>Your games will appear here when you start playing.</p> : <div className="history-list">{matches.map((match) =>
       <a className="history-item" href={`#review/${match.id}`} key={match.id} onClick={(event) => { event.preventDefault(); onReview(match.id); }}>
         <span><strong>{match.opponent}</strong><small>{new Date(match.startedAt).toLocaleString()} ? {match.elo} ELO ? You played {match.color === "w" ? "White" : "Black"}</small></span>
+        <span className={`match-style match-style-${styleFor(match).toLowerCase()}`}>{styleFor(match)}</span>
         <span className={`match-outcome outcome-${match.result}`}>{labels[match.result]}</span>
         <span>{movesFor(match).length} plies</span><strong>Review &rarr;</strong>
       </a>)}</div>}

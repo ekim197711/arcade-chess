@@ -3066,3 +3066,110 @@ button.move-log-row:hover {
         display: none;
     }
 }
+.play-mode-picker {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  max-width: 680px;
+}
+.play-mode-picker label { color: #67e8f9; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+.play-mode-picker select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #4166aa;
+  border-radius: 4px;
+  background: #10182c;
+  color: #f0f5ff;
+  font: inherit;
+}
+.play-mode-picker select:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+.play-mode-picker p, .play-mode-picker small { margin: 0; line-height: 1.5; color: #b7c7e5; }
+.freestyle-notice { margin: 0; padding: 12px; color: #67e8f9; font-size: 12px; line-height: 1.5; }
+
+.app-shell .hud-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(0, 1fr));
+}
+.app-shell .hud-row > .hud-player,
+.app-shell .hud-row > .hud-stat { min-width: 0; }
+.app-shell .hud-stat-standard .stat-icon { color: #25e5ff; }
+.app-shell .hud-stat-freestyle .stat-icon { color: #ffd06b; }
+
+.coin-insert-stage {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    container-type: size;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, #30234ff5, #101735fa);
+}
+.coin-insert-stage[hidden] { display: none; }
+.coin-insert-stage coin-insert { width: min(100cqw, calc(100cqh * 1.1818), 420px); }
+
+.modal-card.promotion-modal { width: min(520px, calc(100vw - 32px)); }
+.modal-card.promotion-modal h2 { margin-top: 0; font-size: 22px; line-height: 1.5; color: #f4f8ff; }
+.promotion-modal p { color: #c4d0f5; line-height: 1.5; }
+.promotion-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 22px 0; }
+.promotion-option { display: grid; justify-items: center; gap: 10px; padding: 12px 6px; border: 1px solid #8199df; border-radius: 8px; color: #f4f8ff; background: #162555; cursor: pointer; }
+.promotion-option:hover { border-color: #25e5ff; background: #253b78; }
+.promotion-artwork { position: relative; display: block; width: 64px; height: 72px; }
+.promotion-cancel { min-height: 44px; padding: 10px 18px; border: 1px solid #8199df; border-radius: 6px; color: #f4f8ff; background: #162555; cursor: pointer; }
+@media (max-width: 480px) { .promotion-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.app-shell .arcade-control-deck {
+    grid-template-columns: minmax(150px, 1fr) 150px minmax(300px, 1.2fr);
+}
+.boss-run-card {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #687cca;
+    border-radius: 10px;
+    background: linear-gradient(120deg, #15224b, #2d1b44);
+    box-shadow: inset 0 1px #ffffff1f;
+}
+.boss-run-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.boss-run-heading h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: #f4f8ff; font-size: 16px; }
+.boss-run-heading > span { color: #b8c5e8; font: 9px var(--mono); }
+.boss-run-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.boss-run-mode { min-width: 0; overflow: hidden; border: 1px solid; border-radius: 7px; }
+.boss-run-mode .resume-match-button { display: flex; width: calc(100% - 16px); min-height: 36px; margin: 0 8px 8px; }
+.boss-run-button {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    font: 700 13px "Space Grotesk", sans-serif;
+    cursor: pointer;
+}
+.boss-run-standard { color: #d5faff; border-color: #5dcce5; background: linear-gradient(135deg, #16476a, #172f56); box-shadow: 0 3px #071c33; }
+.boss-run-freestyle { color: #ffe3a0; border-color: #c792e3; background: linear-gradient(135deg, #62317d, #3c225c); box-shadow: 0 3px #251134; }
+.boss-run-button:hover:not(:disabled) { filter: brightness(1.2); }
+.boss-run-button:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.boss-run-button:disabled { cursor: not-allowed; opacity: .5; }
+
+@media (max-width: 900px) {
+    .app-shell .arcade-control-deck { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .app-shell .arcade-credit-display { grid-column: auto; }
+    .boss-run-card { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+    .app-shell .hud-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .app-shell .hud-row > .hud-player { grid-column: 1 / -1; }
+    .app-shell .hud-row > .hud-stat:last-child {
+        grid-column: 1 / -1;
+        padding: 12px 0 0;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+    }
+}

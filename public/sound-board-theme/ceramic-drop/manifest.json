@@ -1,0 +1,69 @@
+{
+  "id": "ceramic-drop",
+  "name": "Ceramic Drop",
+  "description": "Small rounded ceramic droplets with a soft pitch dip.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.048,
+      "peakDbFS": -31.9
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.067,
+      "peakDbFS": -28.5
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.103,
+      "peakDbFS": -28.7
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.147,
+      "peakDbFS": -28.4
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.095,
+      "peakDbFS": -29.3
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.11,
+      "peakDbFS": -31.2
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.091,
+      "peakDbFS": -30.7
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.106,
+      "peakDbFS": -30.3
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.139,
+      "peakDbFS": -28.6
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.235,
+      "peakDbFS": -28.4
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.246,
+      "peakDbFS": -29.6
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.128,
+      "peakDbFS": -32.3
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

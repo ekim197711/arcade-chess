@@ -1,0 +1,108 @@
+/* Violet panels and warm gold accents distinguish the Freestyle cabinet. */
+.app-shell-freestyle {
+    --panel: #30174f;
+    --panel-2: #47236b;
+    --line: #9360bc;
+    --muted: #c9b4e3;
+    --dim: #9b7bb7;
+    --cyan: #e3a5ff;
+    --mint: #ffd06b;
+    background:
+        radial-gradient(ellipse at 16% 10%, #8b38bd38, transparent 38%),
+        radial-gradient(ellipse at 86% 42%, #d3823220, transparent 32%),
+        linear-gradient(145deg, #09060e, #130c1d 68%, #09060e);
+}
+
+.app-shell-freestyle .topbar {
+    border-bottom-color: #ad79cf;
+    background-image:
+        linear-gradient(90deg, #1b0b26ed, #301741de),
+        url("/arcade-chess-header.jpg");
+}
+
+.app-shell-freestyle .boss-select-page {
+    border-color: #9360bc;
+    background: linear-gradient(180deg, #2b1742, #160e25 78%);
+}
+
+.app-shell-freestyle .roster-heading h1 em,
+.app-shell-freestyle .roster-heading .section-kicker,
+.app-shell-freestyle .play-mode-picker label,
+.app-shell-freestyle .freestyle-notice {
+    color: #ffd06b;
+}
+
+.app-shell-freestyle .promotion-modal {
+    border-color: #ad79cf;
+    background: linear-gradient(145deg, #4a285f, #20122f);
+}
+
+.app-shell-freestyle .roster-heading p,
+.app-shell-freestyle .play-mode-picker small {
+    color: #d2bddf;
+}
+
+.app-shell-freestyle .play-mode-picker select {
+    border-color: #b17dd0;
+    background: #321c48;
+}
+
+.app-shell-freestyle .roster-fight-dock {
+    border-bottom-color: #c18be0;
+    background: linear-gradient(100deg, #522b6d, #30183f);
+}
+
+.app-shell-freestyle .boss-select-list {
+    border-color: #9360bc;
+    background: #160e25;
+    scrollbar-color: #9360bc #281938;
+}
+
+.app-shell-freestyle .boss-line {
+    border-bottom-color: #ae85ce38;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--boss-color) 8%, #321e48), #251832 70%);
+}
+
+.app-shell-freestyle .boss-line:hover:not(.boss-line-locked),
+.app-shell-freestyle .boss-line-selected {
+    background: linear-gradient(90deg, #61377a, #3e2356 85%);
+    box-shadow: inset 4px 0 #ffd06b, inset 0 1px #ac78c5, inset 0 -1px #ac78c5;
+}
+
+.app-shell-freestyle .boss-line.boss-line-locked {
+    color: #9b88b1;
+    background: #1d142a;
+}
+
+.app-shell-freestyle .fight-button {
+    border-color: #ffe3a1;
+    color: #2b1639;
+    background: linear-gradient(180deg, #ffe5a3, #eeb650);
+    box-shadow: 0 4px 0 #75461f, inset 0 1px #fff5d4;
+    text-shadow: none;
+}
+
+.app-shell-freestyle .fight-button:hover {
+    background: linear-gradient(180deg, #fff0c4, #ffd06b);
+}
+
+.app-shell-freestyle .cabinet {
+    border-color: #ad79cf;
+    background: linear-gradient(145deg, #512b6d, #20122f);
+}
+
+.app-shell-freestyle .cabinet-body,
+.app-shell-freestyle .board-frame {
+    border-color: #9360bc;
+    background: linear-gradient(145deg, #38204f, #1c112c);
+}
+
+.app-shell-freestyle .board-frame {
+    box-shadow: 0 7px 0 #120a1c, 0 11px 0 #633d7d, 0 18px 27px #0008,
+        inset 1px 1px #ffffff24;
+}
+
+.app-shell-freestyle .freestyle-notice {
+    border-bottom: 1px solid #ad79cf;
+    background: linear-gradient(90deg, #492556, #2c193c);
+}

@@ -12,7 +12,7 @@ export function BoardResizeHandle({ onResize }: Props) {
     const max = Math.max(0, Math.min(
       stage.clientWidth,
       window.matchMedia("(min-width: 761px)").matches
-        ? stage.clientHeight - 16
+        ? stage.clientHeight - 32
         : stage.clientWidth,
     ));
     return { width: frame.getBoundingClientRect().width, min: Math.min(240, max), max };

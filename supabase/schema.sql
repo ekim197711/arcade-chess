@@ -1,11 +1,11 @@
 create table if not exists public.player_progress (
   user_id uuid primary key references auth.users (id) on delete cascade,
-  progress jsonb not null default '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"progressionVersion":2}'::jsonb,
+  progress jsonb not null default '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"freestyleBossesDefeated":0,"progressionVersion":3}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
 alter table public.player_progress enable row level security;
-alter table public.player_progress alter column progress set default '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"progressionVersion":2}'::jsonb;
+alter table public.player_progress alter column progress set default '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"freestyleBossesDefeated":0,"progressionVersion":3}'::jsonb;
 
 update public.player_progress
 set progress = progress || jsonb_build_object(
@@ -32,6 +32,15 @@ set progress = progress || jsonb_build_object(
   'progressionVersion', 2
 )
 where coalesce((progress ->> 'progressionVersion')::integer, 0) < 2;
+
+
+-- Existing shared-ladder progress belongs to Standard. Freestyle starts at zero.
+update public.player_progress
+set progress = progress || jsonb_build_object(
+  'freestyleBossesDefeated', greatest(0, least(59, coalesce((progress ->> 'freestyleBossesDefeated')::integer, 0))),
+  'progressionVersion', 3
+)
+where coalesce((progress ->> 'progressionVersion')::integer, 0) < 3;
 
 drop policy if exists "Players can read their own progress" on public.player_progress;
 drop policy if exists "Players can create their own progress" on public.player_progress;
@@ -60,10 +69,13 @@ create table if not exists public.player_progress_events (
 alter table public.player_progress_events enable row level security;
 revoke all on public.player_progress_events from anon, authenticated;
 
+drop function if exists public.record_game_result(uuid, text, integer);
+
 create or replace function public.record_game_result(
   p_event_id uuid,
   p_result text,
-  p_boss_index integer
+  p_boss_index integer,
+  p_mode text default 'standard'
 )
 returns jsonb
 language plpgsql
@@ -76,6 +88,9 @@ declare
 begin
   if v_user_id is null then
     raise exception 'Authentication required';
+  end if;
+  if p_mode is null or p_mode not in ('standard', 'freestyle') then
+    raise exception 'Invalid play mode';
   end if;
   if p_result not in ('win', 'loss') then
     raise exception 'Invalid game result';
@@ -92,7 +107,7 @@ begin
     select progress into v_progress
     from public.player_progress
     where user_id = v_user_id;
-    return coalesce(v_progress, '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"progressionVersion":2}'::jsonb);
+    return coalesce(v_progress, '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"freestyleBossesDefeated":0,"progressionVersion":3}'::jsonb);
   end if;
 
   insert into public.player_progress as existing (user_id, progress)
@@ -103,8 +118,9 @@ begin
       'losses', case when p_result = 'loss' then 1 else 0 end,
       'streak', case when p_result = 'win' then 1 else 0 end,
       'bestStreak', case when p_result = 'win' then 1 else 0 end,
-      'bossesDefeated', case when p_result = 'win' then p_boss_index + 1 else 0 end,
-      'progressionVersion', 2
+      'bossesDefeated', case when p_result = 'win' and p_mode = 'standard' then p_boss_index + 1 else 0 end,
+      'freestyleBossesDefeated', case when p_result = 'win' and p_mode = 'freestyle' then p_boss_index + 1 else 0 end,
+      'progressionVersion', 3
     )
   )
   on conflict (user_id) do update set
@@ -123,10 +139,14 @@ begin
         else coalesce((existing.progress ->> 'bestStreak')::integer, 0)
       end,
       'bossesDefeated', case
-        when p_result = 'win' then greatest(coalesce((existing.progress ->> 'bossesDefeated')::integer, 0), p_boss_index + 1)
+        when p_result = 'win' and p_mode = 'standard' then greatest(coalesce((existing.progress ->> 'bossesDefeated')::integer, 0), p_boss_index + 1)
         else coalesce((existing.progress ->> 'bossesDefeated')::integer, 0)
       end,
-      'progressionVersion', 2
+      'freestyleBossesDefeated', case
+        when p_result = 'win' and p_mode = 'freestyle' then greatest(coalesce((existing.progress ->> 'freestyleBossesDefeated')::integer, 0), p_boss_index + 1)
+        else coalesce((existing.progress ->> 'freestyleBossesDefeated')::integer, 0)
+      end,
+      'progressionVersion', 3
     ),
     updated_at = now()
   returning progress into v_progress;
@@ -135,13 +155,16 @@ begin
 end;
 $$;
 
+drop function if exists public.merge_guest_progress(uuid, integer, integer, integer, integer, integer);
+
 create or replace function public.merge_guest_progress(
   p_event_id uuid,
   p_wins integer,
   p_losses integer,
   p_streak integer,
   p_best_streak integer,
-  p_bosses_defeated integer
+  p_bosses_defeated integer,
+  p_freestyle_bosses_defeated integer default 0
 )
 returns jsonb
 language plpgsql
@@ -155,8 +178,8 @@ begin
   if v_user_id is null then
     raise exception 'Authentication required';
   end if;
-  if least(p_wins, p_losses, p_streak, p_best_streak, p_bosses_defeated) < 0
-    or p_bosses_defeated > 59 then
+  if least(p_wins, p_losses, p_streak, p_best_streak, p_bosses_defeated, p_freestyle_bosses_defeated) < 0
+    or p_bosses_defeated > 59 or p_freestyle_bosses_defeated > 59 or p_freestyle_bosses_defeated is null then
     raise exception 'Invalid guest progress';
   end if;
 
@@ -168,7 +191,7 @@ begin
     select progress into v_progress
     from public.player_progress
     where user_id = v_user_id;
-    return coalesce(v_progress, '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"progressionVersion":2}'::jsonb);
+    return coalesce(v_progress, '{"wins":0,"losses":0,"streak":0,"bestStreak":0,"bossesDefeated":0,"freestyleBossesDefeated":0,"progressionVersion":3}'::jsonb);
   end if;
 
   insert into public.player_progress as existing (user_id, progress)
@@ -180,7 +203,8 @@ begin
       'streak', p_streak,
       'bestStreak', greatest(p_best_streak, p_streak),
       'bossesDefeated', p_bosses_defeated,
-      'progressionVersion', 2
+      'freestyleBossesDefeated', p_freestyle_bosses_defeated,
+      'progressionVersion', 3
     )
   )
   on conflict (user_id) do update set
@@ -194,7 +218,8 @@ begin
         p_streak
       ),
       'bossesDefeated', greatest(coalesce((existing.progress ->> 'bossesDefeated')::integer, 0), p_bosses_defeated),
-      'progressionVersion', 2
+      'freestyleBossesDefeated', greatest(coalesce((existing.progress ->> 'freestyleBossesDefeated')::integer, 0), p_freestyle_bosses_defeated),
+      'progressionVersion', 3
     ),
     updated_at = now()
   returning progress into v_progress;
@@ -203,7 +228,7 @@ begin
 end;
 $$;
 
-revoke all on function public.record_game_result(uuid, text, integer) from public, anon;
-revoke all on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer) from public, anon;
-grant execute on function public.record_game_result(uuid, text, integer) to authenticated;
-grant execute on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer) to authenticated;
+revoke all on function public.record_game_result(uuid, text, integer, text) from public, anon;
+revoke all on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer, integer) from public, anon;
+grant execute on function public.record_game_result(uuid, text, integer, text) to authenticated;
+grant execute on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer, integer) to authenticated;

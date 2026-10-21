@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Chess } from "chess.js";
+import { Chess } from "./chess";
 import type { MoveAnalysis } from "./bot";
 import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
@@ -86,6 +86,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   const analysis = analyses[ply - 1];
   const boardRating = analysis ? moveRating(analysis) : { key: "pending", label: "Analyzing move", icon: "..." };
   const position = new Chess(variation?.fen ?? move?.after ?? moves[0]?.before);
+  if (!variation && !move && !moves.length) position.loadPgn(pgn);
   let last = variation ? undefined : moves[ply - 1];
   if (variation) {
     for (const san of variation.line.slice(0, variation.step)) last = position.move(san);

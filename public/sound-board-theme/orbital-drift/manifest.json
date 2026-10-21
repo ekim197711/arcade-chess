@@ -1,0 +1,69 @@
+{
+  "id": "orbital-drift",
+  "name": "Orbital Drift",
+  "description": "Brief weightless pulses without lingering trails.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.047,
+      "peakDbFS": -31.3
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.067,
+      "peakDbFS": -28.1
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.103,
+      "peakDbFS": -28.4
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.148,
+      "peakDbFS": -27.7
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.096,
+      "peakDbFS": -28.9
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.11,
+      "peakDbFS": -30.5
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.092,
+      "peakDbFS": -31.4
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.105,
+      "peakDbFS": -29.9
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.139,
+      "peakDbFS": -28.1
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.235,
+      "peakDbFS": -28.1
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.248,
+      "peakDbFS": -29.7
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.129,
+      "peakDbFS": -32.4
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess } from "./chess";
 import type { PieceColor } from "./MedievalPiece";
 
 export type ArchivedMatch = {

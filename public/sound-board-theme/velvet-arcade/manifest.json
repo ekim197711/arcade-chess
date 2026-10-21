@@ -1,0 +1,69 @@
+{
+  "id": "velvet-arcade",
+  "name": "Velvet Arcade",
+  "description": "Tiny rounded retro blips, low and mellow.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.048,
+      "peakDbFS": -32.8
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.066,
+      "peakDbFS": -29.7
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.102,
+      "peakDbFS": -29.8
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.148,
+      "peakDbFS": -29.3
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.096,
+      "peakDbFS": -30.5
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.11,
+      "peakDbFS": -32.2
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.092,
+      "peakDbFS": -32.0
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.106,
+      "peakDbFS": -31.8
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.139,
+      "peakDbFS": -29.8
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.235,
+      "peakDbFS": -29.7
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.247,
+      "peakDbFS": -31.3
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.128,
+      "peakDbFS": -33.8
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}
