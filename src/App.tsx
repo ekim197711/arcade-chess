@@ -2027,7 +2027,7 @@ function App() {
         </div>
       </header>
 
-      <main id="top" className={screen === "review" ? "review-main" : undefined}>
+      <main id="top" className={screen === "home" ? "home-main" : screen === "review" ? "review-main" : undefined}>
         {screen === "settings" && (
           <section className="settings-page" aria-labelledby="settings-title">
             <div className="settings-page-heading">

@@ -2790,6 +2790,21 @@ main {
     padding-top: 34px;
 }
 
+/* Give all home cards the same edges and use more of wide displays. */
+main.home-main {
+    width: calc(100% - clamp(28px, 4vw, 96px));
+    max-width: 1600px;
+    padding-inline: 0;
+}
+
+.home-main > .arcade-cabinet,
+.home-main > .hud-row,
+.home-main > .history-page {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+}
+
 .hero {
     min-height: 360px;
     display: grid;
