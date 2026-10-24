@@ -49,6 +49,8 @@ import { BoardResizeHandle } from "./BoardResizeHandle";
 import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
 import { GameReview } from "./GameReview";
 import { MatchHistory, MatchResult } from "./MatchHistory";
+import { DancingBosses } from "./DancingBosses";
+import { requestStockfishMove, bossStrengthDescription } from "./stockfish";
 import { readHistory, saveHistory, type ArchivedMatch } from "./matchArchive";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
@@ -288,6 +290,7 @@ const STORAGE_KEY = "neon-knights-progress-v1";
 const SAVED_MATCH_KEY = "neon-knights-saved-match-v1";
 const SOUND_KEY = "neon-knights-sound-v1";
 const SOUND_THEME_KEY = "arcade-chess-sound-theme-v1";
+const DEBUG_MODE_KEY = "arcade-chess-debug-mode-v1";
 const MUSIC_KEY = "neon-knights-music-v1";
 const SFX_VOLUME_KEY = "neon-knights-sfx-volume-v1";
 const MUSIC_VOLUME_KEY = "neon-knights-music-volume-v1";
@@ -404,7 +407,7 @@ const PROMOTION_CHOICES: { type: PromotionPiece; label: string }[] = [
   { type: "q", label: "Queen" }, { type: "r", label: "Rook" },
   { type: "b", label: "Bishop" }, { type: "n", label: "Knight" },
 ];
-type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string };
+type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string; debug?: boolean };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
 
 function readProgress(key = STORAGE_KEY): Progress {
@@ -538,16 +541,29 @@ function playBoardSound(kind: BoardSound, enabled: boolean, theme: SoundTheme) {
   }
 }
 
-let soundThemePreview: HTMLAudioElement | null = null;
+let soundThemePreview: AudioBufferSourceNode | null = null;
+let soundThemePreviewRequest = 0;
 function previewSoundTheme(theme: SoundTheme, enabled: boolean) {
   if (!enabled) return;
   try {
     const asset = soundPreviewAsset(theme);
-    soundThemePreview?.pause();
+    const request = ++soundThemePreviewRequest;
+    soundThemePreview?.stop();
+    soundThemePreview = null;
     if (!asset) return;
-    soundThemePreview = new Audio(asset.url);
-    soundThemePreview.volume = asset.volume * arcadeSfxVolume;
-    void soundThemePreview.play().catch(() => {});
+    const context = getAudioContext();
+    if (context.state === "suspended") void context.resume();
+    void loadBoardSoundBuffer(asset.url, context).then((buffer) => {
+      if (request !== soundThemePreviewRequest) return;
+      const source = context.createBufferSource();
+      const gain = context.createGain();
+      source.buffer = buffer;
+      gain.gain.value = asset.volume * arcadeSfxVolume;
+      source.connect(gain);
+      gain.connect(context.destination);
+      soundThemePreview = source;
+      source.start();
+    }).catch(() => {});
   } catch {
     // Theme previews are optional; gameplay remains available if audio is blocked.
   }
@@ -570,7 +586,7 @@ function boardSoundForMove(move: {
 let audioContext: AudioContext | null = null;
 let musicAudio: HTMLAudioElement | null = null;
 let musicTrack: MusicTrack = "home";
-let arcadeSfxVolume = 0.7;
+let arcadeSfxVolume = 0.85;
 let arcadeMusicVolume = 0.7;
 
 function readVolume(key: string, fallback: number) {
@@ -599,6 +615,20 @@ function loadBoardSoundBuffer(url: string, context: AudioContext) {
         return response.arrayBuffer();
       })
       .then((data) => context.decodeAudioData(data))
+      .then((decoded) => {
+        // Quiet theme recordings need gain before the user's volume control.
+        // Limit amplification and leave headroom for overlapping effects.
+        let peak = 0;
+        for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
+          for (const sample of decoded.getChannelData(channel)) peak = Math.max(peak, Math.abs(sample));
+        }
+        const boost = peak > 0 ? Math.max(1, Math.min(16, 0.75 / peak)) : 1;
+        for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
+          const samples = decoded.getChannelData(channel);
+          for (let index = 0; index < samples.length; index++) samples[index] *= boost;
+        }
+        return decoded;
+      })
       .catch((error: unknown) => {
         boardSoundBuffers.delete(url);
         throw error;
@@ -764,6 +794,7 @@ function readSavedMatch(): SavedMatch | null {
       startedAt: typeof value.startedAt === "string" && Number.isFinite(Date.parse(value.startedAt))
         ? value.startedAt : undefined,
       tauntIndex: Math.max(0, Math.floor(Number(value.tauntIndex) || 0)),
+      debug: value.debug === true,
     };
   } catch {
     return null;
@@ -779,6 +810,12 @@ function getPremoveTargets(
 }
 
 function App() {
+  const [debugMode, setDebugMode] = useState(() => {
+    try { return localStorage.getItem(DEBUG_MODE_KEY) === "true"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(DEBUG_MODE_KEY, String(debugMode)); } catch { /* Keep the session setting. */ }
+  }, [debugMode]);
   const [guestProgress, setGuestProgress] = useState<Progress>(() =>
     readProgress(),
   );
@@ -795,7 +832,7 @@ function App() {
       return true;
     }
   });
-  const [sfxVolume, setSfxVolume] = useState(() => readVolume(SFX_VOLUME_KEY, 70));
+  const [sfxVolume, setSfxVolume] = useState(() => readVolume(SFX_VOLUME_KEY, 85));
   const [soundTheme, setSoundTheme] = useState<SoundTheme>(() => readSoundTheme());
   const [musicEnabled, setMusicEnabled] = useState(() => {
     try {
@@ -884,7 +921,11 @@ function App() {
     },
   );
   const [thinking, setThinking] = useState(false);
+  const [engineError, setEngineError] = useState("");
+  const [engineRetry, setEngineRetry] = useState(0);
   const [resigned, setResigned] = useState(false);
+  const [debugMatch, setDebugMatch] = useState(savedMatch ? savedMatch.debug === true : debugMode);
+  const [debugCheckmate, setDebugCheckmate] = useState(false);
   const [opponentMood, setOpponentMood] = useState<"angry" | "happy" | null>(
     null,
   );
@@ -909,7 +950,7 @@ function App() {
 
   const game = useMemo(() => restoreGame(pgn), [pgn]);
   const savedMode = useMemo(() => savedMatch ? restoreGame(savedMatch.pgn).mode : null, [savedMatch]);
-  const canResumeSelectedMatch = savedMatch?.bossIndex === bossIndex && savedMode === playMode;
+  const canResumeSelectedMatch = savedMatch?.bossIndex === bossIndex && savedMode === playMode && (!savedMatch.debug || debugMode);
   const fen = game.fen();
   const moveHistory = useMemo(() => game.history({ verbose: true }), [game]);
   const reviewing = reviewPly !== null;
@@ -971,7 +1012,7 @@ function App() {
       ? getPremoveTargets(fen, selectedSquare, playerColor)
       : legalTargets(fen, selectedSquare);
   }, [fen, playerColor, premoveTurn, reviewing, selectedSquare]);
-  const currentResult = resigned ? "loss" : resultFor(game, boss.chessColor);
+  const currentResult = debugCheckmate ? "win" : resigned ? "loss" : resultFor(game, boss.chessColor);
   // Save both sides' moves, including positions where the bot still needs to play.
   useEffect(() => {
     if (screen === "battle" && !currentResult) persistCurrentMatch();
@@ -991,8 +1032,8 @@ function App() {
     const record: ArchivedMatch = {
       id: matchId.current, startedAt: matchStarted.current, updatedAt: new Date().toISOString(),
       bossIndex, opponent: boss.name, playerName: user ? playerName : "Guest player", elo: boss.elo, color: playerColor, pgn,
-      result: currentResult ?? "unfinished",
-      reason: resigned ? "Resignation" : game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isThreefoldRepetition() ? "Threefold repetition" : game.isInsufficientMaterial() ? "Insufficient material" : game.isDraw() ? "Draw by the fifty-move rule" : "Match in progress",
+      result: currentResult ?? "unfinished", debug: debugMatch,
+      reason: debugCheckmate ? "Debug auto checkmate (simulated)" : resigned ? "Resignation" : game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isThreefoldRepetition() ? "Threefold repetition" : game.isInsufficientMaterial() ? "Insufficient material" : game.isDraw() ? "Draw by the fifty-move rule" : "Match in progress",
     };
     setHistory((previous) => {
       const existing = previous.find((item) => item.id === record.id);
@@ -1000,7 +1041,7 @@ function App() {
       return next;
     });
     if (currentResult) setScreen(`result/${record.id}`);
-  }, [pgn, currentResult, screen, bossIndex]);
+  }, [pgn, currentResult, screen, bossIndex, debugMatch]);
   useEffect(() => { setHistoryError(!saveHistory(history)); }, [history]);
   const progress = user ? (accountProgress ?? EMPTY_PROGRESS) : guestProgress;
   const clearedBosses = ladderClears(progress, playMode);
@@ -1042,10 +1083,10 @@ function App() {
   }, [screen, bossIndex]);
 
   useEffect(() => {
-    if (bossIndex > clearedBosses && !canResumeSelectedMatch) {
+    if (!debugMode && screen !== "battle" && bossIndex > clearedBosses && !canResumeSelectedMatch) {
       setBossIndex(Math.min(clearedBosses, BOSSES.length - 1));
     }
-  }, [bossIndex, clearedBosses, canResumeSelectedMatch]);
+  }, [bossIndex, clearedBosses, canResumeSelectedMatch, debugMode, screen]);
 
   useEffect(() => {
     try {
@@ -1465,6 +1506,11 @@ function App() {
     if (!currentResult || finishedFen.current === fen) return;
     finishedFen.current = fen;
     if (savedMatch?.bossIndex === bossIndex) clearSavedMatch(bossIndex);
+    if (debugMatch) {
+      playBoardSound(currentResult === "win" ? "win" : currentResult === "loss" ? "lose" : "move", soundEnabled, soundTheme);
+      showToast("DEBUG MATCH COMPLETE");
+      return;
+    }
     if (currentResult === "win") {
       const update = (previous: Progress): Progress => ({
         ...previous,
@@ -1507,7 +1553,7 @@ function App() {
     } else {
       showToast("DRAW GAME — NO CONTINUE LOST");
     }
-  }, [currentResult, fen, soundEnabled, user, bossIndex, savedMatch]);
+  }, [currentResult, fen, soundEnabled, user, bossIndex, savedMatch, debugMatch]);
 
   useEffect(
     () => () => {
@@ -1526,48 +1572,28 @@ function App() {
       game.isGameOver()
     ) {
       setThinking(false);
+      setEngineError("");
       return;
     }
     setThinking(true);
-    let worker: Worker | null = null;
+    setEngineError("");
+    const controller = new AbortController();
     const timeout = window.setTimeout(
       () => {
-        try {
-          worker = new Worker(new URL("./bot.worker.ts", import.meta.url), {
-            type: "module",
-          });
-          worker.onmessage = (
-            event: MessageEvent<{ move: BotMoveData | null }>,
-          ) => {
-            const move =
-              event.data.move ??
-              new Chess(fen).moves({ verbose: true })[0] ??
-              null;
-            commitBotMove(
-              move
-                ? { from: move.from, to: move.to, promotion: move.promotion }
-                : null,
-              fen,
-            );
-          };
-          worker.onerror = () => {
-            worker?.terminate();
-            worker = null;
-            fallbackBotMove(fen);
-          };
-          worker.postMessage({ fen, elo: boss.elo });
-        } catch {
-          worker?.terminate();
-          worker = null;
-          fallbackBotMove(fen);
-        }
+        void requestStockfishMove(fen, pgn, boss.elo, controller.signal).then(move => {
+          if (!controller.signal.aborted) commitBotMove(move, fen);
+        }).catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setThinking(false);
+          setEngineError(error instanceof Error ? error.message : "Stockfish could not load. Please retry.");
+        });
       },
       520 + Math.random() * 420,
     );
 
     return () => {
       window.clearTimeout(timeout);
-      worker?.terminate();
+      controller.abort();
     };
   }, [
     fen,
@@ -1579,6 +1605,7 @@ function App() {
     soundTheme,
     currentResult,
     reviewing,
+    engineRetry,
   ]);
 
   function showToast(message: string) {
@@ -1644,22 +1671,6 @@ function App() {
   function chooseSoundTheme(theme: SoundTheme) {
     setSoundTheme(theme);
     previewSoundTheme(theme, soundEnabled);
-  }
-
-  function fallbackBotMove(positionFen: string) {
-    const legalMoves = new Chess(positionFen).moves({ verbose: true });
-    const fallback = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-    commitBotMove(
-      fallback
-        ? {
-            from: fallback.from,
-            to: fallback.to,
-            promotion: fallback.promotion,
-          }
-        : null,
-      positionFen,
-    );
-    showToast("ENGINE RECALIBRATED — RANDOM LEGAL MOVE");
   }
 
   function commitBotMove(move: BotMoveData | null, positionFen: string) {
@@ -1766,7 +1777,7 @@ function App() {
   }
 
   function persistCurrentMatch() {
-    const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current };
+    const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current, debug: debugMatch };
     try {
       localStorage.setItem(SAVED_MATCH_KEY, JSON.stringify(match));
     } catch {
@@ -1792,6 +1803,10 @@ function App() {
   }
 
   function resumeSavedMatch(match: SavedMatch) {
+    if (match.debug && !debugMode) {
+      showToast("ENABLE DEBUG MODE TO RESUME THIS TEST MATCH");
+      return;
+    }
     setReviewPly(null);
     matchId.current = match.id ?? crypto.randomUUID();
     matchStarted.current = match.startedAt ?? history.find((item) => item.id === matchId.current)?.startedAt ?? new Date().toISOString();
@@ -1807,6 +1822,8 @@ function App() {
     setLastMove(lastMove ? { from: lastMove.from, to: lastMove.to } : null);
     setThinking(false);
     setResigned(false);
+    setDebugMatch(match.debug === true);
+    setDebugCheckmate(false);
     setOpponentMood(null);
     setOpponentLine(null);
     window.clearTimeout(moodTimer.current);
@@ -1827,8 +1844,18 @@ function App() {
     setBossIndex(Math.min(ladderClears(progress, mode), BOSSES.length - 1));
   }
 
+  function autoCheckmate() {
+    if (!debugMode || screen !== "battle" || reviewing || currentResult) return;
+    setDebugMatch(true);
+    setDebugCheckmate(true);
+    setPremove(null);
+    setPromotionMove(null);
+    setSelectedSquare(null);
+    setThinking(false);
+  }
+
   function fightBoss(index: number) {
-    if (index < 0 || index >= BOSSES.length || index > clearedBosses) return;
+    if (index < 0 || index >= BOSSES.length || (!debugMode && index > clearedBosses)) return;
     if (savedMatch?.bossIndex === index && savedMode === playMode) {
       resumeSavedMatch(savedMatch);
     } else {
@@ -1849,6 +1876,8 @@ function App() {
     setLastMove(null);
     setThinking(false);
     setResigned(false);
+    setDebugMatch(debugMode);
+    setDebugCheckmate(false);
     setTauntIndex(0);
     setExcuseIndex(0);
     setOpponentMood(null);
@@ -1955,6 +1984,7 @@ function App() {
       }}
     >
       <div className="crt-overlay" aria-hidden="true" />
+      {screen === "home" && <DancingBosses bosses={BOSSES} playerName={user ? playerName : "rookie"} />}
       <header className="topbar">
         <a
           className="brand"
@@ -2101,6 +2131,13 @@ function App() {
                 <label className="settings-range-label" htmlFor="settings-board-size"><span>SIZE</span><strong>{boardWidth ?? 520}px</strong></label>
                 <input id="settings-board-size" className="settings-range" type="range" min="300" max="760" step="10" value={boardWidth ?? 520} onChange={(event) => setBoardWidth(Number(event.currentTarget.value))} />
                 <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>RESET TO AUTO SIZE</button>
+              </section>
+              <section className="settings-card" aria-label="Debug settings">
+                <h2>Debug mode</h2>
+                <p>Unlock every boss in both ladders and enable Auto checkmate during matches. Debug games are marked as tests and do not count toward stats or ladder progress.</p>
+                <button className="settings-toggle" type="button" aria-label="Debug mode" aria-pressed={debugMode} onClick={() => setDebugMode(value => !value)}>
+                  <span>Debug mode</span><b>{debugMode ? "ON" : "OFF"}</b>
+                </button>
               </section>
             </div>
           </section>
@@ -2292,6 +2329,8 @@ function App() {
                       {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
                     </h1>
                     <p>Beat each challenger to unlock the next in this ladder. Standard and Freestyle progress independently.</p>
+                    <p>Ratings are strength targets. Beginner bosses below 1320 Elo use approximate difficulty.</p>
+                    {debugMode && <p role="status">DEBUG MODE · All bosses unlocked · Test matches</p>}
                     <div className="play-mode-picker">
                       <label htmlFor="play-mode">PLAY MODE</label>
                       <select id="play-mode" value={playMode} onChange={(event) => changePlayMode(event.target.value as PlayMode)}>
@@ -2342,7 +2381,7 @@ function App() {
                     </button>
                   </div>
                   {BOSSES.map((entry, index) => {
-                    const locked = index > clearedBosses;
+                    const locked = !debugMode && index > clearedBosses;
                     const cleared = index < clearedBosses;
                     const selected = index === bossIndex;
                     return (
@@ -2385,7 +2424,7 @@ function App() {
                         <span className="boss-line-name">
                           <strong>{entry.name}</strong>
                         </span>
-                        <span className="boss-line-rating">
+                        <span className="boss-line-rating" title={bossStrengthDescription(entry.elo)}>
                           {entry.elo}
                           <small>ELO</small>
                         </span>
@@ -2471,10 +2510,11 @@ function App() {
                           <div className="opponent-info">
                             <span className="hud-label">OPPONENT</span>
                             <strong>{boss.name}</strong>
-                            <span className="opponent-elo">
+                            <span className="opponent-elo" title={bossStrengthDescription(boss.elo)}>
                               <b>{boss.elo}</b>
                               <small>ELO</small>
                             </span>
+                            {engineError && <div role="alert"><p>{engineError}</p><button type="button" onClick={() => setEngineRetry(retry => retry + 1)}>Retry engine</button></div>}
                           </div>
                         </div>
                         {opponentLine && (
@@ -2490,6 +2530,11 @@ function App() {
                         )}
                       </section>
                       <div className="opponent-actions opponent-actions-stacked">
+                        {debugMode && <div className="debug-match-tools">
+                          <strong>DEBUG MODE</strong>
+                          <p>Simulate a checkmate win to test the victory screen.</p>
+                          <button className="opponent-action-button" type="button" onClick={autoCheckmate} disabled={Boolean(currentResult) || reviewing}>AUTO CHECKMATE</button>
+                        </div>}
                         <button
                           className="opponent-action-button resign-action"
                           type="button"

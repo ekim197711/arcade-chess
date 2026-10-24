@@ -17,12 +17,20 @@ try {
     const original = AudioContext.prototype.createBufferSource;
     AudioContext.prototype.createBufferSource = function () {
       const source = original.call(this), start = source.start.bind(source);
-      source.start = (when = this.currentTime, ...args) => { globalThis.soundStarts.push({ when, duration: source.buffer.duration }); return start(when, ...args); };
+      source.start = (when = this.currentTime, ...args) => {
+        let peak = 0;
+        for (let channel = 0; channel < source.buffer.numberOfChannels; channel++) {
+          for (const sample of source.buffer.getChannelData(channel)) peak = Math.max(peak, Math.abs(sample));
+        }
+        globalThis.soundStarts.push({ when, duration: source.buffer.duration, peak });
+        return start(when, ...args);
+      };
       return source;
     };
   });
   const url = server.resolvedUrls.local[0];
   await page.goto(`${url}#settings`);
+  assert.equal(await page.getByLabel('Sound effects volume', { exact: true }).inputValue(), '85');
   assert.equal(await page.locator('.sound-theme-option').count(), themes.length);
   for (const theme of themes) {
     const response = page.waitForResponse(response => response.url().endsWith(`/sound-board-theme/${theme.folder}/preview.wav`));
@@ -30,6 +38,9 @@ try {
     assert((await response).ok());
     await page.waitForFunction(id => localStorage.getItem('arcade-chess-sound-theme-v1') === id, theme.id);
   }
+  await page.waitForFunction(count => globalThis.soundStarts.length >= count, themes.length);
+  const previewPeaks = await page.evaluate(() => globalThis.soundStarts.map(sound => sound.peak));
+  assert(previewPeaks.every(peak => peak > .2 && peak <= .751), 'theme previews should be audible with headroom');
   // Decode every supplied file in the browser's real Web Audio implementation.
   await page.evaluate(async themes => {
     const context = new AudioContext();
@@ -58,6 +69,7 @@ try {
   assert((await mate).ok()); assert((await win).ok());
   await page.waitForFunction(() => globalThis.soundStarts.filter(cue => cue.duration > .14).length >= 2);
   const cues = await page.evaluate(() => globalThis.soundStarts.filter(cue => cue.duration > .14));
+  assert(cues.every(cue => cue.peak > .2 && cue.peak <= .751), 'board and result cues should use boosted audio');
   assert(cues[1].when >= cues[0].when + cues[0].duration, 'result cue must follow the board cue');
   await page.evaluate(() => localStorage.setItem('neon-knights-saved-match-v1', JSON.stringify({ id: 'sound-loss', bossIndex: 0, pgn: '1. e4', tauntIndex: 0 })));
   await page.goto(`${url}?sound-loss#battle`);

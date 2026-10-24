@@ -29,7 +29,7 @@ const LEGACY_THEMES: Record<string, string> = {
 export function resolveSoundTheme(saved: string | null): SoundTheme {
   const requested = saved && (LEGACY_THEMES[saved] ?? saved);
   return SOUND_THEMES.find(theme => theme.id === requested)?.id
-    ?? SOUND_THEMES.find(theme => theme.id === "velvet-arcade")?.id
+    ?? SOUND_THEMES.find(theme => theme.id === "moonlit-glass")?.id
     ?? SOUND_THEMES[0]!.id;
 }
 

@@ -26,6 +26,6 @@ for (const theme of themes) {
 }
 assert.equal(resolveSoundTheme('crystal'), 'moonlit-glass');
 assert.equal(resolveSoundTheme('soft-8bit'), 'velvet-arcade');
-assert.equal(resolveSoundTheme('removed-theme'), 'velvet-arcade');
-assert.equal(resolveSoundTheme(null), 'velvet-arcade');
+assert.equal(resolveSoundTheme('removed-theme'), 'moonlit-glass');
+assert.equal(resolveSoundTheme(null), 'moonlit-glass');
 console.log(`PASS ${themes.length} manifest-backed themes, ${checked} event mappings and WAV headers, previews, saved selections and legacy aliases`);

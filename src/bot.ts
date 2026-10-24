@@ -119,6 +119,9 @@ export function legalTargets(fen: string, square: Square): Square[] {
 }
 
 export type MoveAnalysis = {
+  /** Position scores in centipawns, always positive for White. */
+  evaluationBefore: number;
+  evaluationAfter: number;
   suggested: string;
   loss: number;
   matches: boolean;
@@ -173,6 +176,8 @@ export function analyzeMove(fen: string, playedSan: string): MoveAnalysis {
     explanation += ` Estimated evaluation difference: ${(loss / 100).toFixed(2)} pawns.`;
   }
   return {
+    evaluationBefore: sign * best.score,
+    evaluationAfter: sign * played.score,
     suggested: loss === 0 ? played.san : best.san, loss, matches: loss === 0,
     worst: loss >= 100 && played.score === candidates.at(-1)!.score,
     explanation, playedLine: playedLine.moves, suggestedLine: suggestedLine.moves,

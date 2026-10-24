@@ -5,6 +5,7 @@ export type ArchivedMatch = {
   id: string; startedAt: string; updatedAt: string; bossIndex: number;
   opponent: string; playerName?: string; elo: number; color: PieceColor; pgn: string;
   result: "win" | "loss" | "draw" | "unfinished"; reason: string;
+  debug?: boolean;
 };
 const KEY = "arcade-chess-history-v1";
 export function readHistory(): ArchivedMatch[] {

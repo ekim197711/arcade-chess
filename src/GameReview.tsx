@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Chess } from "./chess";
 import type { MoveAnalysis } from "./bot";
 import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
+import { reviewAdvantage, reviewEvaluationChange } from "./reviewAdvantage";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
@@ -84,6 +85,17 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   const playerElo = useMemo(() => evaluatePlayerElo(moves, analyses, color), [moves, analyses, color]);
   const move = moves[ply - 1];
   const analysis = analyses[ply - 1];
+  const historicPosition = useMemo(() => {
+    const game = new Chess();
+    game.loadPgn(pgn);
+    for (let index = moves.length; index > ply; index--) game.undo();
+    return game;
+  }, [pgn, moves.length, ply]);
+  const advantage = reviewAdvantage(historicPosition, ply === 0 ? analyses[0]?.evaluationBefore : analysis?.evaluationAfter, failed);
+  const evaluationChange = ply === 0 ? null : reviewEvaluationChange(
+    historicPosition.isDraw() ? 0 : analysis?.evaluationAfter,
+    ply === 1 ? analyses[0]?.evaluationBefore : analyses[ply - 2]?.evaluationAfter,
+  );
   const boardRating = analysis ? moveRating(analysis) : { key: "pending", label: "Analyzing move", icon: "..." };
   const position = new Chess(variation?.fen ?? move?.after ?? moves[0]?.before);
   if (!variation && !move && !moves.length) position.loadPgn(pgn);
@@ -211,6 +223,21 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
           </nav>
         </aside>
         <div className="review-board-column">
+          {!preview && <section className="review-advantage" aria-label="Position evaluation">
+            <div className="review-advantage-heading" aria-live="polite">
+              <strong>{advantage.label}</strong><span>{advantage.score}</span>
+            </div>
+            <div className="review-advantage-change" aria-live="polite" title="Change in estimated pawn advantage from the previous game position. Unavailable at the start, while analysis is pending, or for mate scores.">
+              Change from previous: <strong>{evaluationChange ?? "—"}</strong>
+            </div>
+            <div className={`review-advantage-track${advantage.pending ? " review-advantage-pending" : ""}`} role="img" aria-label={`${advantage.label}, evaluation ${advantage.score}`}>
+              <div className="review-advantage-white" style={{ width: `${advantage.whitePercent}%` }} />
+            </div>
+            <div className="review-advantage-players">
+              <span>White · {color === "w" ? playerName : opponent}</span>
+              <span>Black · {color === "b" ? playerName : opponent}</span>
+            </div>
+          </section>}
           <div className="review-board chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties} aria-label={preview ? "Best move line chessboard" : "Replay chessboard"}>
             {rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
               const file = String.fromCharCode(97 + (color === "w" ? columnIndex : 7 - columnIndex));
