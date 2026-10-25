@@ -8,15 +8,19 @@ let browser;
 try {
   const { BOSS_CHARACTERS } = await server.ssrLoadModule('/src/bossArtwork.ts');
   const { bossRematchPlea } = await server.ssrLoadModule('/src/bossRematches.ts');
+  const { bossVictoryTaunt } = await server.ssrLoadModule('/src/bossVictoryTaunts.ts');
   const pleas = BOSS_CHARACTERS.map(boss => bossRematchPlea(boss.name));
   assert.equal(new Set(pleas).size, 59);
   assert(pleas.every(plea => plea.length > 40));
+  const taunts = BOSS_CHARACTERS.map(boss => bossVictoryTaunt(boss.name));
+  assert.equal(new Set(taunts).size, 59);
   const matches = BOSS_CHARACTERS.map((boss, index) => ({
     id: `victory-${index}`, startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     bossIndex: index, opponent: boss.name, elo: 100 + index * 50, color: 'b',
     pgn: '1. f3 e5 2. g4 Qh4#', result: 'win', reason: 'Checkmate',
   }));
   matches.push(...['loss', 'draw'].map(result => ({ ...matches[0], id: result, result })));
+  matches.push(...BOSS_CHARACTERS.map((boss, index) => ({ ...matches[index], id: `defeat-${index}`, color: 'w', result: 'loss' })));
   await server.listen();
   browser = await chromium.launch({ channel: 'msedge', headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -47,13 +51,31 @@ try {
       assert(await panel.evaluate(element => element.scrollWidth <= element.clientWidth + 1));
     }
   }
+  for (const index of [0, 1, 35, 44, 46, 47, 58]) {
+    const boss = BOSS_CHARACTERS[index];
+    await page.goto(`${url}#result/defeat-${index}`);
+    const panel = page.getByRole('region', { name: `${boss.name} celebrates victory` });
+    await panel.waitFor();
+    assert.equal(await panel.locator('blockquote').innerText(), taunts[index]);
+    const portrait = panel.locator('img');
+    assert.match(await portrait.getAttribute('src'), new RegExp(`${boss.folder}/${existsSync(`public/characters/${boss.folder}/won.png`) ? 'won' : 'focused'}.png$`));
+    await portrait.evaluate(image => image.decode());
+    assert.equal(await page.locator('.result-rematch').count(), 0);
+    for (const width of [1440, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      const box = await panel.boundingBox();
+      assert(box.width > 0 && box.x >= 0 && box.x + box.width <= width);
+      assert(await panel.evaluate(element => element.scrollWidth <= element.clientWidth + 1));
+    }
+  }
   for (const result of ['loss', 'draw']) {
     await page.goto(`${url}#result/${result}`);
     await page.locator('.match-result').waitFor();
     assert.equal(await page.locator('.result-rematch').count(), 0);
+    assert.equal(await page.locator('.result-taunt').count(), result === 'loss' ? 1 : 0);
   }
   assert.deepEqual(errors, []);
-  console.log('PASS 59 unique rematch pleas, matching angry portraits, missing-art fallback, desktop/mobile layout, victory-only display');
+  console.log('PASS 59 unique rematch pleas and defeat taunts, correct angry/winning portraits and fallback, desktop/mobile layout, result-specific display');
 } finally {
   await browser?.close();
   await server.close();

@@ -114,13 +114,16 @@
 .debug-match-tools { padding: 12px; border: 1px dashed #85e7ff; border-radius: 8px; color: #c4d0f5; }
 .debug-match-tools > strong { color: #91e9ff; font-size: 12px; }
 .debug-match-tools > p { font-size: 12px; line-height: 1.4; margin: 8px 0; }
-.result-rematch { display: flex; align-items: center; gap: 24px; width: min(100%, 720px); margin: 28px auto; text-align: left; }
+.result-rematch, .result-taunt { display: flex; align-items: center; gap: 24px; width: min(100%, 720px); margin: 28px auto; text-align: left; }
+.result-boss-happy { flex: 0 0 auto; width: clamp(110px, 20vw, 200px); height: clamp(110px, 20vw, 200px); object-fit: contain; filter: drop-shadow(0 5px 16px #ffda4d44); }
+.result-taunt .result-rematch-speech { background: #1c2940; border-color: #d8bd67; }
+.result-taunt .result-rematch-speech > strong { color: #ffe1a0; }
 .result-boss-angry { flex: 0 0 auto; width: clamp(110px, 20vw, 200px); height: clamp(110px, 20vw, 200px); object-fit: contain; filter: drop-shadow(0 5px 16px #ff553344); }
 .result-boss-fallback { display: grid; place-items: center; font-size: 80px; }
 .result-rematch-speech { padding: 20px; background: #281d3e; border: 1px solid #c77683; border-radius: 14px; }
 .result-rematch-speech > strong { color: #ffb3bd; font-size: 14px; }
 .result-rematch-speech blockquote { margin: 10px 0 0; color: #fff0e6; font-size: clamp(16px, 2vw, 20px); line-height: 1.5; }
-@media (max-width: 480px) { .result-rematch { flex-direction: column; gap: 12px; text-align: center; } }
+@media (max-width: 480px) { .result-rematch, .result-taunt { flex-direction: column; gap: 12px; text-align: center; } }
 .result-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 30px 0; }
 .result-stats > div { padding: 20px 10px; background: #162555; border-radius: 8px; }
 .result-stats dt { color: #c4d0f5; font-size: 13px; }

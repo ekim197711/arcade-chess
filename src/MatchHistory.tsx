@@ -4,6 +4,7 @@ import { Chess } from "./chess";
 import type { ArchivedMatch } from "./matchArchive";
 import { bossPortrait, resolveBossCharacter } from "./bossArtwork";
 import { bossRematchPlea } from "./bossRematches";
+import { bossVictoryTaunt } from "./bossVictoryTaunts";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
 function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
@@ -25,6 +26,7 @@ export function MatchResult({ match, onReview, onHome }: { match: ArchivedMatch;
   const character = resolveBossCharacter(match.opponent, __BOSS_PORTRAITS__);
   const angryPortrait = character && __BOSS_PORTRAITS__[character]?.includes("angry")
     ? bossPortrait(character, __BOSS_PORTRAITS__, "angry") : undefined;
+  const happyPortrait = bossPortrait(character, __BOSS_PORTRAITS__, "won");
   return <section className="game-review match-result" aria-labelledby="result-title">
     <div key={match.id} className="result-confetti" aria-hidden="true">
       {Array.from({ length: 64 }, (_, index) => <i key={index} style={{
@@ -47,6 +49,13 @@ export function MatchResult({ match, onReview, onHome }: { match: ArchivedMatch;
       <div className="result-rematch-speech">
         <strong>{match.opponent}</strong>
         <blockquote>{bossRematchPlea(match.opponent)}</blockquote>
+      </div>
+    </section>}
+    {match.result === "loss" && <section className="result-taunt" aria-label={`${match.opponent} celebrates victory`}>
+      {happyPortrait && <img className="result-boss-happy" src={happyPortrait} alt={`${match.opponent} celebrating victory`} />}
+      <div className="result-rematch-speech">
+        <strong>{match.opponent}</strong>
+        <blockquote>{bossVictoryTaunt(match.opponent)}</blockquote>
       </div>
     </section>}
     <dl className="result-stats">
