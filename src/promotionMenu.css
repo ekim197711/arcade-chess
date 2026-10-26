@@ -1,0 +1,54 @@
+.promotion-menu {
+  position: fixed;
+  z-index: 2000;
+  width: 190px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid #6e8dbf;
+  border-radius: 6px;
+  background: #0b1428;
+  color: #f4f8ff;
+  box-shadow: 0 8px 24px #0009;
+  font: 14px var(--mono, monospace);
+}
+.promotion-menu .promotion-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.promotion-menu .promotion-option:hover,
+.promotion-menu .promotion-option:focus {
+  outline: none;
+  border-color: #25e5ff;
+  background: #183551;
+}
+.promotion-menu .promotion-artwork { position: relative; display: block; flex: 0 0 28px; width: 28px; height: 32px; }
+.promotion-default { margin-left: auto; color: #94b9cf; font-size: 10px; white-space: nowrap; }
+.promotion-menu .promotion-cancel {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-top: 1px solid #334563;
+  border-radius: 0;
+  background: transparent;
+  color: #a7b8d1;
+  font: inherit;
+  cursor: pointer;
+}
+.promotion-menu .promotion-cancel:hover,
+.promotion-menu .promotion-cancel:focus { outline: 1px solid #25e5ff; background: #183551; color: #fff; }
