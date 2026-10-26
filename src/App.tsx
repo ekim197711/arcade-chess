@@ -1,3 +1,4 @@
+import { CookieNotice } from "./CookieNotice";
 import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
 import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor } from "./bossArtwork";
 import {
@@ -14,9 +15,7 @@ import {
 } from "react";
 import { Chess, freestyleFen, type PlayMode, type Color, type Square } from "./chess";
 import {
-  createClient,
   type Session,
-  type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
 import {
@@ -45,21 +44,20 @@ import {
 import { legalTargets } from "./bot";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import { DragSquare } from "./DragSquare";
+import { PromotionMenu, type PromotionPiece, type PromotionPosition } from "./PromotionMenu";
 import { BoardResizeHandle } from "./BoardResizeHandle";
 import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
+import { SegmentedCredits } from "./SegmentedCredits";
 import { GameReview } from "./GameReview";
 import { MatchHistory, MatchResult } from "./MatchHistory";
 import { DancingBosses } from "./DancingBosses";
+import { SignupDisclaimer } from "./SignupDisclaimer";
+import { SignupPlans, readSignupPlan, PENDING_SIGNUP_PLAN_KEY, type SignupPlan } from "./SignupPlans";
 import { requestStockfishMove, bossStrengthDescription } from "./stockfish";
-import { readHistory, saveHistory, type ArchivedMatch } from "./matchArchive";
+import { type ArchivedMatch } from "./matchArchive";
+import { supabase, supabaseConfiguration } from "./supabase";
+import { useMatchHistory } from "./useMatchHistory";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase: SupabaseClient | null =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
 
 const BOSS_MASCOTS = [
   "👹",
@@ -298,7 +296,7 @@ const PIECE_THEME_KEY = "arcade-chess-piece-theme-v1";
 const BOARD_COLORS_KEY = "arcade-chess-board-colors-v1";
 const BOARD_SIZE_KEY = "arcade-chess-board-size-v1";
 const CREDIT_COUNT_KEY = "arcade-chess-credit-count-v1";
-const MAX_CREDITS = 100;
+const MAX_CREDITS = 99;
 const BOARD_PALETTES = [
   { id: "classic", label: "CLASSIC", light: "#d8bd91", dark: "#352317" },
   { id: "ocean", label: "OCEAN", light: "#c4e1ea", dark: "#345b7e" },
@@ -309,7 +307,7 @@ const BOARD_PALETTES = [
 ] as const;
 type BoardPaletteId = (typeof BOARD_PALETTES)[number]["id"];
 type BoardColors = { light: string; dark: string };
-const DEFAULT_BOARD_PALETTE: BoardPaletteId = "classic";
+const DEFAULT_BOARD_PALETTE: BoardPaletteId = "forest";
 const ACCOUNT_STORAGE_PREFIX = "neon-knights-account-v1:";
 const PENDING_STORAGE_PREFIX = "neon-knights-pending-v1:";
 const MERGE_STORAGE_PREFIX = "neon-knights-merge-v1:";
@@ -320,10 +318,10 @@ function readPieceTheme(): PieceStyle {
     if (savedTheme === "granite") return "granite-3d";
     return (
       PIECE_CHOICES.find((choice) => choice.id === savedTheme)?.id ??
-      "classic-2d"
+      "granite-3d"
     );
   } catch {
-    return "classic-2d";
+    return "granite-3d";
   }
 }
 
@@ -400,13 +398,8 @@ function getMaterialPoints(pieces: Record<MedievalPieceType, number>) {
 }
 
 type BotMoveData = { from: Square; to: Square; promotion?: string };
-type Premove = { from: Square; to: Square };
-type PromotionPiece = "q" | "r" | "b" | "n";
-type PromotionMove = { from: Square; to: Square; fen: string; matchId: string };
-const PROMOTION_CHOICES: { type: PromotionPiece; label: string }[] = [
-  { type: "q", label: "Queen" }, { type: "r", label: "Rook" },
-  { type: "b", label: "Bishop" }, { type: "n", label: "Knight" },
-];
+type Premove = { from: Square; to: Square; position?: PromotionPosition };
+type PromotionMove = { from: Square; to: Square; fen: string; matchId: string; position: PromotionPosition };
 type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string; debug?: boolean };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
 
@@ -810,6 +803,7 @@ function getPremoveTargets(
 }
 
 function App() {
+  const [cookieNoticeReset, setCookieNoticeReset] = useState(0);
   const [debugMode, setDebugMode] = useState(() => {
     try { return localStorage.getItem(DEBUG_MODE_KEY) === "true"; } catch { return false; }
   });
@@ -824,6 +818,28 @@ function App() {
   const [authReady, setAuthReady] = useState(!supabase);
   const [cloudSyncError, setCloudSyncError] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
+  const [signupPlan, setSignupPlan] = useState<SignupPlan>(readSignupPlan);
+  useEffect(() => {
+    if (!authOpen) setSignupTermsAccepted(false);
+  }, [authOpen]);
+  useEffect(() => {
+    if (!user) return;
+    let plan: string | null;
+    try { plan = localStorage.getItem(PENDING_SIGNUP_PLAN_KEY); } catch { return; }
+    if (plan !== "free" && plan !== "very-free") return;
+    let active = true;
+    // OAuth redirects back to this browser; attach its chosen tier to the account.
+    void supabase?.auth.updateUser({ data: { arcade_plan: plan } }).then(({ data, error }) => {
+      if (!active) return;
+      if (error) { showToast("PLAN CHOICE COULD NOT SYNC — PLEASE TRY SIGNING IN AGAIN"); return; }
+      if (data.user) setUser(data.user);
+      try {
+        if (localStorage.getItem(PENDING_SIGNUP_PLAN_KEY) === plan) localStorage.removeItem(PENDING_SIGNUP_PLAN_KEY);
+      } catch { /* The saved account preference is already committed. */ }
+    }).catch(() => { if (active) showToast("PLAN CHOICE COULD NOT SYNC — PLEASE TRY SIGNING IN AGAIN"); });
+    return () => { active = false; };
+  }, [user?.id]);
   const [authMessage, setAuthMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try {
@@ -868,8 +884,7 @@ function App() {
   const [opponentColumnCollapsed, setOpponentColumnCollapsed] = useState(false);
   const [playerColumnCollapsed, setPlayerColumnCollapsed] = useState(false);
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
-  const [history, setHistory] = useState(readHistory);
-  const [historyError, setHistoryError] = useState(false);
+  const { history, setHistory, historyError, historyCloudError, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
@@ -902,6 +917,7 @@ function App() {
   );
 
   const [coinCount, setCoinCount] = useState(readCoinCount);
+  const creditMessageRef = useRef<HTMLSpanElement>(null);
   const [coinAnimationReady, setCoinAnimationReady] = useState(false);
   const coinAnimation = useRef<CoinInsertAnimationHandle>(null);
   const markCoinAnimationReady = useCallback(() => setCoinAnimationReady(true), []);
@@ -943,7 +959,6 @@ function App() {
 
   const authDialogRef = useRef<HTMLElement | null>(null);
   const helpDialogRef = useRef<HTMLElement | null>(null);
-  const promotionDialogRef = useRef<HTMLElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const moodTimer = useRef<number | undefined>(undefined);
@@ -951,6 +966,11 @@ function App() {
   const game = useMemo(() => restoreGame(pgn), [pgn]);
   const savedMode = useMemo(() => savedMatch ? restoreGame(savedMatch.pgn).mode : null, [savedMatch]);
   const canResumeSelectedMatch = savedMatch?.bossIndex === bossIndex && savedMode === playMode && (!savedMatch.debug || debugMode);
+  useEffect(() => {
+    if (!user || screen === "battle") return;
+    const unfinished = history.find((match) => match.result === "unfinished" && (!match.debug || debugMode));
+    setSavedMatch(unfinished ? { ...unfinished, tauntIndex: 0 } : null);
+  }, [history, user, screen, debugMode]);
   const fen = game.fen();
   const moveHistory = useMemo(() => game.history({ verbose: true }), [game]);
   const reviewing = reviewPly !== null;
@@ -1042,7 +1062,6 @@ function App() {
     });
     if (currentResult) setScreen(`result/${record.id}`);
   }, [pgn, currentResult, screen, bossIndex, debugMatch]);
-  useEffect(() => { setHistoryError(!saveHistory(history)); }, [history]);
   const progress = user ? (accountProgress ?? EMPTY_PROGRESS) : guestProgress;
   const clearedBosses = ladderClears(progress, playMode);
 
@@ -1052,6 +1071,10 @@ function App() {
     user?.email?.split("@")[0] ??
     "PLAYER ONE";
   const avatarInitial = playerName.trim().charAt(0).toUpperCase() || "P";
+  const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture;
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const playerAvatar = typeof avatarUrl === "string" && /^https?:\/\//i.test(avatarUrl) && failedAvatar !== avatarUrl
+    ? <img className="player-avatar-image" src={avatarUrl} alt={`${playerName}'s avatar`} referrerPolicy="no-referrer" onError={() => setFailedAvatar(avatarUrl)} /> : avatarInitial;
   const currentTaunt = (
     boss.taunts[tauntIndex % boss.taunts.length] ?? "You're going down, rookie."
   ).replace("{pilot}", user ? playerName : "rookie");
@@ -1216,7 +1239,7 @@ function App() {
   }, [screen, musicEnabled]);
 
   useEffect(() => {
-    const dialog = promotionMove ? promotionDialogRef.current : authOpen
+    const dialog = authOpen
       ? authDialogRef.current
       : helpOpen
         ? helpDialogRef.current
@@ -1240,7 +1263,6 @@ function App() {
         event.preventDefault();
         setAuthOpen(false);
         setHelpOpen(false);
-        setPromotionMove(null);
         return;
       }
       if (event.key !== "Tab") return;
@@ -1270,16 +1292,19 @@ function App() {
       if (restoreFocusRef.current?.isConnected) restoreFocusRef.current.focus();
       restoreFocusRef.current = null;
     };
-  }, [authOpen, helpOpen, promotionMove]);
+  }, [authOpen, helpOpen]);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     const loadAccount = async (session: Session | null) => {
+      if (!supabase) return;
       const nextUser = session?.user ?? null;
       const userId = nextUser?.id ?? null;
-      if (!active || requestedUserId.current === userId) return;
+      if (!active) return;
+      if (requestedUserId.current === userId) { setUser(nextUser); return; }
 
+      const previousUserId = requestedUserId.current;
       requestedUserId.current = userId;
       activeUserId.current = userId;
       const request = ++loadSequence.current;
@@ -1287,6 +1312,14 @@ function App() {
       setCloudSyncError(false);
       setUser(nextUser);
       setAccountProgress(null);
+      // Stop an old account's active game before loading another account's saves.
+      if (nextUser || previousUserId) {
+        if (window.location.hash.startsWith("#battle")) { window.location.hash = "home"; setRoute("home"); }
+        setSavedMatch(nextUser ? null : readSavedMatch());
+        setPgn("");
+        setResigned(false);
+        setDebugCheckmate(false);
+      }
 
       if (!nextUser || !userId) {
         setAuthReady(true);
@@ -1391,7 +1424,8 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      void loadAccount(session);
+      // Run database calls after the auth callback releases its session lock.
+      window.setTimeout(() => { void loadAccount(session); }, 0);
     });
     return () => {
       active = false;
@@ -1404,8 +1438,14 @@ function App() {
     if (!supabase || activeUserId.current !== userId) return;
     let pending = readPendingResults(userId);
     const guest = readProgress();
-    if (pending.length === 0 && !hasProgress(guest)) return;
     let latest: Progress | null = null;
+    let readFailed = false;
+    try {
+      const { data, error } = await supabase.from("player_progress").select("progress").eq("user_id", userId).maybeSingle();
+      if (activeUserId.current !== userId) return;
+      if (error) readFailed = true;
+      else latest = normalizeProgress(data?.progress);
+    } catch { readFailed = true; }
 
     for (const event of [...pending]) {
       try {
@@ -1419,7 +1459,7 @@ function App() {
         if (activeUserId.current !== userId) return;
         if (error) break;
         latest = normalizeProgress(data as Partial<Progress>);
-        pending = pending.filter((item) => item.id !== event.id);
+        pending = readPendingResults(userId).filter((item) => item.id !== event.id);
         writePendingResults(userId, pending);
       } catch {
         break;
@@ -1468,11 +1508,10 @@ function App() {
       setAccountProgress(displayProgress);
     }
     const syncFailed =
-      pending.length > 0 || mergeFailed || (!guestMerged && hasProgress(guest));
+      (readFailed && !latest) || pending.length > 0 || mergeFailed || (!guestMerged && hasProgress(guest));
     setCloudSyncError(syncFailed);
     if (pending.length > 0) showToast("CLOUD SAVE QUEUED — LOCAL COPY KEPT");
     else if (mergeFailed) showToast("GUEST PROGRESS WILL RETRY WHEN ONLINE");
-    else if (latest) showToast("ARCADE PROGRESS SYNCED");
   }
 
   async function saveAccountResult(
@@ -1499,7 +1538,9 @@ function App() {
       if (userId) void retryPendingProgress(userId);
     };
     window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
+    window.addEventListener("focus", handleOnline);
+    const retryTimer = window.setInterval(handleOnline, 15000);
+    return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("focus", handleOnline); window.clearInterval(retryTimer); };
   }, []);
 
   useEffect(() => {
@@ -1625,7 +1666,16 @@ function App() {
   function insertCoin() {
     if (coinCount >= MAX_CREDITS) {
       playArcadeSound("coin-return", soundEnabled);
-      showToast("MAX CREDITS — COIN RETURNED");
+      const message = creditMessageRef.current;
+      if (message && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        message.getAnimations().forEach((animation) => animation.cancel());
+        message.animate([
+          { transform: "scale(1) rotate(0deg)" },
+          { transform: "scale(1.08) rotate(-3deg)", offset: 0.3 },
+          { transform: "scale(1.05) rotate(2deg)", offset: 0.65 },
+          { transform: "scale(1) rotate(0deg)" },
+        ], { duration: 420, easing: "ease-out" });
+      }
       return;
     }
     setCoinCount((count) => Math.min(MAX_CREDITS, count + 1));
@@ -1707,7 +1757,7 @@ function App() {
     }
   }
 
-  function makeMove(from: Square, to: Square, promotion?: PromotionPiece) {
+  function makeMove(from: Square, to: Square, promotion?: PromotionPiece, position?: PromotionPosition) {
     if (currentResult || reviewing || (promotionMove && !promotion)) return false;
     if (premoveTurn) {
       if (
@@ -1715,7 +1765,7 @@ function App() {
         !getPremoveTargets(fen, from, playerColor).includes(to)
       )
         return false;
-      setPremove({ from, to });
+      setPremove({ from, to, position });
       setSelectedSquare(null);
       playBoardSound("select", soundEnabled, soundTheme);
       return true;
@@ -1723,7 +1773,10 @@ function App() {
     if (thinking || game.turn() === boss.chessColor) return false;
     const next = restoreGame(pgn);
     if (!promotion && next.moves({ square: from, verbose: true }).some(move => move.to === to && move.promotion)) {
-      setPromotionMove({ from, to, fen, matchId: matchId.current });
+      const target = document.querySelector(`[data-square="${to}"]`)?.getBoundingClientRect();
+      const anchor = position ?? { x: target ? target.x + target.width / 2 : window.innerWidth / 2,
+        y: target ? target.y + target.height / 2 : window.innerHeight / 2 };
+      setPromotionMove({ from, to, fen, matchId: matchId.current, position: anchor });
       setSelectedSquare(null);
       return true;
     }
@@ -1745,11 +1798,11 @@ function App() {
     }
   }
 
-  function handleSquareClick(square: Square) {
+  function handleSquareClick(square: Square, position?: PromotionPosition) {
     if (promotionMove || reviewing || currentResult || (thinking && !premoveTurn)) return;
     const piece = game.get(square);
     if (selectedSquare && legalMoves.includes(square)) {
-      makeMove(selectedSquare, square);
+      makeMove(selectedSquare, square, undefined, position);
       return;
     }
     if (piece?.color === playerColor) {
@@ -1769,7 +1822,7 @@ function App() {
     )
       return;
     try {
-      localStorage.removeItem(SAVED_MATCH_KEY);
+      localStorage.removeItem(user ? `${SAVED_MATCH_KEY}:${user.id}` : SAVED_MATCH_KEY);
     } catch {
       /* The in-memory match state can still be cleared. */
     }
@@ -1779,7 +1832,7 @@ function App() {
   function persistCurrentMatch() {
     const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current, debug: debugMatch };
     try {
-      localStorage.setItem(SAVED_MATCH_KEY, JSON.stringify(match));
+      localStorage.setItem(user ? `${SAVED_MATCH_KEY}:${user.id}` : SAVED_MATCH_KEY, JSON.stringify(match));
     } catch {
       if (!matchSaveFailed.current) showToast("MATCH COULD NOT BE SAVED — KEEP PLAYING");
       matchSaveFailed.current = true;
@@ -1888,13 +1941,19 @@ function App() {
   }
 
   async function signIn(provider: "google" | "facebook" | "github") {
+    if (!signupTermsAccepted) {
+      setAuthMessage("Please read and accept the terms of use before continuing.");
+      return;
+    }
     if (!supabase) {
       setAuthMessage(
-        "Add your Supabase URL and anon key to .env.local to enable account sign-in. Guest progress is saved on this device.",
+        supabaseConfiguration.error,
       );
       return;
     }
     setAuthMessage("");
+    try { localStorage.setItem(PENDING_SIGNUP_PLAN_KEY, signupPlan); }
+    catch { setAuthMessage("Your browser could not save your plan choice. Allow site storage and try again."); return; }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin },
@@ -1934,7 +1993,7 @@ function App() {
     const queuedMove = premove;
     setPremove(null);
     setSelectedSquare(null);
-    if (!makeMove(queuedMove.from, queuedMove.to)) {
+    if (!makeMove(queuedMove.from, queuedMove.to, undefined, queuedMove.position)) {
       showToast("PREMOVE EXPIRED — MOVE IS NO LONGER LEGAL");
     }
   }, [
@@ -1989,12 +2048,12 @@ function App() {
         <a
           className="brand"
           href="#home"
-          aria-label="Arcade Chess home"
+          aria-label="Arcade Gambit home"
         >
           <img
             className="brand-logo"
-            src="/brand/chess-arcade-logo.png"
-            alt="Arcade Chess"
+            src="/brand/arcade-gambit-logo.png"
+            alt="Arcade Gambit"
           />
         </a>
         <nav className="top-nav" aria-label="Game flow">
@@ -2045,7 +2104,7 @@ function App() {
               onClick={() => setAuthOpen(true)}
               aria-label={`Account for ${playerName}`}
             >
-              <span className="avatar">{avatarInitial}</span>
+              <span className="avatar">{playerAvatar}</span>
               <span className="profile-name">{playerName}</span>
               <ChevronRight size={14} />
             </button>
@@ -2132,6 +2191,13 @@ function App() {
                 <input id="settings-board-size" className="settings-range" type="range" min="300" max="760" step="10" value={boardWidth ?? 520} onChange={(event) => setBoardWidth(Number(event.currentTarget.value))} />
                 <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>RESET TO AUTO SIZE</button>
               </section>
+              <section className="settings-card" aria-label="Cookies and storage">
+                <h2>Cookies & storage</h2>
+                <p>Reset the saved cookie notice acknowledgement to test the first-visit popup. Your game saves and settings stay intact.</p>
+                <button className="settings-reset" type="button" onClick={() => setCookieNoticeReset(value => value + 1)}>
+                  RESET COOKIE ACKNOWLEDGEMENT
+                </button>
+              </section>
               <section className="settings-card" aria-label="Debug settings">
                 <h2>Debug mode</h2>
                 <p>Unlock every boss in both ladders and enable Auto checkmate during matches. Debug games are marked as tests and do not count toward stats or ladder progress.</p>
@@ -2146,7 +2212,7 @@ function App() {
           <section className="arcade-cabinet" aria-labelledby="hero-title">
             <div className="arcade-cabinet-topline">
               <span className="arcade-cabinet-brand">
-                <Gamepad2 size={17} /> ARCADE CHESS
+                <Gamepad2 size={17} /> ARCADE GAMBIT
               </span>
               <span className="arcade-cabinet-status">
                 <i /> PLAYER ONE — READY
@@ -2173,7 +2239,13 @@ function App() {
                 <div className="arcade-screen-art" aria-hidden="true">
                   <span className="arcade-screen-star arcade-star-one">✦</span>
                   <span className="arcade-screen-star arcade-star-two">✦</span>
-                  <span className="arcade-screen-piece">♞</span>
+                  <img
+                    className="arcade-screen-piece"
+                    src="/brand/arcade-gambit-knight-solid.png"
+                    alt=""
+                    width={1254}
+                    height={1254}
+                  />
                 </div>
               </div>
             </div>
@@ -2182,13 +2254,14 @@ function App() {
               <div className="arcade-credit-display">
                 <span className="arcade-control-label">CREDITS</span>
                 <output aria-live="polite" aria-label={`${coinCount} credits`}>
-                  {String(coinCount).padStart(2, "0")}
+                  <SegmentedCredits value={coinCount} />
                 </output>
-                <span className="arcade-credit-hint">
-                  {coinCount > 0 ? "READY TO PLAY" : "INSERT COIN TO START"}
+                <span ref={creditMessageRef} className={`arcade-credit-hint${coinCount >= MAX_CREDITS ? " arcade-credit-maximum" : ""}`} aria-live="polite">
+                  {coinCount >= MAX_CREDITS ? "Maximum credits achieved!" : coinCount > 0 ? "READY TO PLAY" : "INSERT COIN TO START"}
                 </span>
               </div>
 
+              <div className="arcade-coin-control">
               <button
                 className="arcade-coin-button"
                 type="button"
@@ -2204,6 +2277,8 @@ function App() {
                   {coinCount >= MAX_CREDITS ? "MAX CREDITS" : "+1 CREDIT"}
                 </small>
               </button>
+              <p className="arcade-coin-note">Coins are free for now</p>
+              </div>
 
               <section className="boss-run-card" aria-labelledby="boss-run-title">
                 <div className="boss-run-heading">
@@ -2245,7 +2320,7 @@ function App() {
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
               <div className="hud-avatar">
-                <span>{avatarInitial}</span>
+                <span>{playerAvatar}</span>
                 <i />
               </div>
               <div className="hud-player-info">
@@ -2306,11 +2381,13 @@ function App() {
         )}
 
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
-        {screen === "home" && <MatchHistory matches={history} onReview={(id) => setScreen(`review/${id}`)} />}
+        {user && <p className="review-note" role="status">{historyCloudError ? "Game history is saved on this device. Cloud sync will retry automatically." : historySyncing ? "Syncing game history…" : "Game history synced to your account."}</p>}
+        {screen === "home" && <MatchHistory matches={history} signedIn={!!user} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
-          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} />
-        ) : <section className="game-review"><h2>Game not found</h2><p>This game is not saved in this browser.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}
+          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
+            onMoveSound={(move, position) => playBoardSound(boardSoundForMove(move, position, selectedMatch.color), soundEnabled, soundTheme)} />
+        ) : <section className="game-review"><h2>Game not found</h2><p>This game is not available in your history.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {(screen === "roster" || screen === "battle") && (
           <section
             className={`flow-stage ${screen === "battle" ? "battle-stage" : ""}`}
@@ -2340,7 +2417,7 @@ function App() {
                       <p>{playMode === "freestyle"
                         ? "A random starting position with matching back ranks, opposite-color bishops, and the king between the rooks. Normal chess rules apply. To castle, move your king onto your rook; they finish on g/f or c/d."
                         : "The traditional starting position and standard chess rules."}</p>
-                      {savedMatch && <small>Resume keeps the saved position. Choosing a different mode starts a new game and replaces your saved match.</small>}
+                      {savedMatch && <small>Resume keeps the saved position. Earlier unfinished games remain available in Historic games.</small>}
                     </div>
                   </div>
                 </div>
@@ -2714,7 +2791,7 @@ function App() {
                                       className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premove?.from === square ? "square-premove-from" : ""} ${premove?.to === square ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
                                       aria-label={`${square}, ${pieceName}${isLegal ? `, ${premoveTurn ? "premove" : "legal"} destination` : ""}${premove?.from === square ? ", premove origin" : ""}${premove?.to === square ? ", premove target" : ""}${isSelected ? ", selected" : ""}`}
                                       aria-pressed={isSelected}
-                                      onClick={() => handleSquareClick(square)}
+                                      onClick={(event) => handleSquareClick(square, event.detail === 0 ? undefined : { x: event.clientX, y: event.clientY })}
                                       square={square}
                                       canDrag={!promotionMove && !reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
                                       positionKey={viewedGame.fen()}
@@ -2724,7 +2801,7 @@ function App() {
                                         if (premove) setPremove(null);
                                         setSelectedSquare(square);
                                       }}
-                                      onMovePiece={makeMove}
+                                      onMovePiece={(from, to, position) => makeMove(from, to, undefined, position)}
                                     >
                                       {fileIndex === 0 && (
                                         <span className="rank-label">
@@ -2994,7 +3071,8 @@ function App() {
       </main>
 
       <footer className="site-footer">
-        <span>Arcade Chess</span>
+        <span>Arcade Gambit</span>
+        <CookieNotice resetRequest={cookieNoticeReset} />
         <span className="footer-right">© {new Date().getFullYear()}</span>
       </footer>
 
@@ -3014,29 +3092,15 @@ function App() {
       )}
 
       {promotionMove && screen === "battle" && !reviewing && !currentResult && promotionMove.fen === fen && promotionMove.matchId === matchId.current && (
-        <div className="modal-backdrop">
-          <section ref={promotionDialogRef} className="modal-card promotion-modal" role="dialog"
-            aria-modal="true" aria-labelledby="promotion-title" aria-describedby="promotion-description">
-            <h2 id="promotion-title">Promote your pawn</h2>
-            <p id="promotion-description">Choose a piece for your pawn on {promotionMove.to}.</p>
-            <div className="promotion-options">
-              {PROMOTION_CHOICES.map(choice => (
-                <button key={choice.type} type="button" className="promotion-option" aria-label={`Promote to ${choice.label}`}
-                  onClick={() => {
-                    const pending = promotionMove;
-                    setPromotionMove(null);
-                    if (pending.fen === fen && pending.matchId === matchId.current) {
-                      makeMove(pending.from, pending.to, choice.type);
-                    }
-                  }}>
-                  <span className="promotion-artwork" aria-hidden="true"><PieceArtwork type={choice.type} color={playerColor} theme={pieceTheme} fitToSquare /></span>
-                  <span>{choice.label}</span>
-                </button>
-              ))}
-            </div>
-            <button className="promotion-cancel" type="button" onClick={() => setPromotionMove(null)}>Cancel</button>
-          </section>
-        </div>
+        <PromotionMenu position={promotionMove.position} color={playerColor} theme={pieceTheme}
+          onCancel={() => setPromotionMove(null)}
+          onChoose={(piece) => {
+            const pending = promotionMove;
+            setPromotionMove(null);
+            if (pending.fen === fen && pending.matchId === matchId.current) {
+              makeMove(pending.from, pending.to, piece);
+            }
+          }} />
       )}
 
       {authOpen && (
@@ -3079,6 +3143,7 @@ function App() {
                     : "Your arcade run is synced. Keep climbing the leaderboard."}
                 </p>
                 <div className="account-stats">
+                  <span>PLAN: {user.user_metadata?.arcade_plan === "very-free" ? "VERY FREE" : "FREE"}</span>
                   <span>
                     <Trophy size={14} /> {progress.wins} WINS
                   </span>
@@ -3107,10 +3172,21 @@ function App() {
                   Sign in to sync progress between machines. Or keep playing as
                   a guest — your run saves on this device.
                 </p>
+                <SignupPlans value={signupPlan} onChange={setSignupPlan} />
+                <SignupDisclaimer />
+                <label className="signup-terms-acceptance">
+                  <input
+                    type="checkbox"
+                    checked={signupTermsAccepted}
+                    onChange={(event) => setSignupTermsAccepted(event.target.checked)}
+                  />
+                  <span>I have read and agree to the terms of use, code of conduct, and liability disclaimer for all signup methods and free or paid tiers. My mandatory legal rights remain protected.</span>
+                </label>
                 <div className="social-login-list">
                   <button
                     className="social-button google-button"
                     onClick={() => void signIn("google")}
+                    disabled={!signupTermsAccepted}
                   >
                     <span className="google-g">G</span> CONTINUE WITH GOOGLE{" "}
                     <ArrowRight size={15} />
@@ -3118,6 +3194,7 @@ function App() {
                   <button
                     className="social-button"
                     onClick={() => void signIn("facebook")}
+                    disabled={!signupTermsAccepted}
                   >
                     <span className="facebook-f">f</span> CONTINUE WITH FACEBOOK{" "}
                     <ArrowRight size={15} />
@@ -3125,6 +3202,7 @@ function App() {
                   <button
                     className="social-button"
                     onClick={() => void signIn("github")}
+                    disabled={!signupTermsAccepted}
                   >
                     <Github size={16} /> CONTINUE WITH GITHUB{" "}
                     <ArrowRight size={15} />

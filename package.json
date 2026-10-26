@@ -1,9 +1,10 @@
 {
-  "name": "neon-knights",
+  "name": "arcade-gambit",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "aws:login": "aws sso login --profile mikeaa",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

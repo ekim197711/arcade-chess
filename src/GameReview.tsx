@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Chess } from "./chess";
+import { Chess, type Move } from "./chess";
 import type { MoveAnalysis } from "./bot";
 import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
 import { reviewAdvantage, reviewEvaluationChange } from "./reviewAdvantage";
@@ -8,15 +8,17 @@ import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
 
 const MOVE_SPEEDS = [0.5, 1, 1.5, 2, 3, 5, 10];
+const SPECIAL_MOVE_WAITS = [0.5, 1, 1.5, 2, 2.5, 3];
 const REVIEW_PREFERENCES_KEY = "arcade-chess-review-preferences-v1";
-type ReviewPreferences = { moveSeconds: number; theme: PieceStyle; showCoordinates: boolean; eventMode: "pause" | "stop" | "continue" };
+type ReviewPreferences = { moveSeconds: number; specialMoveSeconds: number; theme: PieceStyle; showCoordinates: boolean; eventMode: "pause" | "stop" | "continue" };
 function readReviewPreferences(fallbackTheme: PieceStyle): ReviewPreferences {
-  const defaults: ReviewPreferences = { moveSeconds: 2, theme: fallbackTheme, showCoordinates: true, eventMode: "pause" };
+  const defaults: ReviewPreferences = { moveSeconds: 2, specialMoveSeconds: 1.5, theme: fallbackTheme, showCoordinates: true, eventMode: "pause" };
   try {
     const saved = JSON.parse(localStorage.getItem(REVIEW_PREFERENCES_KEY) ?? "null");
     if (!saved || typeof saved !== "object") return defaults;
     return {
       moveSeconds: typeof saved.moveSeconds === "number" && Number.isFinite(saved.moveSeconds) && saved.moveSeconds >= 0.2 && saved.moveSeconds <= 30 ? saved.moveSeconds : defaults.moveSeconds,
+      specialMoveSeconds: SPECIAL_MOVE_WAITS.includes(saved.specialMoveSeconds) ? saved.specialMoveSeconds : defaults.specialMoveSeconds,
       theme: PIECE_CHOICES.some((choice) => choice.id === saved.theme) ? saved.theme : defaults.theme,
       showCoordinates: typeof saved.showCoordinates === "boolean" ? saved.showCoordinates : defaults.showCoordinates,
       eventMode: ["pause", "stop", "continue"].includes(saved.eventMode) ? saved.eventMode : defaults.eventMode,
@@ -34,11 +36,12 @@ type Props = {
   light: string;
   dark: string;
   onClose: () => void;
+  onMoveSound?: (move: Move, position: Chess) => void;
 };
 
-export function GameReview({ pgn, opponent, opponentElo, playerName, theme, color, light, dark, onClose }: Props) {
+export function GameReview({ pgn, opponent, opponentElo, playerName, theme, color, light, dark, onClose, onMoveSound }: Props) {
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
-  const { eventMode, moveSeconds, showCoordinates, theme: reviewTheme } = preferences;
+  const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme } = preferences;
   const [savingFailed, setSavingFailed] = useState(false);
   const [themeLoading, setThemeLoading] = useState(false);
   const [themeError, setThemeError] = useState("");
@@ -106,6 +109,14 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   const rows = position.board();
   if (color === "b") { rows.reverse(); rows.forEach((row) => row.reverse()); }
 
+  const positionFen = position.fen();
+  const previousSoundPosition = useRef(positionFen);
+  useEffect(() => {
+    if (previousSoundPosition.current === positionFen) return;
+    previousSoundPosition.current = positionFen;
+    if (last) onMoveSound?.(last, position);
+  }, [positionFen, last, position, onMoveSound]);
+
   useEffect(() => {
     let worker: Worker | undefined;
     setAnalyses({});
@@ -127,7 +138,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   useEffect(() => {
     if (!playing || preview) return;
     if (ply >= moves.length) { setPlaying(false); setEventNotice(""); return; }
-    const delay = eventNotice && eventMode === "pause" ? 5000 : moveSeconds * 1000;
+    const delay = (moveSeconds + (eventNotice && eventMode === "pause" ? specialMoveSeconds : 0)) * 1000;
     let timer: number;
     const advance = () => {
       const rating = liveAnalysis.current.analyses[ply];
@@ -146,7 +157,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
     };
     timer = window.setTimeout(advance, delay);
     return () => window.clearTimeout(timer);
-  }, [playing, ply, moves, eventMode, eventNotice, preview, moveSeconds]);
+  }, [playing, ply, moves, eventMode, eventNotice, preview, moveSeconds, specialMoveSeconds]);
 
   useEffect(() => {
     if (!variation || !variationPlaying) return;
@@ -259,7 +270,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
             <button onClick={() => jump(moves.length)} disabled={ply === moves.length}>End</button>
           </div>
           </>}
-          <p role="status">{eventNotice ? `${eventNotice} - ${eventMode === "stop" ? "Stopped. Press Play to continue." : "Pausing for 5 seconds."}` : playing && !analyses[ply] && !failed && eventMode !== "continue" ? "Waiting for move analysis..." : ""}</p>
+          <p role="status">{eventNotice ? `${eventNotice} - ${eventMode === "stop" ? "Stopped. Press Play to continue." : `Waiting ${specialMoveSeconds.toFixed(1)} extra seconds.`}` : playing && !analyses[ply] && !failed && eventMode !== "continue" ? "Waiting for move analysis..." : ""}</p>
           <label className="review-scrubber">Position {ply} / {moves.length}
             <input aria-label="Replay position" disabled={preview} type="range" min="0" max={moves.length} value={ply} onChange={(event) => jump(Number(event.target.value))} />
           </label>
@@ -323,12 +334,21 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
               {MOVE_SPEEDS.map((seconds) => <option key={seconds} value={seconds}>{seconds} {seconds === 1 ? "second" : "seconds"}</option>)}
             </select>
           </label>
-          <p id="review-speed-note" className="review-note">Applies to replay and best-move lines. Special-move pauses remain 5 seconds.</p>
+          <p id="review-speed-note" className="review-note">Applies to replay and best-move lines.</p>
           <label className="review-event-setting">On special moves
             <select value={eventMode} onChange={(event) => { setEventMode(event.target.value); setEventNotice(""); }}>
-              <option value="continue">Keep playing</option><option value="pause">Pause for 5 seconds</option><option value="stop">Stop until I press Play</option>
+              <option value="continue">Keep playing</option><option value="pause">Wait extra time</option><option value="stop">Stop until I press Play</option>
             </select>
           </label>
+          {eventMode === "pause" && <label className="review-event-setting">Extra wait on special moves
+            <select value={specialMoveSeconds} aria-describedby="review-special-wait-note" onChange={(event) => {
+              const seconds = Number(event.target.value);
+              if (SPECIAL_MOVE_WAITS.includes(seconds)) setPreferences((current) => ({ ...current, specialMoveSeconds: seconds }));
+            }}>
+              {SPECIAL_MOVE_WAITS.map((seconds) => <option key={seconds} value={seconds}>{seconds.toFixed(1)} seconds</option>)}
+            </select>
+          </label>}
+          {eventMode === "pause" && <p id="review-special-wait-note" className="review-note">Adds {specialMoveSeconds.toFixed(1)} seconds to the normal move delay.</p>}
           <p className="review-note">Special moves: best moves, inaccuracies or worse, captures, checks, castling and promotions.</p>
           </div>
           {themeLoading && <p role="status">Loading review theme...</p>}

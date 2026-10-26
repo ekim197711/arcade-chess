@@ -1958,12 +1958,11 @@ body,
 }
 
 .arcade-screen-piece {
-    color: #fff;
-    font:
-        165px / 1 Georgia,
-        serif;
-    filter: drop-shadow(7px 8px 0 rgba(48, 217, 255, 0.35))
-        drop-shadow(0 0 18px rgba(255, 255, 255, 0.24));
+    display: block;
+    width: min(100%, 204px);
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 14px rgba(48, 217, 255, 0.3));
     animation: knight-float 4.6s ease-in-out infinite;
 }
 
@@ -2213,7 +2212,7 @@ body,
     }
 
     .arcade-screen-piece {
-        font-size: 130px;
+        width: min(100%, 150px);
     }
 
     .arcade-control-deck {

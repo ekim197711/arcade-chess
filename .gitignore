@@ -5,3 +5,12 @@ dist/
 .env.*
 !.env.example
 *.tsbuildinfo
+supabase/.temp/
+
+# Terraform local state, caches, and saved plans
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log

@@ -8,17 +8,17 @@ import { bossVictoryTaunt } from "./bossVictoryTaunts";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
 function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
-export function MatchHistory({ matches, onReview }: { matches: ArchivedMatch[]; onReview: (id: string) => void }) {
+export function MatchHistory({ matches, signedIn, onReview, onResume }: { matches: ArchivedMatch[]; signedIn?: boolean; onReview: (id: string) => void; onResume: (match: ArchivedMatch) => void }) {
   return <section className="game-review history-page" aria-labelledby="history-title">
     <header><h2 id="history-title">Historic games</h2><span>{matches.length} saved</span></header>
-    <p className="review-note">Every move is saved automatically in this browser. Return here anytime to replay a match.</p>
+    <p className="review-note">{signedIn ? "Every move is saved to your account. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices."}</p>
     {!matches.length ? <p>Your games will appear here when you start playing.</p> : <div className="history-list">{matches.map((match) =>
-      <a className="history-item" href={`#review/${match.id}`} key={match.id} onClick={(event) => { event.preventDefault(); onReview(match.id); }}>
+      <div className="history-item" key={match.id}>
         <span><strong>{match.opponent}</strong><small>{new Date(match.startedAt).toLocaleString()} ? {match.elo} ELO ? You played {match.color === "w" ? "White" : "Black"}{match.debug ? " · DEBUG TEST" : ""}</small></span>
         <span className={`match-style match-style-${styleFor(match).toLowerCase()}`}>{styleFor(match)}</span>
         <span className={`match-outcome outcome-${match.result}`}>{labels[match.result]}</span>
-        <span>{movesFor(match).length} plies</span><strong>Review &rarr;</strong>
-      </a>)}</div>}
+        <span>{movesFor(match).length} plies</span><div className="history-actions">{match.result === "unfinished" && <button onClick={() => onResume(match)}>Resume game</button>}<a href={`#review/${match.id}`} onClick={(event) => { event.preventDefault(); onReview(match.id); }}>Review &rarr;</a></div>
+      </div>)}</div>}
   </section>;
 }
 export function MatchResult({ match, onReview, onHome }: { match: ArchivedMatch; onReview: () => void; onHome: () => void }) {

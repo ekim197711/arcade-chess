@@ -1,6 +1,6 @@
-# Arcade Chess
+# Arcade Gambit
 
-Arcade Chess is a responsive, 16-bit Amiga/demoscene-inspired chess game built with React, TypeScript, Vite, and `chess.js`. Choose an unlocked boss from the 100–3000 Elo ladder (50-point steps), then play on a separate battle screen.
+Arcade Gambit is a responsive, 16-bit Amiga/demoscene-inspired chess game built with React, TypeScript, Vite, and `chess.js`. Choose an unlocked boss from the 100–3000 Elo ladder (50-point steps), then play on a separate battle screen.
 
 ## Run locally
 
@@ -13,12 +13,32 @@ Create a `.env.local` from `.env.example` to enable Supabase sign-in and cloud p
 
 ## Supabase setup
 
-1. Create a Supabase project and copy its project URL and anon/publishable key into `.env.local` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-2. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates row-level security, idempotent atomic progress RPCs, and migrates existing saves to the 50-Elo ladder. Re-run it when upgrading an existing Supabase project.
+1. Set separate development and production URLs and publishable keys in `.env.local`, using the four variables in `.env.example`. Localhost, `.localhost`, `.local`, loopback, and private LAN IP addresses use `VITE_SUPABASE_DEV_URL` and `VITE_SUPABASE_DEV_PUBLISHABLE_KEY`. Public domains, including `https://arcadegambit.com` and `www.arcadegambit.com`, use `VITE_SUPABASE_PROD_URL` and `VITE_SUPABASE_PROD_PUBLISHABLE_KEY`. Selection uses the browser hostname, including when previewing a production build locally. Missing development settings keep localhost in guest mode; it never falls back to production. Development and production cannot point at the same Supabase origin. Legacy `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`/`VITE_SUPABASE_ANON_KEY` are accepted only for production. Restart Vite after changing environment files; set the same variables in your hosting build environment and rebuild when deploying.
+2. Run [`supabase/schema.sql`](supabase/schema.sql) in each environment's Supabase SQL editor. It creates row-level security, idempotent atomic progress RPCs, the account game archive and save RPC, and migrates existing progression. Re-run it when upgrading an existing Supabase project.
 3. Enable Google, Facebook, and GitHub providers in Supabase Authentication and configure each provider's OAuth credentials and callback URL.
-4. Add your local and production app URLs to Supabase's redirect URL allow-list.
+4. Allow localhost/LAN app redirect URLs only in development Supabase. Allow `https://arcadegambit.com` (and any supported public domains) in production Supabase. Configure OAuth providers separately for each environment.
 
-The browser uses only the Supabase anon key. Never put a service-role key in a `VITE_` variable.
+The browser uses only the Supabase publishable/anon key. Never put a service-role key in a `VITE_` variable.
+
+Configured cloud environments:
+
+| Environment | Supabase project | Project reference | App URLs |
+| --- | --- | --- | --- |
+| Development | arcade-chess-development | `nlwtzggjjbacndirlggj` | localhost and 127.0.0.1, on any local port |
+| Production | arcade-chess | `smdwmvfkyumxuxbnzitq` | arcadegambit.com and www.arcadegambit.com over HTTPS |
+
+Both projects have the progress/history schema and RLS policies applied. Their publishable keys are stored in the ignored `.env.local` file. The development database password is stored encrypted with Windows DPAPI in `.tmp/supabase-development-password.dpapi` for this Windows account. OAuth providers still need their client IDs/secrets configured separately in each project's Authentication settings; the application has Google, Facebook, and GitHub buttons, but the database setup does not create those provider applications. For local LAN testing, add the exact LAN callback URL to the development project's redirect allow-list.
+
+Apply future schema updates with an explicit project reference, after testing against development:
+
+```sh
+supabase db query --linked --project-ref nlwtzggjjbacndirlggj --file supabase/schema.sql
+supabase db query --linked --project-ref smdwmvfkyumxuxbnzitq --file supabase/schema.sql
+```
+
+Signed-in games save every committed move to `player_games`, including full Standard or Chess960 PGN, opponent, player color, and result. History includes **Resume game** for every unfinished match and **Review** for all games. Local account caches retain offline saves; uploads retry on reconnect, focus, and every 15 seconds. History loads in pages so older games remain available. Guest history is claimed by the first account that signs in on that browser and then removed from the guest archive. Account histories are isolated by user ID, with RLS enforcing cloud access. Signed-in profile pictures use OAuth avatar metadata, with initials if no image is available.
+
+The save RPC prevents stale positions with fewer moves from overwriting newer ones and preserves completed results. Simultaneous play of the same match on multiple devices is not a collaborative game session; continue a match on one device at a time.
 
 ## Game notes
 

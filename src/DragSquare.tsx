@@ -9,7 +9,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   positionKey: string;
   artwork: ReactNode;
   onPickUp: () => void;
-  onMovePiece: (from: Square, to: Square) => void;
+  onMovePiece: (from: Square, to: Square, position: { x: number; y: number }) => void;
 };
 type Gesture = { id: number; x: number; y: number; size: number; dragging: boolean };
 
@@ -76,7 +76,7 @@ export function DragSquare({ square, canDrag, positionKey, artwork, onPickUp, on
           event.preventDefault();
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-square]");
           const board = event.currentTarget.closest(".chessboard");
-          if (target && board?.contains(target)) onMovePiece(square, target.dataset.square as Square);
+          if (target && board?.contains(target)) onMovePiece(square, target.dataset.square as Square, { x: event.clientX, y: event.clientY });
         }
         cancel();
       }}

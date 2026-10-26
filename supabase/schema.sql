@@ -232,3 +232,57 @@ revoke all on function public.record_game_result(uuid, text, integer, text) from
 revoke all on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer, integer) from public, anon;
 grant execute on function public.record_game_result(uuid, text, integer, text) to authenticated;
 grant execute on function public.merge_guest_progress(uuid, integer, integer, integer, integer, integer, integer) to authenticated;
+
+-- Full game archives are scoped to the authenticated account. No frontend secret key is required.
+create table if not exists public.player_games (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null,
+  game jsonb not null,
+  ply_count integer not null check (ply_count >= 0),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+alter table public.player_games enable row level security;
+revoke all on public.player_games from anon, authenticated;
+grant select on public.player_games to authenticated;
+drop policy if exists "Players can read their own games" on public.player_games;
+create policy "Players can read their own games" on public.player_games for select to authenticated
+  using (auth.uid() = user_id);
+
+-- A retry cannot replace a finished game or a position containing more moves.
+create or replace function public.save_player_game(p_game jsonb, p_ply_count integer, p_user_id uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_game jsonb;
+begin
+  if v_user_id is null then raise exception 'Authentication required'; end if;
+  if p_user_id is distinct from v_user_id then raise exception 'Account changed during save'; end if;
+  if p_game is null or jsonb_typeof(p_game) <> 'object'
+    or coalesce(length(p_game ->> 'id'), 0) not between 1 and 200
+    or jsonb_typeof(p_game -> 'pgn') is distinct from 'string'
+    or jsonb_typeof(p_game -> 'opponent') is distinct from 'string'
+    or jsonb_typeof(p_game -> 'reason') is distinct from 'string'
+    or coalesce(p_game ->> 'result', '') not in ('unfinished', 'win', 'loss', 'draw')
+    or coalesce(p_game ->> 'color', '') not in ('w', 'b')
+    or coalesce((p_game ->> 'bossIndex')::integer, -1) not between 0 and 58
+    or coalesce((p_game ->> 'elo')::integer, -1) not between 100 and 3000
+    or (p_game ->> 'startedAt')::timestamptz is null
+    or (p_game ->> 'updatedAt')::timestamptz is null
+    or p_ply_count is null or p_ply_count < 0 then
+    raise exception 'Invalid game archive';
+  end if;
+  insert into public.player_games as existing(user_id, id, game, ply_count)
+  values (v_user_id, p_game ->> 'id', p_game, p_ply_count)
+  on conflict (user_id, id) do update set game = excluded.game, ply_count = excluded.ply_count, updated_at = now()
+  where existing.game ->> 'result' = 'unfinished'
+    and excluded.ply_count >= existing.ply_count
+    and (excluded.ply_count > existing.ply_count
+      or excluded.game ->> 'result' <> 'unfinished'
+      or (excluded.game ->> 'updatedAt')::timestamptz > (existing.game ->> 'updatedAt')::timestamptz);
+  select game into v_game from public.player_games where user_id = v_user_id and id = p_game ->> 'id';
+  return v_game;
+end;
+$$;
+revoke all on function public.save_player_game(jsonb, integer, uuid) from public, anon;
+grant execute on function public.save_player_game(jsonb, integer, uuid) to authenticated;

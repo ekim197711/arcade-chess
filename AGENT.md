@@ -2,7 +2,7 @@
 
 ## Product purpose
 
-Arcade Chess is a browser-based chess arcade: players first choose a cartoon boss from a one-per-row ladder, then enter a separate chess battle screen. Keep the experience simple, focused, and styled like a polished dark 16-bit Amiga/demoscene game—not a generic chess dashboard.
+Arcade Gambit is a browser-based chess arcade: players first choose a cartoon boss from a one-per-row ladder, then enter a separate chess battle screen. Keep the experience simple, focused, and styled like a polished dark 16-bit Amiga/demoscene game—not a generic chess dashboard.
 
 ## Product requirements and direction
 

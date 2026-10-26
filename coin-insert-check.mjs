@@ -110,7 +110,9 @@ try {
   await page.reload();
   await page.waitForFunction(() => !document.querySelector('.arcade-coin-button').disabled);
   await button.click();
-  assert.equal(await page.evaluate(() => localStorage.getItem('arcade-chess-credit-count-v1')), '100');
+  assert.equal(await page.evaluate(() => localStorage.getItem('arcade-chess-credit-count-v1')), '99');
+  assert.equal(await page.locator('.arcade-credit-hint').textContent(), 'Maximum credits achieved!');
+  assert.equal(await page.locator('.arcade-toast').count(), 0);
   assert(await page.locator('.coin-insert-stage').evaluate(element => element.hidden));
   assert.equal(await page.evaluate(() => globalThis.coinPlays.length), 0);
   assert.deepEqual(errors, []);
