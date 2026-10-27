@@ -1,0 +1,3 @@
+[functions.multiplayer]
+# The handler verifies the user JWT through Auth.getUser, including asymmetric JWTs.
+verify_jwt = false

@@ -1,4 +1,6 @@
-import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { supabase } from "./supabase";
+import type { OnlineGame } from "./onlineChess";
 import { Star } from "lucide-react";
 import { Chess } from "./chess";
 import type { ArchivedMatch } from "./matchArchive";
@@ -8,16 +10,103 @@ import { bossVictoryTaunt } from "./bossVictoryTaunts";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
 function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
-export function MatchHistory({ matches, signedIn, onReview, onResume }: { matches: ArchivedMatch[]; signedIn?: boolean; onReview: (id: string) => void; onResume: (match: ArchivedMatch) => void }) {
+type GameType = "standard" | "freestyle" | "human" | "practice";
+const typeLabels: Record<GameType, string> = { standard: "Standard", freestyle: "Freestyle", human: "Human", practice: "Bot practice" };
+type HistoryEntry = {
+  id: string; type: GameType; startedAt: string; opponent: string; elo: number;
+  color: "w" | "b"; result: keyof typeof labels; plies: number;
+  archived?: ArchivedMatch; online?: OnlineGame;
+};
+
+export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: {
+  matches: ArchivedMatch[]; userId?: string; onReview: (id: string) => void;
+  onResume: (match: ArchivedMatch) => void; onOnline: (route: string) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | GameType>("all");
+  const [online, setOnline] = useState<OnlineGame[]>([]);
+  const [onlineError, setOnlineError] = useState(false);
+  useEffect(() => {
+    if (!userId || !supabase) return;
+    const client = supabase;
+    let active = true, inFlight = false;
+    const refresh = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const games: OnlineGame[] = [];
+        for (let offset = 0; ; offset += 500) {
+          const { data, error } = await client.from("online_games").select("*")
+            .or(`white_id.eq.${userId},black_id.eq.${userId}`)
+            .order("created_at", { ascending: false }).order("id")
+            .range(offset, offset + 499);
+          if (!active) return;
+          if (error) throw error;
+          games.push(...data as OnlineGame[]);
+          if (data.length < 500) break;
+        }
+        if (active) { setOnline(games); setOnlineError(false); }
+      } catch { if (active) setOnlineError(true); }
+      finally { inFlight = false; }
+    };
+    void refresh();
+    const retry = () => void refresh();
+    const timer = window.setInterval(retry, 15000);
+    window.addEventListener("focus", retry);
+    window.addEventListener("online", retry);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", retry);
+      window.removeEventListener("online", retry);
+    };
+  }, [userId]);
+  const entries = useMemo(() => {
+    const local: HistoryEntry[] = matches.map(match => ({
+      id: `boss:${match.id}`, type: styleFor(match) === "Freestyle" ? "freestyle" : "standard",
+      startedAt: match.startedAt, opponent: match.opponent, elo: match.elo, color: match.color,
+      result: match.result, plies: movesFor(match).length, archived: match,
+    }));
+    const remote: HistoryEntry[] = online.map(game => {
+      const color = game.white_id === userId ? "w" : "b";
+      return {
+        id: `online:${game.id}`, type: game.is_bot ? "practice" : "human",
+        startedAt: game.created_at, opponent: color === "w" ? game.black_name : game.white_name,
+        elo: color === "w" ? game.black_rating : game.white_rating, color,
+        result: !game.result ? "unfinished" : game.result === "1/2-1/2" ? "draw" : game.result === (color === "w" ? "1-0" : "0-1") ? "win" : "loss",
+        plies: game.ply_count, online: game,
+      };
+    });
+    return [...local, ...remote].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+  }, [matches, online, userId]);
+  const visible = entries.filter(entry => filter === "all" || entry.type === filter);
   return <section className="game-review history-page" aria-labelledby="history-title">
-    <header><h2 id="history-title">Historic games</h2><span>{matches.length} saved</span></header>
-    <p className="review-note">{signedIn ? "Every move is saved to your account. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices."}</p>
-    {!matches.length ? <p>Your games will appear here when you start playing.</p> : <div className="history-list">{matches.map((match) =>
-      <div className="history-item" key={match.id}>
-        <span><strong>{match.opponent}</strong><small>{new Date(match.startedAt).toLocaleString()} ? {match.elo} ELO ? You played {match.color === "w" ? "White" : "Black"}{match.debug ? " · DEBUG TEST" : ""}</small></span>
-        <span className={`match-style match-style-${styleFor(match).toLowerCase()}`}>{styleFor(match)}</span>
-        <span className={`match-outcome outcome-${match.result}`}>{labels[match.result]}</span>
-        <span>{movesFor(match).length} plies</span><div className="history-actions">{match.result === "unfinished" && <button onClick={() => onResume(match)}>Resume game</button>}<a href={`#review/${match.id}`} onClick={(event) => { event.preventDefault(); onReview(match.id); }}>Review &rarr;</a></div>
+    <header><h2 id="history-title">Historic games</h2>
+      <div className="history-toolbar">
+        <label className="history-filter">Game type
+          <select value={filter} onChange={event => setFilter(event.target.value as typeof filter)}>
+            <option value="all">All types</option>
+            {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <span>{filter === "all" ? `${entries.length} saved` : `${visible.length} of ${entries.length} saved`}</span>
+      </div>
+    </header>
+    <p className="review-note">{userId ? "Your boss, human and practice games in one place. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices and play humans."}</p>
+    {onlineError && <p className="review-note" role="status">Online game history is temporarily unavailable. It will retry automatically.</p>}
+    {!visible.length ? <p>{filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.map(entry =>
+      <div className={`history-item history-type-${entry.type}`} key={entry.id}>
+        <span><strong>{entry.opponent}</strong><small>{new Date(entry.startedAt).toLocaleString()} &middot; {entry.elo} ELO &middot; You played {entry.color === "w" ? "White" : "Black"}{entry.archived?.debug ? " \u00b7 DEBUG TEST" : ""}{entry.online ? ` \u00b7 ${entry.online.minutes}+0 \u00b7 ${entry.online.rated ? "Rated" : "Unrated"}` : ""}</small></span>
+        <span className={`match-style match-style-${entry.type}`}>{typeLabels[entry.type]}</span>
+        <span className={`match-outcome outcome-${entry.result}`}>{labels[entry.result]}</span>
+        <span>{entry.plies} plies</span>
+        <div className="history-actions">
+          {entry.result === "unfinished" && <button onClick={() => entry.online ? onOnline(`online/${entry.online.id}`) : onResume(entry.archived!)}>Resume game</button>}
+          <a href={entry.online ? `#online/review/${entry.online.id}` : `#review/${entry.archived!.id}`} onClick={event => {
+            event.preventDefault();
+            if (entry.online) onOnline(`online/review/${entry.online.id}`);
+            else onReview(entry.archived!.id);
+          }}>Review &rarr;</a>
+        </div>
       </div>)}</div>}
   </section>;
 }

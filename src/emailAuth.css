@@ -1,0 +1,25 @@
+.email-auth {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #3a3e4d;
+  text-align: left;
+}
+.email-auth h3 { color: #e2e3ea; font: 600 14px/1.5 Arial, sans-serif; }
+.email-auth fieldset { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.email-auth label { display: grid; gap: 6px; color: #d6d9e5; font: 13px/1.5 Arial, sans-serif; }
+.email-auth input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid #555b70;
+  border-radius: 3px;
+  background: #10121c;
+  color: #fff;
+  font: 16px Arial, sans-serif;
+}
+.email-auth input:focus-visible, .email-auth button:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.email-auth button:disabled, .email-auth fieldset:disabled button { opacity: .45; cursor: not-allowed; }
+.email-auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.email-auth-links button { padding: 8px 0; border: 0; background: transparent; color: #a9ccff; text-decoration: underline; cursor: pointer; font: 13px Arial, sans-serif; }

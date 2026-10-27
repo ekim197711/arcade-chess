@@ -2948,6 +2948,22 @@ main.home-main {
     padding: 16px 20px;
 }
 
+.hud-player-elo {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-muted, #b8bec9);
+    font-size: 10px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.hud-player-elo strong {
+    margin-left: 6px;
+    color: var(--cyan, #91e9ff);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
 .hud-avatar,
 .player-portrait {
     border: 0;

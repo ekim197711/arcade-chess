@@ -29,7 +29,6 @@ import {
   ChevronRight,
   Flame,
   Gamepad2,
-  Github,
   LockKeyhole,
   LogIn,
   Menu,
@@ -49,9 +48,13 @@ import { BoardResizeHandle } from "./BoardResizeHandle";
 import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
 import { SegmentedCredits } from "./SegmentedCredits";
 import { GameReview } from "./GameReview";
+import { OnlinePlay } from "./OnlinePlay";
+import { OnlineHomeCard } from "./OnlineHomeCard";
+import { HumanElo } from "./HumanElo";
 import { MatchHistory, MatchResult } from "./MatchHistory";
 import { DancingBosses } from "./DancingBosses";
 import { SignupDisclaimer } from "./SignupDisclaimer";
+import { EmailAuth } from "./EmailAuth";
 import { SignupPlans, readSignupPlan, PENDING_SIGNUP_PLAN_KEY, type SignupPlan } from "./SignupPlans";
 import { requestStockfishMove, bossStrengthDescription } from "./stockfish";
 import { type ArchivedMatch } from "./matchArchive";
@@ -289,6 +292,7 @@ const SAVED_MATCH_KEY = "neon-knights-saved-match-v1";
 const SOUND_KEY = "neon-knights-sound-v1";
 const SOUND_THEME_KEY = "arcade-chess-sound-theme-v1";
 const DEBUG_MODE_KEY = "arcade-chess-debug-mode-v1";
+const IS_DEVELOPMENT_ENVIRONMENT = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 const MUSIC_KEY = "neon-knights-music-v1";
 const SFX_VOLUME_KEY = "neon-knights-sfx-volume-v1";
 const MUSIC_VOLUME_KEY = "neon-knights-music-volume-v1";
@@ -755,7 +759,7 @@ function resultFor(
 function readPageRoute() {
   const route = window.location.hash.slice(1);
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|settings)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route)
+  return /^(home|roster|battle|settings)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15))?$/.test(route)
     ? route
     : "home";
 }
@@ -771,6 +775,7 @@ function readSavedMatch(): SavedMatch | null {
     const raw = localStorage.getItem(SAVED_MATCH_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<SavedMatch>;
+    if (value.debug && !IS_DEVELOPMENT_ENVIRONMENT) return null;
     if (
       !Number.isInteger(value.bossIndex) ||
       value.bossIndex! < 0 ||
@@ -804,9 +809,11 @@ function getPremoveTargets(
 
 function App() {
   const [cookieNoticeReset, setCookieNoticeReset] = useState(0);
-  const [debugMode, setDebugMode] = useState(() => {
+  const [debugEnabled, setDebugMode] = useState(() => {
+    if (!IS_DEVELOPMENT_ENVIRONMENT) return false;
     try { return localStorage.getItem(DEBUG_MODE_KEY) === "true"; } catch { return false; }
   });
+  const debugMode = IS_DEVELOPMENT_ENVIRONMENT && debugEnabled;
   useEffect(() => {
     try { localStorage.setItem(DEBUG_MODE_KEY, String(debugMode)); } catch { /* Keep the session setting. */ }
   }, [debugMode]);
@@ -818,6 +825,7 @@ function App() {
   const [authReady, setAuthReady] = useState(!supabase);
   const [cloudSyncError, setCloudSyncError] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
   const [signupPlan, setSignupPlan] = useState<SignupPlan>(readSignupPlan);
   useEffect(() => {
@@ -884,13 +892,16 @@ function App() {
   const [opponentColumnCollapsed, setOpponentColumnCollapsed] = useState(false);
   const [playerColumnCollapsed, setPlayerColumnCollapsed] = useState(false);
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
-  const { history, setHistory, historyError, historyCloudError, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined));
+  const { history, setHistory, historyError, historyCloudError } = useMatchHistory(user?.id ?? (authReady ? null : undefined));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
   const [route, setRoute] = useState(readPageRoute);
   const screen = route.split("/")[0];
+  const isReviewPage = screen === "review" || (screen === "online" && route.split("/")[1] === "review");
+  const activeMusicTrack: MusicTrack = screen === "battle" || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
+  const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
   useEffect(() => {
     const change = () => setRoute(readPageRoute());
@@ -1214,7 +1225,7 @@ function App() {
     }
 
     const startMusicAfterInteraction = () => {
-      if (!document.hidden) startArcadeMusic(screenRef.current === "battle" ? "battle" : screenRef.current === "roster" ? "roster" : "home");
+      if (!document.hidden) startArcadeMusic(musicTrackRef.current);
     };
     const handleVisibilityChange = () => {
       if (document.hidden) stopArcadeMusic();
@@ -1234,9 +1245,9 @@ function App() {
 
   useEffect(() => {
     if (musicEnabled && musicAudio && !musicAudio.paused && !document.hidden) {
-      startArcadeMusic(screen === "battle" ? "battle" : screen === "roster" ? "roster" : "home");
+      startArcadeMusic(activeMusicTrack);
     }
-  }, [screen, musicEnabled]);
+  }, [activeMusicTrack, musicEnabled]);
 
   useEffect(() => {
     const dialog = authOpen
@@ -1423,7 +1434,11 @@ function App() {
       });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+        setAuthOpen(true);
+      }
       // Run database calls after the auth callback releases its session lock.
       window.setTimeout(() => { void loadAccount(session); }, 0);
     });
@@ -1687,7 +1702,7 @@ function App() {
       stopArcadeMusic();
       setMusicEnabled(false);
     } else {
-      startArcadeMusic(screen === "battle" ? "battle" : screen === "roster" ? "roster" : "home");
+      startArcadeMusic(activeMusicTrack);
       setMusicEnabled(true);
     }
   }
@@ -1940,7 +1955,7 @@ function App() {
     playArcadeSound("start", soundEnabled);
   }
 
-  async function signIn(provider: "google" | "facebook" | "github") {
+  async function signIn(provider: "google") {
     if (!signupTermsAccepted) {
       setAuthMessage("Please read and accept the terms of use before continuing.");
       return;
@@ -2015,6 +2030,109 @@ function App() {
     if (reviewing || screen !== "battle" || !moveLog) return;
     moveLog.scrollTop = moveLog.scrollHeight;
   }, [moveHistory.length, screen, reviewing]);
+
+  const battleAppearance = <>
+                      <section
+                        className="piece-theme-picker"
+                        aria-label="Piece designs"
+                      >
+                        <h3 className="piece-theme-heading">PIECE SET</h3>
+                        <div
+                          className="piece-theme-options piece-set-options"
+                          role="group"
+                          aria-label="Choose a chess piece design"
+                        >
+                          {PIECE_CHOICES.map((choice) => (
+                            <button
+                              className="piece-theme-option"
+                              type="button"
+                              key={choice.id}
+                              aria-label={`Use ${choice.label} piece design`}
+                              aria-pressed={pieceTheme === choice.id}
+                              disabled={loadingPieceStyle}
+                              onClick={() => void changePieceStyle(choice.id)}
+                            >
+                              <span
+                                className="piece-theme-icon"
+                                aria-hidden="true"
+                              >
+                                <PieceArtwork
+                                  type="q"
+                                  color="w"
+                                  theme={choice.id}
+                                />
+                              </span>
+                              <span>{choice.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                      <section
+                        className="piece-theme-picker board-color-picker"
+                        aria-label="Board color layouts"
+                      >
+                        <h3 className="piece-theme-heading">BOARD COLORS</h3>
+                        <div
+                          className="board-palette-options"
+                          role="group"
+                          aria-label="Choose a board color layout"
+                        >
+                          {BOARD_PALETTES.map((palette) => (
+                            <button
+                              className="piece-theme-option board-palette-option"
+                              type="button"
+                              key={palette.id}
+                              aria-label={`Use the ${palette.label.toLowerCase()} board colors`}
+                              aria-pressed={boardPaletteId === palette.id}
+                              onClick={() => setBoardPaletteId(palette.id)}
+                            >
+                              <span
+                                className="board-palette-preview"
+                                aria-hidden="true"
+                                style={
+                                  {
+                                    "--palette-light": palette.light,
+                                    "--palette-dark": palette.dark,
+                                  } as CSSProperties &
+                                    Record<`--${string}`, string>
+                                }
+                              >
+                                <i />
+                                <i />
+                                <i />
+                                <i />
+                              </span>
+                              <span>{palette.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                      <section
+                        className="piece-theme-picker sound-theme-picker"
+                        aria-label="Board sound theme"
+                      >
+                        <h3 className="piece-theme-heading">SOUND THEME</h3>
+                        <div
+                          className="sound-theme-options"
+                          role="group"
+                          aria-label="Choose board sound effects"
+                        >
+                          {SOUND_THEMES.map((theme) => (
+                            <button
+                              className="piece-theme-option sound-theme-option"
+                              type="button"
+                              key={theme.id}
+                              aria-pressed={soundTheme === theme.id}
+                              aria-label={`Use ${theme.name} sound theme`}
+                              title={theme.description}
+                              onClick={() => chooseSoundTheme(theme.id)}
+                            >
+                              {theme.name}
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+  </>;
 
   return (
     <div
@@ -2116,7 +2234,8 @@ function App() {
         </div>
       </header>
 
-      <main id="top" className={screen === "home" ? "home-main" : screen === "review" ? "review-main" : undefined}>
+      <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
+        {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
           <section className="settings-page" aria-labelledby="settings-title">
             <div className="settings-page-heading">
@@ -2198,13 +2317,13 @@ function App() {
                   RESET COOKIE ACKNOWLEDGEMENT
                 </button>
               </section>
-              <section className="settings-card" aria-label="Debug settings">
+              {IS_DEVELOPMENT_ENVIRONMENT && <section className="settings-card" aria-label="Debug settings">
                 <h2>Debug mode</h2>
                 <p>Unlock every boss in both ladders and enable Auto checkmate during matches. Debug games are marked as tests and do not count toward stats or ladder progress.</p>
                 <button className="settings-toggle" type="button" aria-label="Debug mode" aria-pressed={debugMode} onClick={() => setDebugMode(value => !value)}>
                   <span>Debug mode</span><b>{debugMode ? "ON" : "OFF"}</b>
                 </button>
-              </section>
+              </section>}
             </div>
           </section>
         )}
@@ -2316,6 +2435,7 @@ function App() {
           </section>
         )}
 
+        {screen === "home" && user && <OnlineHomeCard key={user.id} userId={user.id} navigate={setScreen} />}
         {screen === "home" && (
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
@@ -2327,6 +2447,7 @@ function App() {
                 <div className="hud-player-name-row">
                   <strong>{user ? playerName : "GUEST PLAYER"}</strong>
                 </div>
+                <HumanElo key={user?.id ?? "guest"} userId={user?.id} />
                 {!savedMatch && user && (
                   <span className="pilot-status">
                     <span />{" "}
@@ -2370,7 +2491,7 @@ function App() {
                 <Flame size={16} />
               </span>
               <div>
-                <span className="hud-label">WIN STREAK</span>
+                <span className="hud-label">Days playing a game in a row streak</span>
                 <strong>
                   {String(progress.streak).padStart(2, "0")}
                   <small> W</small>
@@ -2381,8 +2502,8 @@ function App() {
         )}
 
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
-        {user && <p className="review-note" role="status">{historyCloudError ? "Game history is saved on this device. Cloud sync will retry automatically." : historySyncing ? "Syncing game history…" : "Game history synced to your account."}</p>}
-        {screen === "home" && <MatchHistory matches={history} signedIn={!!user} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
+        {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Cloud sync will retry automatically.</p>}
+        {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
           <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
@@ -2637,106 +2758,7 @@ function App() {
                           <Bookmark size={15} /> SAVE FOR LATER
                         </button>
                       </div>
-                      <section
-                        className="piece-theme-picker"
-                        aria-label="Piece designs"
-                      >
-                        <h3 className="piece-theme-heading">PIECE SET</h3>
-                        <div
-                          className="piece-theme-options piece-set-options"
-                          role="group"
-                          aria-label="Choose a chess piece design"
-                        >
-                          {PIECE_CHOICES.map((choice) => (
-                            <button
-                              className="piece-theme-option"
-                              type="button"
-                              key={choice.id}
-                              aria-label={`Use ${choice.label} piece design`}
-                              aria-pressed={pieceTheme === choice.id}
-                              disabled={loadingPieceStyle}
-                              onClick={() => void changePieceStyle(choice.id)}
-                            >
-                              <span
-                                className="piece-theme-icon"
-                                aria-hidden="true"
-                              >
-                                <PieceArtwork
-                                  type="q"
-                                  color="w"
-                                  theme={choice.id}
-                                />
-                              </span>
-                              <span>{choice.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                      <section
-                        className="piece-theme-picker board-color-picker"
-                        aria-label="Board color layouts"
-                      >
-                        <h3 className="piece-theme-heading">BOARD COLORS</h3>
-                        <div
-                          className="board-palette-options"
-                          role="group"
-                          aria-label="Choose a board color layout"
-                        >
-                          {BOARD_PALETTES.map((palette) => (
-                            <button
-                              className="piece-theme-option board-palette-option"
-                              type="button"
-                              key={palette.id}
-                              aria-label={`Use the ${palette.label.toLowerCase()} board colors`}
-                              aria-pressed={boardPaletteId === palette.id}
-                              onClick={() => setBoardPaletteId(palette.id)}
-                            >
-                              <span
-                                className="board-palette-preview"
-                                aria-hidden="true"
-                                style={
-                                  {
-                                    "--palette-light": palette.light,
-                                    "--palette-dark": palette.dark,
-                                  } as CSSProperties &
-                                    Record<`--${string}`, string>
-                                }
-                              >
-                                <i />
-                                <i />
-                                <i />
-                                <i />
-                              </span>
-                              <span>{palette.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                      <section
-                        className="piece-theme-picker sound-theme-picker"
-                        aria-label="Board sound theme"
-                      >
-                        <h3 className="piece-theme-heading">SOUND THEME</h3>
-                        <div
-                          className="sound-theme-options"
-                          role="group"
-                          aria-label="Choose board sound effects"
-                        >
-                          {SOUND_THEMES.map((theme) => (
-                            <button
-                              className="piece-theme-option sound-theme-option"
-                              type="button"
-                              key={theme.id}
-                              aria-pressed={soundTheme === theme.id}
-                              aria-label={`Use ${theme.name} sound theme`}
-                              title={theme.description}
-                              onClick={() => chooseSoundTheme(theme.id)}
-                            >
-                              {theme.name}
-                            </button>
-                          ))}
-                        </div>
-                      </section>
+                      {battleAppearance}
                     </div>
                   </aside>
                   <article className="cabinet" aria-label="Chess game">
@@ -2770,7 +2792,7 @@ function App() {
                               aria-label={`Chess board. ${reviewing ? `Reviewing after move ${Math.ceil(reviewPly / 2)} ${viewedMove?.san}.` : `You are playing as ${playerColor === "w" ? "white" : "black"}.`}`}
                             >
                               {boardRanks.map((rank) =>
-                                boardFiles.map((file, fileIndex) => {
+                                boardFiles.map((file) => {
                                   const square = `${file}${rank}` as Square;
                                   const piece = viewedGame.get(square);
                                   const isLight =
@@ -2803,17 +2825,6 @@ function App() {
                                       }}
                                       onMovePiece={(from, to, position) => makeMove(from, to, undefined, position)}
                                     >
-                                      {fileIndex === 0 && (
-                                        <span className="rank-label">
-                                          {rank}
-                                        </span>
-                                      )}
-                                      {rank ===
-                                        (playerColor === "w" ? 1 : 8) && (
-                                        <span className="file-label">
-                                          {file}
-                                        </span>
-                                      )}
                                       {piece && (
                                         <span
                                           className={`chess-piece ${piece.color === "w" ? "white-piece-glyph" : "black-piece-glyph"}`}
@@ -3127,7 +3138,16 @@ function App() {
             <div className="modal-emblem">
               <Gamepad2 size={25} />
             </div>
-            {user ? (
+            {passwordRecovery ? (
+              <>
+                <h2 id="auth-title">RESET YOUR PASSWORD</h2>
+                <EmailAuth termsAccepted={signupTermsAccepted} plan={signupPlan} recovery onComplete={() => {
+                  setPasswordRecovery(false);
+                  setAuthMessage("");
+                  showToast("PASSWORD UPDATED");
+                }} />
+              </>
+            ) : user ? (
               <>
                 <div className="modal-eyebrow">
                   <span /> PLAYER PROFILE
@@ -3191,23 +3211,11 @@ function App() {
                     <span className="google-g">G</span> CONTINUE WITH GOOGLE{" "}
                     <ArrowRight size={15} />
                   </button>
-                  <button
-                    className="social-button"
-                    onClick={() => void signIn("facebook")}
-                    disabled={!signupTermsAccepted}
-                  >
-                    <span className="facebook-f">f</span> CONTINUE WITH FACEBOOK{" "}
-                    <ArrowRight size={15} />
-                  </button>
-                  <button
-                    className="social-button"
-                    onClick={() => void signIn("github")}
-                    disabled={!signupTermsAccepted}
-                  >
-                    <Github size={16} /> CONTINUE WITH GITHUB{" "}
-                    <ArrowRight size={15} />
-                  </button>
                 </div>
+                <EmailAuth termsAccepted={signupTermsAccepted} plan={signupPlan} onComplete={() => {
+                  setAuthMessage("");
+                  setAuthOpen(false);
+                }} />
                 {authMessage && (
                   <p className="auth-message" role="alert">
                     {authMessage}
@@ -3222,10 +3230,6 @@ function App() {
                 >
                   <ArrowDownToLine size={14} /> KEEP PLAYING AS GUEST
                 </button>
-                <p className="privacy-note">
-                  <LockKeyhole size={11} /> YOUR PROGRESS STAYS YOURS. NO SPAM,
-                  JUST CHECKMATE.
-                </p>
               </>
             )}
           </section>

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Chess, type Move } from "./chess";
+import { Chess, type Move, type Square } from "./chess";
 import type { MoveAnalysis } from "./bot";
+import { useGameAnalysis } from "./useGameAnalysis";
 import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
 import { reviewAdvantage, reviewEvaluationChange } from "./reviewAdvantage";
+import { moveAccuracy, reviewAccuracy } from "./reviewAccuracy";
+import { reviewEngineAgreement } from "./reviewAssistance";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
@@ -30,6 +33,8 @@ type Props = {
   pgn: string;
   opponent: string;
   opponentElo: number;
+  opponentKind?: "human" | "bot";
+  closeLabel?: string;
   playerName: string;
   theme: PieceStyle;
   color: PieceColor;
@@ -39,7 +44,7 @@ type Props = {
   onMoveSound?: (move: Move, position: Chess) => void;
 };
 
-export function GameReview({ pgn, opponent, opponentElo, playerName, theme, color, light, dark, onClose, onMoveSound }: Props) {
+export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", closeLabel = "Back to home", playerName, theme, color, light, dark, onClose, onMoveSound }: Props) {
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
   const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme } = preferences;
   const [savingFailed, setSavingFailed] = useState(false);
@@ -75,8 +80,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   const preview = variation !== null;
   const [explainOpen, setExplainOpen] = useState(false);
   useEffect(() => { setExplainOpen(false); }, [ply]);
-  const [analyses, setAnalyses] = useState<Record<number, MoveAnalysis>>({});
-  const [failed, setFailed] = useState(false);
+  const { analyses, failed } = useGameAnalysis(pgn);
   const liveAnalysis = useRef({ analyses, failed });
   liveAnalysis.current = { analyses, failed };
   const moves = useMemo(() => {
@@ -110,6 +114,33 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   if (color === "b") { rows.reverse(); rows.forEach((row) => row.reverse()); }
 
   const positionFen = position.fen();
+  const suggestedSan = variation ? variation.line[variation.step] : analyses[ply]?.suggested;
+  const [extraSuggestion, setExtraSuggestion] = useState<{ fen: string; san: string | null } | null>(null);
+  const needsExtraSuggestion = !suggestedSan && (preview || ply === moves.length) && !position.isGameOver();
+  useEffect(() => {
+    if (!needsExtraSuggestion) return;
+    let worker: Worker | undefined;
+    try {
+      worker = new Worker(new URL("./reviewBestMove.worker.ts", import.meta.url), { type: "module" });
+      worker.onmessage = (event: MessageEvent<{ fen: string; san: string | null }>) => {
+        setExtraSuggestion(event.data);
+        worker?.terminate();
+      };
+      worker.onerror = () => worker?.terminate();
+      worker.postMessage(positionFen);
+    } catch { /* Replay remains available if suggestion analysis fails. */ }
+    return () => worker?.terminate();
+  }, [positionFen, needsExtraSuggestion]);
+  const arrow = useMemo(() => {
+    const san = suggestedSan ?? (extraSuggestion?.fen === positionFen ? extraSuggestion.san : null);
+    if (!san) return null;
+    try {
+      const current = new Chess(positionFen);
+      if (current.isGameOver()) return null;
+      const best = current.move(san);
+      return { from: best.from, to: best.to, san: best.san, path: bestMoveArrow(best.from, best.to, color) };
+    } catch { return null; }
+  }, [positionFen, suggestedSan, extraSuggestion, color]);
   const previousSoundPosition = useRef(positionFen);
   useEffect(() => {
     if (previousSoundPosition.current === positionFen) return;
@@ -117,23 +148,6 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
     if (last) onMoveSound?.(last, position);
   }, [positionFen, last, position, onMoveSound]);
 
-  useEffect(() => {
-    let worker: Worker | undefined;
-    setAnalyses({});
-    setFailed(false);
-    try {
-      worker = new Worker(new URL("./review.worker.ts", import.meta.url), { type: "module" });
-      worker.onmessage = (event: MessageEvent<{ index?: number; analysis?: MoveAnalysis; error?: boolean; done?: boolean }>) => {
-        const { index, analysis, error, done } = event.data;
-        if (error) setFailed(true);
-        if (index !== undefined && analysis) setAnalyses((current) => ({ ...current, [index]: analysis }));
-        if (done || error) worker?.terminate();
-      };
-      worker.onerror = () => { setFailed(true); worker?.terminate(); };
-      worker.postMessage(pgn);
-    } catch { setFailed(true); }
-    return () => worker?.terminate();
-  }, [pgn]);
 
   useEffect(() => {
     if (!playing || preview) return;
@@ -194,12 +208,57 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
     <section className="game-review" aria-labelledby="review-title">
       <header>
         <h2 id="review-title">Game review</h2>
-        <button type="button" onClick={onClose} >Back to home</button>
+        <button type="button" onClick={onClose} >{closeLabel}</button>
       </header>
+      <section className="review-accuracy" aria-labelledby="review-accuracy-title">
+        <h3 id="review-accuracy-title">Game accuracy</h3>
+        <div className="review-accuracy-scores">
+          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
+            const accuracy = reviewAccuracy(moves, analyses, side);
+            return <div key={side}>
+              <span>{side === color ? playerName : opponent} / {side === "w" ? "White" : "Black"}</span>
+              <strong>{accuracy.score === null ? "—" : `${accuracy.score.toFixed(1)}%`}</strong>
+              <small>{accuracy.expected === 0 ? "No moves played" : `${accuracy.analyzed} / ${accuracy.expected} moves analyzed${accuracy.analyzed < accuracy.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
+            </div>;
+          })}
+        </div>
+        <p className="review-note">Estimated from this review engine's move-evaluation loss. Overall accuracy is the average of each side's analyzed move scores.</p>
+        <details className="review-skill-method">
+          <summary>How accuracy is calculated</summary>
+          <p>A best-scoring move earns 100%. Each pawn of evaluation loss halves the score: 0.5 pawns gives 70.7%, 1 pawn gives 50%, and 2 pawns gives 25%. Scores use the short review search and may change with deeper analysis.</p>
+        </details>
+      </section>
+      <section className="review-assistance" aria-labelledby="review-assistance-title">
+        <h3 id="review-assistance-title">Assistance assessment</h3>
+        <div className="review-assistance-grid">
+          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
+            const agreement = reviewEngineAgreement(moves, analyses, side);
+            const isPlayer = side === color;
+            const isHuman = isPlayer || opponentKind === "human";
+            return <article key={side} aria-label={`${isPlayer ? "Player" : opponentKind === "human" ? "Opponent" : "Bot"} assistance assessment`}>
+              <h4>{isPlayer ? playerName : opponent} / {side === "w" ? "White" : "Black"}</h4>
+              <p className="review-assistance-verdict">{isHuman ? "Assistance likelihood: undetermined" : "Known automated opponent"}</p>
+              <p className="review-note">{isHuman ? "This game's moves cannot establish whether outside help was used." : "This opponent is controlled by the game's bot. Use of an additional engine cannot be inferred from its moves."}</p>
+              <dl>
+                <div><dt>Review engine agreement</dt><dd>{agreement.agreement === null ? "—" : `${agreement.agreement.toFixed(1)}%`}</dd></div>
+                <div><dt>Best-scoring moves</dt><dd>{agreement.matches} / {agreement.analyzed}</dd></div>
+                <div><dt>Longest matching run</dt><dd>{agreement.analyzed ? `${agreement.longestStreak} moves` : "—"}</dd></div>
+              </dl>
+              <small>{agreement.expected === 0 ? "No moves played" : `${agreement.analyzed} / ${agreement.expected} moves analyzed${agreement.analyzed < agreement.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
+            </article>;
+          })}
+        </div>
+        <details className="review-skill-method">
+          <summary>What this assessment can tell you</summary>
+          <p>Agreement counts moves tied for the best score in the short review search. Runs count consecutive analyzed turns for that side; missing analysis breaks a run. Opening knowledge, forced moves and straightforward positions can all produce high agreement. A low score also cannot rule out occasional help.</p>
+          <p>These figures describe play, not the probability of assistance. This review has no validated detection model, move-timing evidence or comparison against the player's history. Its two-ply search can miss stronger moves.</p>
+          <p><a href="https://support.chess.com/en/articles/8568369-what-do-i-need-to-know-about-fair-play-on-chess-com" target="_blank" rel="noreferrer">Why accuracy and fair-play detection are different</a></p>
+        </details>
+      </section>
       <section className="review-skills" aria-labelledby="review-skills-title">
         <div className="review-elo-scores" aria-label="Player Elo scores">
           <div><span>{playerName} · ESTIMATE</span><strong>{playerElo === null ? "—" : `~${playerElo}`}</strong><small>{playerElo === null ? "Three analyzed moves needed" : "Estimated from this game"}</small></div>
-          <div><span>{opponent} · LADDER RATING</span><strong>{opponentElo}</strong><small>Progression rating</small></div>
+          <div><span>{opponent} · {opponentKind === "human" ? "ONLINE ELO" : "LADDER RATING"}</span><strong>{opponentElo}</strong><small>{opponentKind === "human" ? "Online rating at game start" : "Progression rating"}</small></div>
         </div>
         <h3 id="review-skills-title">Your estimated Elo by skill</h3>
         <p className="review-note">{playerName} · {color === "w" ? "White" : "Black"} · {failed ? "Partial analysis" : Object.keys(analyses).length < moves.length ? "Updating as moves are analyzed" : "Game analysis complete"}</p>
@@ -222,7 +281,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
           <h3>Moves</h3>
           <div className="review-player-headings" aria-label="Move columns">
             {(["w", "b"] as const).map((side) => <div key={side}>
-              <span className="review-player-role">{side === color ? "USER" : "BOSS"} / {side === "w" ? "White" : "Black"}</span>
+              <span className="review-player-role">{side === color ? "USER" : opponentKind === "human" ? "OPPONENT" : "BOSS"} / {side === "w" ? "White" : "Black"}</span>
               <strong>{side === color ? playerName : opponent}</strong>
             </div>)}
           </div>
@@ -230,6 +289,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
             {moves.map((item, index) => <button key={index} disabled={preview} aria-current={ply === index + 1 ? "step" : undefined} onClick={() => jump(index + 1)}>
               <span className="review-move-notation">{Math.floor(index / 2) + 1}{item.color === "w" ? "." : "..."} {item.san}</span>
               <RatingBadge analysis={analyses[index]} />
+              <AccuracyBadge analysis={analyses[index]} failed={failed} />
             </button>)}
           </nav>
         </aside>
@@ -249,6 +309,8 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
               <span>Black · {color === "b" ? playerName : opponent}</span>
             </div>
           </section>}
+          <div className={`review-board-frame${showCoordinates ? " review-board-with-coordinates" : ""}`}>
+          {showCoordinates && <div className="review-axis review-rank-axis" aria-label="Board ranks">{Array.from({ length: 8 }, (_, index) => <span key={index}>{color === "w" ? 8 - index : index + 1}</span>)}</div>}
           <div className="review-board chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties} aria-label={preview ? "Best move line chessboard" : "Replay chessboard"}>
             {rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
               const file = String.fromCharCode(97 + (color === "w" ? columnIndex : 7 - columnIndex));
@@ -256,10 +318,12 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
               const square = `${file}${rank}`;
               return <div key={square} className={`square square-${(rowIndex + columnIndex) % 2 ? "dark" : "light"}${last && (last.from === square || last.to === square) ? " review-highlight" : ""}`} aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}`}>
                 {piece && <span className="chess-piece"><PieceArtwork type={piece.type} color={piece.color} theme={reviewTheme} fitToSquare /></span>}
-                {showCoordinates && <span className="review-coordinate">{square}</span>}
                 {!preview && piece && move?.to === square && <span className={`review-piece-rating rating-${boardRating.key}`} role="img" aria-label={boardRating.label} title={boardRating.label}>{boardRating.icon}</span>}
               </div>;
             }))}
+            {arrow && <svg className="review-best-arrow" viewBox="0 0 8 8" role="img" aria-label={`Best move: ${arrow.san}, ${arrow.from} to ${arrow.to}`} data-from={arrow.from} data-to={arrow.to}><path d={arrow.path} /></svg>}
+          </div>
+          {showCoordinates && <div className="review-axis review-file-axis" aria-label="Board files">{Array.from({ length: 8 }, (_, index) => <span key={index}>{String.fromCharCode(97 + (color === "w" ? index : 7 - index))}</span>)}</div>}
           </div>
           {!preview && <>
           <div className="review-controls">
@@ -281,6 +345,7 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
             <h3>{move ? `${Math.floor((ply - 1) / 2) + 1}${move.color === "w" ? "." : "..."} ${move.san}` : "Starting position"}</h3>
             <p>{move ? preview ? "Suggested alternative shown on the board." : `${move.color === "w" ? "White" : "Black"} played ${move.san}.` : moves.length ? "Choose Play or Next to start the replay." : "No moves were played in this game."}</p>
             {move && <RatingBadge analysis={analysis} />}
+            {move && <p className="review-selected-accuracy">Move accuracy: <AccuracyBadge analysis={analysis} failed={failed} /></p>}
             <div className="review-move-actions">
               <button className="review-explain-toggle" type="button" disabled={!move || !analysis} aria-expanded={explainOpen} aria-controls="review-move-explanation" onClick={() => {
                 setPlaying(false);
@@ -362,6 +427,20 @@ export function GameReview({ pgn, opponent, opponentElo, playerName, theme, colo
   );
 }
 
+function bestMoveArrow(from: Square, to: Square, color: PieceColor) {
+  const center = (square: Square) => {
+    const file = square.charCodeAt(0) - 97;
+    const rank = Number(square[1]) - 1;
+    return { x: (color === "w" ? file : 7 - file) + 0.5, y: (color === "w" ? 7 - rank : rank) + 0.5 };
+  };
+  const start = center(from), end = center(to);
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  const dx = (end.x - start.x) / length, dy = (end.y - start.y) / length;
+  const neck = { x: end.x - dx * 0.48, y: end.y - dy * 0.48 };
+  const offset = (point: { x: number; y: number }, width: number) => `${point.x - dy * width},${point.y + dx * width}`;
+  return `M ${offset(start, 0.11)} L ${offset(neck, 0.11)} L ${offset(neck, 0.32)} L ${end.x},${end.y} L ${offset(neck, -0.32)} L ${offset(neck, -0.11)} L ${offset(start, -0.11)} Z`;
+}
+
 const RATINGS = [
   { key: "best", label: "Best", icon: "\u2605" },
   { key: "good", label: "Good", icon: "\u2713" },
@@ -376,4 +455,10 @@ export function moveRating(analysis: MoveAnalysis) {
 function RatingBadge({ analysis }: { analysis?: MoveAnalysis }) {
   const rating = analysis ? moveRating(analysis) : { key: "pending", label: "Pending", icon: "..." };
   return <span className={`move-rating rating-${rating.key}`} title={analysis ? `Estimated loss: ${(analysis.loss / 100).toFixed(2)} pawns${analysis.worst ? "; lowest-scoring legal move" : ""}` : "Waiting for analysis"}><b aria-hidden="true">{rating.icon}</b> {rating.label}</span>;
+}
+
+function AccuracyBadge({ analysis, failed }: { analysis?: MoveAnalysis; failed: boolean }) {
+  const accuracy = moveAccuracy(analysis);
+  const label = accuracy === null ? failed ? "Accuracy unavailable" : "Accuracy pending" : `${accuracy.toFixed(1)}% accuracy`;
+  return <span className="review-move-accuracy" aria-label={label} title={label}>{accuracy === null ? "—" : `${accuracy.toFixed(1)}%`}</span>;
 }
