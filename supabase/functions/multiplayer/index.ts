@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
-import { botMove, outcome, replay, timeoutResult } from './rules.ts';
+import { botMove, botReadyToMove, outcome, replay, timeoutResult } from './rules.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -66,7 +66,9 @@ Deno.serve(async req => {
         catch { return respond({ error: 'Illegal move' }, 400); }
         const terminal = outcome(game);
         Object.assign(params, { p_pgn: game.pgn(), p_fen: game.fen(), p_turn: game.turn(), p_result: terminal.result, p_reason: terminal.reason });
-      } else if (action === 'state' && stored.is_bot && stored.turn === 'b') {
+      } else if (action === 'state') {
+        // Keep heartbeats responsive while thinking; do not hold a request open.
+        if (!botReadyToMove(stored)) return respond({ game: stored, server_now: new Date().toISOString() });
         const move = botMove(game,stored.black_rating);
         if (move) {
           game.move(move); kind = 'move'; actor = null;

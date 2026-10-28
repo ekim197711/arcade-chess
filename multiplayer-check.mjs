@@ -6,7 +6,7 @@ const db = new PGlite();
 const vite = await createServer({ resolve: { alias: { 'npm:chess.js@1.4.0': 'chess.js' } }, server: { watch: null } });
 try {
   const { clockRemaining, formatClock, reconnectDeadline, predictOnlineMove, predictionWasSaved } = await vite.ssrLoadModule('/src/onlineChess.ts');
-  const { replay, outcome, timeoutResult, botMove } = await vite.ssrLoadModule('/supabase/functions/multiplayer/rules.ts');
+  const { replay, outcome, timeoutResult, botMove, botThinkDelayMs, botReadyToMove } = await vite.ssrLoadModule('/supabase/functions/multiplayer/rules.ts');
   await db.exec(`create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated; create role service_role;
     create function auth.uid() returns uuid language sql as $$ select current_setting('test.uid',true)::uuid $$;
     grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`);
@@ -66,7 +66,22 @@ try {
   let bot = (await join(people[5])).game;
   assert.equal(bot.is_bot,true); assert.equal(bot.white_ms,300000);
   bot=await move(bot,'e4');
+  const thinkDelay = botThinkDelayMs(bot), turnStart = Date.parse(bot.turn_started_at);
+  assert.ok(thinkDelay >= 1000 && thinkDelay <= 5000);
+  assert.equal(botReadyToMove(bot,turnStart),false);
+  assert.equal(botReadyToMove(bot,turnStart+thinkDelay-1),false);
+  assert.equal(botReadyToMove(bot,turnStart+thinkDelay),true);
+  assert.equal(botReadyToMove({...bot,is_bot:false},turnStart+10000),false);
+  assert.equal(botReadyToMove({...bot,turn:'w'},turnStart+10000),false);
+  assert.equal(botReadyToMove({...bot,result:'0-1'},turnStart+10000),false);
+  assert.equal(botThinkDelayMs({...bot,version:bot.version+1}),thinkDelay,'heartbeats and other requests cannot reroll the delay');
+  bot=await commit(bot,bot.white_id,'tick');
+  assert.equal(Date.parse(bot.turn_started_at),turnStart,'heartbeats do not restart the thinking timer');
+  assert.equal(botReadyToMove(bot,turnStart+thinkDelay),true);
+  const delays = new Set(Array.from({length:100},(_,index) => botThinkDelayMs({...bot,ply_count:1+index*2})));
+  assert.deepEqual([...delays].sort((a,b)=>a-b),[1000,2000,3000,4000,5000]);
   const botPosition=replay(bot.pgn); const reply=botMove(botPosition,bot.black_rating); assert.ok(reply);
+  for (const rating of [100,3000]) assert.ok(botPosition.moves().includes(botMove(botPosition,rating).san));
   bot=await move(bot,reply.san);
   bot=await commit(bot,bot.white_id,'resign'); assert.equal(bot.rated,false); assert.equal(bot.white_delta,0);
   // Equal rating, established K and persistent 2400 peak; agreed draws.
@@ -131,5 +146,5 @@ try {
   await join(people[6],15); let clockFirst=(await join(people[7],15)).game;
   await db.query("update public.online_games set white_disconnected_at=clock_timestamp()-interval '21 seconds', turn_started_at=clock_timestamp()-interval '16 minutes' where id=$1",[clockFirst.id]);
   clockFirst=await commit(clockFirst,clockFirst.white_id,'tick'); assert.equal(clockFirst.reason,'Time expired');
-  console.log('PASS multiplayer: nearest-Elo pairing, all clocks, cancellation, stale queues, bot fallback, legal bot, turn ownership, version conflicts, atomic/idempotent ratings, draw, timeout, RLS, shared history');
+  console.log('PASS multiplayer: nearest-Elo pairing, all clocks, cancellation, stale queues, bot fallback, stable 1-5 second thinking delays, legal low/high bot moves, turn ownership, version conflicts, atomic/idempotent ratings, draw, timeout, RLS, shared history');
 } finally { await db.close(); await vite.close(); }
