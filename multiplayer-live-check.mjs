@@ -55,16 +55,16 @@ try {
   const square=(page,name)=>page.getByRole('group',{name:'Online chessboard',exact:true}).getByRole('button',{name:new RegExp(`^${name}( |$)`)});
   // Black can queue and cancel a premove before White starts, including by drag.
   await square(bp,'g8').click();await square(bp,'f6').click();
-  await bp.getByRole('button',{name:'Cancel premove from g8 to f6',exact:true}).click();
+  await bp.getByRole('button',{name:'Cancel premove',exact:true}).click();
   await square(bp,'e7').click();await square(bp,'e5').click();
-  await bp.getByRole('button',{name:'Cancel premove from e7 to e5',exact:true}).waitFor();
+  await bp.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
   await square(wp,'e2').scrollIntoViewIfNeeded();
   const from=await square(wp,'e2').boundingBox(),to=await square(wp,'e4').boundingBox();
   await wp.mouse.move(from.x+from.width/2,from.y+from.height/2);await wp.mouse.down();
   await wp.mouse.move(to.x+to.width/2,to.y+to.height/2,{steps:8});await wp.mouse.up();
   await wp.getByText('Your move',{exact:true}).waitFor();
   await wp.locator('.online-moves li').nth(1).waitFor();
-  assert.equal(await bp.getByRole('button',{name:'Cancel premove from e7 to e5',exact:true}).count(),0);
+  assert.equal(await bp.getByRole('button',{name:'Cancel premove',exact:true}).count(),0);
   await wp.locator('.online-appearance summary').click();
   await wp.getByRole('button',{name:'Use the ocean board colors',exact:true}).click();
   assert.equal(await square(wp,'a8').evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(196, 225, 234)');

@@ -939,6 +939,10 @@ main {
     font: 7px var(--mono);
     letter-spacing: 0.04em;
     cursor: pointer;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+    max-height: 110px;
+    overflow: auto;
 }
 .premove-cancel > span {
     margin-right: auto;

@@ -6,6 +6,7 @@ import { DragSquare } from "./DragSquare";
 import { BoardResizeHandle } from "./BoardResizeHandle";
 import type { BoardSound } from "./soundThemes";
 import { PromotionMenu, type PromotionPiece } from "./PromotionMenu";
+import { premoveBoard, usePremoveQueue } from "./premoves";
 import { GameReview } from "./GameReview";
 import { OnlineResult } from "./OnlineResult";
 import { clockRemaining, formatClock, reconnectDeadline, predictOnlineMove, predictionWasSaved, ONLINE_TIME_CONTROLS, type OnlineGame, type OnlineProfile, type OnlinePremove, type OnlineMovePrediction } from "./onlineChess";
@@ -37,9 +38,9 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const [historyLimit, setHistoryLimit] = useState(20);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selected, setSelected] = useState<Square | null>(null);
-  const [promotion, setPromotion] = useState<{ from: Square; to: Square; x: number; y: number } | null>(null);
+  const [promotion, setPromotion] = useState<{ from: Square; to: Square; x: number; y: number; queued?: boolean } | null>(null);
   const [resignConfirm, setResignConfirm] = useState(false);
-  const [premove, setPremove] = useState<OnlinePremove | null>(null);
+  const { premoves, setPremoves, takePremove } = usePremoveQueue<OnlinePremove>();
   const [notice, setNotice] = useState("");
   const [prediction, setPrediction] = useState<OnlineMovePrediction | null>(null);
   const predictionRef = useRef<OnlineMovePrediction | null>(null);
@@ -119,6 +120,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
           if (saved || next.result || action === "move" || pending.status === "uncertain") {
             updatePrediction(null);
             if (!saved) {
+              setPremoves([]);
               soundedPrediction.current = null;
               if (!next.result) { setNotice("Move was not saved. The confirmed position has been restored; please choose your move again."); onSound("invalid"); }
             }
@@ -134,6 +136,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         const message = failure instanceof Error ? failure.message : "Online play unavailable. Please retry.";
         if (action === "move" && predictionRef.current) {
           if (rejected) {
+            setPremoves([]);
             updatePrediction(null); soundedPrediction.current = null; setNotice(`${message}. The confirmed position has been restored.`); onSound("invalid"); setError("");
           } else { updatePrediction({ ...predictionRef.current, status: "uncertain" }); setError(message); }
         } else setError(message);
@@ -142,7 +145,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   }
   useEffect(() => {
     let active = true;
-    setGame(null); updatePrediction(null); soundedPrediction.current = null; setSelected(null); setPromotion(null); setPremove(null); setResignConfirm(false); setLoading(true); setError(""); soundPosition.current = null;
+    setGame(null); updatePrediction(null); soundedPrediction.current = null; setSelected(null); setPromotion(null); setPremoves([]); setResignConfirm(false); setLoading(true); setError(""); soundPosition.current = null;
     if (gameId) { void request("state"); return; }
     void (async () => {
       const [player, activeGame] = await Promise.all([
@@ -179,7 +182,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     return () => { active = false; };
   }, [gameId, historyMode, historyLimit, userId]);
   const displayGame = prediction?.game ?? game;
-  useEffect(() => { setSelected(null); setPromotion(null); }, [displayGame?.fen]);
+  useEffect(() => { setPromotion(null); }, [displayGame?.fen]);
   const confirmedPosition = useMemo(() => { const chess = new Chess(); if (game?.pgn) chess.loadPgn(game.pgn); return chess; },[game?.pgn]);
   const confirmedMoves = useMemo(() => confirmedPosition.history({ verbose: true }), [confirmedPosition]);
   const position = useMemo(() => { if (!prediction) return confirmedPosition; const chess = new Chess(); chess.loadPgn(prediction.game.pgn); return chess; }, [confirmedPosition, prediction]);
@@ -189,7 +192,12 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const canMove = !!game && participant && !game.result && game.turn === side && !prediction && !busy && !error;
   const canInteract = !!game && participant && !game.result && (!busy || !!prediction) && !error && !reviewing;
   const premoveTurn = canInteract && displayGame?.turn !== side;
-  const legal = selected ? premoveTurn ? position.premoveTargets(selected, side) : position.moves({ square: selected, verbose: true }).map(move => move.to) : [];
+  const plannedBoard = useMemo(() => premoveBoard(position, promotion?.queued ? [promotion, ...premoves] : premoves, side), [position, premoves, promotion, side]);
+  const queuingPremove = premoveTurn || premoves.length > 0;
+  useEffect(() => {
+    setSelected(square => square && plannedBoard.get(square)?.color === side ? square : null);
+  }, [plannedBoard, side]);
+  const legal = selected ? queuingPremove ? plannedBoard.targets(selected) : position.moves({ square: selected, verbose: true }).map(move => move.to) : [];
   const lastMove = moveHistory.at(-1);
   const opponentSide = side === "w" ? "b" : "w";
   const opponentDeadline = game ? reconnectDeadline(game, opponentSide) : null;
@@ -215,18 +223,18 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     }
   }, [game, confirmedMoves, reviewing, side, onMoveSound, onSound]);
 
-  function makeMove(from: Square, to: Square, x?: number, y?: number, promotionPiece?: PromotionPiece) {
+  function makeMove(from: Square, to: Square, x?: number, y?: number, promotionPiece?: PromotionPiece, executeQueued = false) {
     if (!canInteract) return false;
-    if (premoveTurn) {
-      if (position.get(from)?.color !== side || !position.premoveTargets(from, side).includes(to)) return false;
-      setPremove({ from, to, x, y }); setSelected(null); setNotice(""); onSound("select");
+    if (!executeQueued && queuingPremove) {
+      if (plannedBoard.get(from)?.color !== side || !plannedBoard.targets(from).includes(to)) return false;
+      setPremoves(previous => [...previous, { from, to, x, y }]); setSelected(null); setNotice(""); onSound("select");
       return true;
     }
     const candidate = position.moves({ square: from, verbose: true }).find(move => move.to === to);
     if (!candidate) { onSound("invalid"); return false; }
     if (candidate.promotion && !promotionPiece) {
       const target = document.querySelector(`.online-board [data-square="${to}"]`)?.getBoundingClientRect();
-      setPromotion({ from, to, x: x ?? (target ? target.x + target.width/2 : innerWidth/2), y: y ?? (target ? target.y + target.height/2 : innerHeight/2) });
+      setPromotion({ from, to, x: x ?? (target ? target.x + target.width/2 : innerWidth/2), y: y ?? (target ? target.y + target.height/2 : innerHeight/2), queued: executeQueued });
     } else {
       if (predictionRef.current) return false;
       const optimistic = predictOnlineMove(game!, { from, to, ...(promotionPiece ? { promotion: promotionPiece } : {}) }, Date.now() + offset.current);
@@ -234,25 +242,28 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       onMoveSound(optimistic.move, new Chess(optimistic.move.after), side);
       void request("move", { from, to, ...(promotionPiece ? { promotion: promotionPiece } : {}), version: optimistic.base.version });
     }
-    setSelected(null); return true;
+    if (!executeQueued) setSelected(null); return true;
   }
   function moveTo(square: Square, x: number, y: number) {
     if (!canInteract || promotion) return;
     if (selected && legal.includes(square)) makeMove(selected, square, x, y);
     else {
-      const own = position.get(square)?.color === side;
+      const own = plannedBoard.get(square)?.color === side;
       if (own && selected !== square) onSound("select");
       setSelected(own && selected !== square ? square : null);
-      if (own) setPremove(null);
     }
   }
   useEffect(() => {
-    if (!premove) return;
-    if (game?.result) { setPremove(null); return; }
-    if (!canMove) return;
-    const queuedMove = premove; setPremove(null);
-    if (!makeMove(queuedMove.from, queuedMove.to, queuedMove.x, queuedMove.y)) setNotice("Premove canceled: the move is no longer legal.");
-  }, [game?.fen, game?.result, canMove, premove]);
+    if (!premoves.length) return;
+    if (game?.result) { setPremoves([]); return; }
+    if (!canMove || promotion || predictionRef.current) return;
+    const queuedMove = takePremove(`${game!.id}:${game!.fen}`);
+    if (!queuedMove) return;
+    if (!makeMove(queuedMove.from, queuedMove.to, queuedMove.x, queuedMove.y, undefined, true)) {
+      setPremoves([]);
+      setNotice("Premoves canceled: the next move is no longer legal.");
+    }
+  }, [game?.fen, game?.result, canMove, premoves, promotion]);
   if (reviewing && game && !game.result) return <section className="game-review"><h2>Game still in progress</h2><p>Analysis becomes available when the game is complete.</p><button onClick={() => navigate(`online/${game.id}`)}>Resume match</button></section>;
   if (reviewing && game) return <GameReview pgn={game.pgn} playerName={side === "w" ? game.white_name : game.black_name} opponent={side === "w" ? game.black_name : game.white_name} opponentElo={side === "w" ? game.black_rating : game.white_rating} opponentKind={game.is_bot ? "bot" : "human"} theme={theme} color={side} light={light} dark={dark} onClose={() => navigate("online")} closeLabel="Back to online play" onMoveSound={(move, position) => onMoveSound(move, position, side)} />;
   if (game?.result && !reviewing) return <OnlineResult game={game} userId={userId} onReview={() => navigate(`online/review/${game.id}`)} onPlayAgain={() => navigate(`online/new/${game.minutes}`)} onChooseTime={() => navigate("online")} onHome={() => navigate("home")} />;
@@ -279,16 +290,16 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <div className="board-stage online-board-stage"><div className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
         <div className="board-coordinates board-files-top">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
         <div className="board-wrap"><div className="board-coordinates board-ranks">{Array.from({length:8},(_,index) => <span key={index}>{side === "w" ? 8-index : 1+index}</span>)}</div>
-        <div className="online-board chessboard" role="group" aria-label="Online chessboard" onContextMenu={event => { event.preventDefault(); setPremove(null); setSelected(null); }} onKeyDown={event => { if (event.key === "Escape") { setPremove(null); setSelected(null); setPromotion(null); } }}>
+        <div className="online-board chessboard" role="group" aria-label="Online chessboard" onContextMenu={event => { event.preventDefault(); setPremoves([]); setSelected(null); setPromotion(null); }} onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelected(null); setPromotion(null); } }}>
           {Array.from({length:64},(_,index) => {
             const file=side === "w" ? index%8 : 7-index%8; const rank=side === "w" ? 8-Math.floor(index/8) : 1+Math.floor(index/8);
-            const square=`${String.fromCharCode(97+file)}${rank}` as Square; const piece=position.get(square); const target=legal.includes(square);
-            return <DragSquare key={square} square={square} positionKey={position.fen()} canDrag={canInteract && !promotion && piece?.color === side}
+            const square=`${String.fromCharCode(97+file)}${rank}` as Square; const piece=plannedBoard.get(square); const target=legal.includes(square);
+            return <DragSquare key={square} square={square} positionKey={`${game.id}:${piece?.color}:${piece?.type}`} canDrag={canInteract && !promotion && piece?.color === side}
               artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare />}
-              onPickUp={() => { onSound("select"); setPremove(null); setSelected(square); }}
+              onPickUp={() => { onSound("select"); setSelected(square); }}
               onMovePiece={(from, to, anchor) => { makeMove(from, to, anchor.x, anchor.y); }}
-              className={`square square-${(file+rank)%2 === 0 ? "light" : "dark"}${square === selected ? " square-selected" : ""}${lastMove?.from === square || lastMove?.to === square ? " square-last" : ""}${target ? " square-target" : ""}${target && premoveTurn ? " square-premove-target" : ""}${premove?.from === square ? " square-premove-from" : ""}${premove?.to === square ? " square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
-              aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}${target ? premoveTurn ? " premove destination" : " legal destination" : ""}${premove?.from === square ? " premove origin" : ""}${premove?.to === square ? " premove target" : ""}`}
+              className={`square square-${(file+rank)%2 === 0 ? "light" : "dark"}${square === selected ? " square-selected" : ""}${lastMove?.from === square || lastMove?.to === square ? " square-last" : ""}${target ? " square-target" : ""}${target && queuingPremove ? " square-premove-target" : ""}${premoves.some(move => move.from === square) ? " square-premove-from" : ""}${premoves.some(move => move.to === square) ? " square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
+              aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}${target ? queuingPremove ? " premove destination" : " legal destination" : ""}${premoves.some(move => move.from === square) ? " premove origin" : ""}${premoves.some(move => move.to === square) ? " premove target" : ""}`}
               aria-pressed={square === selected} disabled={!canInteract} onClick={event => moveTo(square,event.clientX,event.clientY)}>
               {piece && <span className={`chess-piece ${piece.color === "w" ? "white-piece-glyph" : "black-piece-glyph"}`}><PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare /></span>}
               {target && <span className={`move-dot ${piece ? "move-capture" : ""}`} />}
@@ -303,8 +314,8 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
         {error && game && !game.result && <p role="status">Reconnect window: {Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now)-now)/1000))} seconds remaining.</p>}
-        {!game.result && <p className="review-note">Moves save automatically. After closing the browser or disconnecting, return within 20 seconds or forfeit. Your clock keeps running. During your opponent’s turn, select or drag a piece to queue a premove.</p>}
-        {premove && <button className="premove-cancel" onClick={() => setPremove(null)} aria-label={`Cancel premove from ${premove.from} to ${premove.to}`}>PREMOVE {premove.from} → {premove.to} · CANCEL</button>}
+        {!game.result && <p className="review-note">Moves save automatically. After closing the browser or disconnecting, return within 20 seconds or forfeit. Your clock keeps running. During your opponent’s turn, select or drag a piece to queue moves. Keep selecting pieces to add more premoves; right-click or press Escape to cancel all.</p>}
+        {premoves.length > 0 && <button className="premove-cancel" onClick={() => { setPremoves([]); setSelected(null); setPromotion(null); }} aria-label={premoves.length === 1 ? "Cancel premove" : `Cancel all ${premoves.length} premoves`}>{premoves.length} PREMOVE{premoves.length === 1 ? "" : "S"}: {premoves.map(move => `${move.from}\u2192${move.to}`).join(" / ")} - CANCEL</button>}
         {notice && <p role="status">{notice}</p>}
           {!game.is_bot && !game.draw_offer && <button disabled={busy} onClick={() => void request("offer_draw")}>Offer draw</button>}
           {game.draw_offer && game.draw_offer !== userId && <><p>Opponent offered a draw.</p><button disabled={busy} onClick={() => void request("accept_draw")}>Accept draw</button><button disabled={busy} onClick={() => void request("decline_draw")}>Decline draw</button></>}
@@ -322,7 +333,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         </div>
         <details className="online-appearance"><summary>Board, pieces &amp; sound</summary>{appearance}</details>
       </aside></div>
-      {promotion && canMove && <PromotionMenu position={promotion} color={side} theme={theme} onCancel={() => setPromotion(null)} onChoose={(piece: PromotionPiece) => { makeMove(promotion.from,promotion.to,promotion.x,promotion.y,piece); setPromotion(null); }} />}
+      {promotion && canMove && <PromotionMenu position={promotion} color={side} theme={theme} onCancel={() => { setPromotion(null); setPremoves([]); }} onChoose={(piece: PromotionPiece) => { makeMove(promotion.from,promotion.to,promotion.x,promotion.y,piece,promotion.queued); setPromotion(null); }} />}
     </>}
   </section>;
 }

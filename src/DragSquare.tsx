@@ -26,7 +26,7 @@ export function DragSquare({ square, canDrag, positionKey, artwork, onPickUp, on
     button.current?.removeAttribute("data-dragging");
     if (active && button.current?.hasPointerCapture(active.id)) button.current.releasePointerCapture(active.id);
   }
-  // A bot reply, reset, or navigation must never leave a stale piece attached to the cursor.
+  // Source-piece changes, resets, or navigation must not leave stale cursor artwork.
   useLayoutEffect(() => { cancel(); }, [positionKey, canDrag]);
   useEffect(() => {
     window.addEventListener("blur", cancel);

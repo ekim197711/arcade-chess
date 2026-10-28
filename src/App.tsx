@@ -60,6 +60,7 @@ import { requestStockfishMove, bossStrengthDescription } from "./stockfish";
 import { type ArchivedMatch } from "./matchArchive";
 import { supabase, supabaseConfiguration } from "./supabase";
 import { useMatchHistory } from "./useMatchHistory";
+import { premoveBoard, usePremoveQueue } from "./premoves";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 const BOSS_MASCOTS = [
@@ -403,7 +404,7 @@ function getMaterialPoints(pieces: Record<MedievalPieceType, number>) {
 
 type BotMoveData = { from: Square; to: Square; promotion?: string };
 type Premove = { from: Square; to: Square; position?: PromotionPosition };
-type PromotionMove = { from: Square; to: Square; fen: string; matchId: string; position: PromotionPosition };
+type PromotionMove = { from: Square; to: Square; fen: string; matchId: string; position: PromotionPosition; queued?: boolean };
 type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string; debug?: boolean };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
 
@@ -799,14 +800,6 @@ function readSavedMatch(): SavedMatch | null {
   }
 }
 
-function getPremoveTargets(
-  fen: string,
-  square: Square,
-  color: PieceColor,
-): Square[] {
-  return new Chess(fen).premoveTargets(square, color);
-}
-
 function App() {
   const [cookieNoticeReset, setCookieNoticeReset] = useState(0);
   const [debugEnabled, setDebugMode] = useState(() => {
@@ -937,7 +930,7 @@ function App() {
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
   const [pgn, setPgn] = useState(savedMatch?.pgn ?? "");
   const [reviewPly, setReviewPly] = useState<number | null>(null);
-  const [premove, setPremove] = useState<Premove | null>(null);
+  const { premoves, setPremoves, takePremove } = usePremoveQueue<Premove>();
   const [promotionMove, setPromotionMove] = useState<PromotionMove | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(
@@ -999,6 +992,8 @@ function App() {
     game.turn() === boss.chessColor &&
     !game.isGameOver() &&
     !resigned;
+  const plannedBoard = useMemo(() => premoveBoard(game, promotionMove?.queued ? [promotionMove, ...premoves] : premoves, playerColor), [game, premoves, promotionMove, playerColor]);
+  const queuingPremove = premoveTurn || premoves.length > 0;
   const boardFiles = playerColor === "w" ? FILES : [...FILES].reverse();
   const boardRanks = playerColor === "w" ? RANKS : [...RANKS].reverse();
   const capturedByColor = useMemo(() => {
@@ -1039,10 +1034,10 @@ function App() {
         : "material-even";
   const legalMoves = useMemo(() => {
     if (reviewing || !selectedSquare) return [];
-    return premoveTurn
-      ? getPremoveTargets(fen, selectedSquare, playerColor)
+    return queuingPremove
+      ? plannedBoard.targets(selectedSquare)
       : legalTargets(fen, selectedSquare);
-  }, [fen, playerColor, premoveTurn, reviewing, selectedSquare]);
+  }, [fen, plannedBoard, queuingPremove, reviewing, selectedSquare]);
   const currentResult = debugCheckmate ? "win" : resigned ? "loss" : resultFor(game, boss.chessColor);
   // Save both sides' moves, including positions where the bot still needs to play.
   useEffect(() => {
@@ -1072,7 +1067,7 @@ function App() {
       return next;
     });
     if (currentResult) setScreen(`result/${record.id}`);
-  }, [pgn, currentResult, screen, bossIndex, debugMatch]);
+  }, [pgn, currentResult, screen, bossIndex, debugMatch, setHistory]);
   const progress = user ? (accountProgress ?? EMPTY_PROGRESS) : guestProgress;
   const clearedBosses = ladderClears(progress, playMode);
 
@@ -1774,7 +1769,7 @@ function App() {
         setOpponentLine(null);
         setLastMove({ from: move.from, to: move.to });
         setSelectedSquare((selected) =>
-          selected && next.get(selected)?.color === playerColor ? selected : null,
+          selected && plannedBoard.get(selected)?.color === playerColor ? selected : null,
         );
         setPgn(next.pgn());
         setThinking(false);
@@ -1788,15 +1783,15 @@ function App() {
     }
   }
 
-  function makeMove(from: Square, to: Square, promotion?: PromotionPiece, position?: PromotionPosition) {
+  function makeMove(from: Square, to: Square, promotion?: PromotionPiece, position?: PromotionPosition, executeQueued = false) {
     if (currentResult || reviewing || (promotionMove && !promotion)) return false;
-    if (premoveTurn) {
+    if (!executeQueued && queuingPremove) {
       if (
-        game.get(from)?.color !== playerColor ||
-        !getPremoveTargets(fen, from, playerColor).includes(to)
+        plannedBoard.get(from)?.color !== playerColor ||
+        !plannedBoard.targets(from).includes(to)
       )
         return false;
-      setPremove({ from, to, position });
+      setPremoves(previous => [...previous, { from, to, position }]);
       setSelectedSquare(null);
       playBoardSound("select", soundEnabled, soundTheme);
       return true;
@@ -1807,7 +1802,7 @@ function App() {
       const target = document.querySelector(`[data-square="${to}"]`)?.getBoundingClientRect();
       const anchor = position ?? { x: target ? target.x + target.width / 2 : window.innerWidth / 2,
         y: target ? target.y + target.height / 2 : window.innerHeight / 2 };
-      setPromotionMove({ from, to, fen, matchId: matchId.current, position: anchor });
+      setPromotionMove({ from, to, fen, matchId: matchId.current, position: anchor, queued: executeQueued });
       setSelectedSquare(null);
       return true;
     }
@@ -1817,7 +1812,7 @@ function App() {
         setOpponentLine(null);
         setPgn(next.pgn());
         setLastMove({ from, to });
-        setSelectedSquare(null);
+        if (!executeQueued) setSelectedSquare(null);
         if (move.captured) showCaptureReaction(move.color);
         playBoardSound(boardSoundForMove(move, next, playerColor), soundEnabled, soundTheme);
       };
@@ -1831,7 +1826,7 @@ function App() {
 
   function handleSquareClick(square: Square, position?: PromotionPosition) {
     if (promotionMove || reviewing || currentResult || (thinking && !premoveTurn)) return;
-    const piece = game.get(square);
+    const piece = plannedBoard.get(square);
     if (selectedSquare && legalMoves.includes(square)) {
       makeMove(selectedSquare, square, undefined, position);
       return;
@@ -1839,7 +1834,6 @@ function App() {
     if (piece?.color === playerColor) {
       const isDeselecting = square === selectedSquare;
       if (!isDeselecting) playBoardSound("select", soundEnabled, soundTheme);
-      if (premove) setPremove(null);
       setSelectedSquare(isDeselecting ? null : square);
       return;
     }
@@ -1876,7 +1870,7 @@ function App() {
 
   function saveMatchForLater() {
     if (currentResult || !persistCurrentMatch()) return;
-    setPremove(null);
+    setPremoves([]);
     setSelectedSquare(null);
     setThinking(false);
     setOpponentMood(null);
@@ -1901,7 +1895,7 @@ function App() {
     setPgn(match.pgn);
     setPlayMode(restored.mode);
     setTauntIndex(match.tauntIndex);
-    setPremove(null);
+    setPremoves([]);
     setSelectedSquare(null);
     setLastMove(lastMove ? { from: lastMove.from, to: lastMove.to } : null);
     setThinking(false);
@@ -1918,7 +1912,7 @@ function App() {
   function resignMatch() {
     if (currentResult) return;
     setResigned(true);
-    setPremove(null);
+    setPremoves([]);
     setSelectedSquare(null);
     setThinking(false);
   }
@@ -1932,7 +1926,7 @@ function App() {
     if (!debugMode || screen !== "battle" || reviewing || currentResult) return;
     setDebugMatch(true);
     setDebugCheckmate(true);
-    setPremove(null);
+    setPremoves([]);
     setPromotionMove(null);
     setSelectedSquare(null);
     setThinking(false);
@@ -1955,7 +1949,7 @@ function App() {
     if (savedMatch?.bossIndex === index) clearSavedMatch(index);
     setBossIndex(index);
     setPgn(playMode === "freestyle" ? new Chess(freestyleFen()).pgn() : "");
-    setPremove(null);
+    setPremoves([]);
     setSelectedSquare(null);
     setLastMove(null);
     setThinking(false);
@@ -2001,7 +1995,7 @@ function App() {
 
   function viewHistoryMove(ply: number) {
     setReviewPly(ply === moveHistory.length ? null : ply);
-    setPremove(null);
+    setPremoves([]);
     setSelectedSquare(null);
   }
 
@@ -2013,33 +2007,23 @@ function App() {
   }, [promotionMove, screen, reviewing, currentResult, fen]);
 
   useEffect(() => {
-    if (!premove) return;
-    if (reviewing || screen !== "battle" || game.isGameOver()) {
-      setPremove(null);
-      setSelectedSquare(null);
+    setSelectedSquare(selected => selected && plannedBoard.get(selected)?.color === playerColor ? selected : null);
+  }, [plannedBoard, playerColor]);
+
+  useEffect(() => {
+    if (!premoves.length) return;
+    if (reviewing || screen !== "battle" || currentResult) {
+      setPremoves([]);
       return;
     }
-    if (premoveTurn || thinking) return;
-
-    const queuedMove = premove;
-    setPremove(null);
-    setSelectedSquare(null);
-    if (!makeMove(queuedMove.from, queuedMove.to, undefined, queuedMove.position)) {
-      showToast("PREMOVE EXPIRED — MOVE IS NO LONGER LEGAL");
+    if (premoveTurn || thinking || promotionMove) return;
+    const queuedMove = takePremove(`${matchId.current}:${fen}`);
+    if (!queuedMove) return;
+    if (!makeMove(queuedMove.from, queuedMove.to, undefined, queuedMove.position, true)) {
+      setPremoves([]);
+      showToast("PREMOVE CANCELED - MOVE IS NO LONGER LEGAL");
     }
-  }, [
-    boss.chessColor,
-    fen,
-    game,
-    pgn,
-    playerColor,
-    premove,
-    premoveTurn,
-    screen,
-    soundEnabled,
-    thinking,
-    reviewing,
-  ]);
+  }, [fen, currentResult, premoves, premoveTurn, screen, thinking, reviewing, promotionMove]);
 
   useEffect(() => {
     const moveLog = moveLogRef.current;
@@ -2805,17 +2789,19 @@ function App() {
                             <div
                               className="chessboard"
                               role="group"
+                              onContextMenu={event => { event.preventDefault(); setPremoves([]); setSelectedSquare(null); setPromotionMove(null); }}
+                              onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelectedSquare(null); setPromotionMove(null); } }}
                               aria-label={`Chess board. ${reviewing ? `Reviewing after move ${Math.ceil(reviewPly / 2)} ${viewedMove?.san}.` : `You are playing as ${playerColor === "w" ? "white" : "black"}.`}`}
                             >
                               {boardRanks.map((rank) =>
                                 boardFiles.map((file) => {
                                   const square = `${file}${rank}` as Square;
-                                  const piece = viewedGame.get(square);
+                                  const piece = reviewing ? viewedGame.get(square) : plannedBoard.get(square);
                                   const isLight =
                                     (rank + FILES.indexOf(file)) % 2 === 0;
                                   const isLegal = legalMoves.includes(square);
                                   const isPremoveTarget =
-                                    premoveTurn && isLegal;
+                                    queuingPremove && isLegal;
                                   const isSelected = selectedSquare === square;
                                   const isLast =
                                     viewedLastMove?.from === square ||
@@ -2826,17 +2812,16 @@ function App() {
                                   return (
                                     <DragSquare
                                       key={square}
-                                      className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premove?.from === square ? "square-premove-from" : ""} ${premove?.to === square ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
-                                      aria-label={`${square}, ${pieceName}${isLegal ? `, ${premoveTurn ? "premove" : "legal"} destination` : ""}${premove?.from === square ? ", premove origin" : ""}${premove?.to === square ? ", premove target" : ""}${isSelected ? ", selected" : ""}`}
+                                      className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premoves.some(move => move.from === square) ? "square-premove-from" : ""} ${premoves.some(move => move.to === square) ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
+                                      aria-label={`${square}, ${pieceName}${isLegal ? `, ${queuingPremove ? "premove" : "legal"} destination` : ""}${premoves.some(move => move.from === square) ? ", premove origin" : ""}${premoves.some(move => move.to === square) ? ", premove target" : ""}${isSelected ? ", selected" : ""}`}
                                       aria-pressed={isSelected}
                                       onClick={(event) => handleSquareClick(square, event.detail === 0 ? undefined : { x: event.clientX, y: event.clientY })}
                                       square={square}
                                       canDrag={!promotionMove && !reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
-                                      positionKey={viewedGame.fen()}
+                                      positionKey={`${matchId.current}:${piece?.color}:${piece?.type}`}
                                       artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
                                         playBoardSound("select", soundEnabled, soundTheme);
-                                        if (premove) setPremove(null);
                                         setSelectedSquare(square);
                                       }}
                                       onMovePiece={(from, to, position) => makeMove(from, to, undefined, position)}
@@ -2943,18 +2928,19 @@ function App() {
                           </span>
                         </div>
                       </section>
-                      {premove && (
+                      {premoves.length > 0 && (
                         <button
                           className="premove-cancel"
                           onClick={() => {
-                            setPremove(null);
+                            setPremoves([]);
                             setSelectedSquare(null);
+                            setPromotionMove(null);
                           }}
-                          aria-label={`Cancel premove from ${premove.from} to ${premove.to}`}
+                          aria-label={premoves.length === 1 ? "Cancel premove" : `Cancel all ${premoves.length} premoves`}
                         >
-                          <span>PREMOVE QUEUED</span>
+                          <span>{premoves.length} PREMOVE{premoves.length === 1 ? "" : "S"} QUEUED</span>
                           <b>
-                            {premove.from}→{premove.to}
+                            {premoves.map(move => `${move.from}\u2192${move.to}`).join(" / ")}
                           </b>
                           <X size={13} />
                         </button>
@@ -3120,12 +3106,12 @@ function App() {
 
       {promotionMove && screen === "battle" && !reviewing && !currentResult && promotionMove.fen === fen && promotionMove.matchId === matchId.current && (
         <PromotionMenu position={promotionMove.position} color={playerColor} theme={pieceTheme}
-          onCancel={() => setPromotionMove(null)}
+          onCancel={() => { setPromotionMove(null); setPremoves([]); }}
           onChoose={(piece) => {
             const pending = promotionMove;
             setPromotionMove(null);
             if (pending.fen === fen && pending.matchId === matchId.current) {
-              makeMove(pending.from, pending.to, piece);
+              makeMove(pending.from, pending.to, piece, undefined, pending.queued);
             }
           }} />
       )}
