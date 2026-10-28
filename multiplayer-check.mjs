@@ -43,9 +43,14 @@ try {
   await assert.rejects(commit(g,null,'move'));
   await assert.rejects(commit(g,g.black_id,'move',{pgn:'1. e4',fen:'x',turn:'b'}));
   const stale = g;
+  await db.query("update public.online_games set turn_started_at=clock_timestamp()-interval '3 seconds' where id=$1",[g.id]);
+  g = await commit(g,g.white_id,'tick');
   g = await move(g,'f3');
+  assert.equal(g.move_times_ms.length,1);
+  assert.ok(g.move_times_ms[0]>=3000 && g.move_times_ms[0]<10000,'server records elapsed turn time, including across heartbeats');
   assert.deepEqual(await commit(stale,stale.white_id,'resign'),g); // Optimistic versions reject stale requests.
   g = await move(g,'e5'); g = await move(g,'g4'); g = await move(g,'Qh4#');
+  assert.equal(g.move_times_ms.length,4,'one measurement per committed move');
   assert.equal(g.result,'0-1'); assert.equal(g.reason,'Checkmate'); assert.equal(g.rated,true);
   const before = (await db.query('select * from public.online_players order by user_id')).rows;
   await commit(g,g.white_id,'resign');
@@ -66,6 +71,7 @@ try {
   let bot = (await join(people[5])).game;
   assert.equal(bot.is_bot,true); assert.equal(bot.white_ms,300000);
   bot=await move(bot,'e4');
+  await db.query("update public.online_games set move_times_ms='[]'::jsonb where id=$1",[bot.id]);
   const thinkDelay = botThinkDelayMs(bot), turnStart = Date.parse(bot.turn_started_at);
   assert.ok(thinkDelay >= 1000 && thinkDelay <= 5000);
   assert.equal(botReadyToMove(bot,turnStart),false);
@@ -83,6 +89,8 @@ try {
   const botPosition=replay(bot.pgn); const reply=botMove(botPosition,bot.black_rating); assert.ok(reply);
   for (const rating of [100,3000]) assert.ok(botPosition.moves().includes(botMove(botPosition,rating).san));
   bot=await move(bot,reply.san);
+  assert.equal(bot.move_times_ms[0],null,'legacy move times remain unknown');
+  assert.ok(Number.isFinite(bot.move_times_ms[1]),'new move is aligned after legacy plies');
   bot=await commit(bot,bot.white_id,'resign'); assert.equal(bot.rated,false); assert.equal(bot.white_delta,0);
   // Equal rating, established K and persistent 2400 peak; agreed draws.
   await join(people[6],15); let draw=(await join(people[7],15)).game;

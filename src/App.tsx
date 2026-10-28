@@ -61,6 +61,7 @@ import { type ArchivedMatch } from "./matchArchive";
 import { supabase, supabaseConfiguration } from "./supabase";
 import { useMatchHistory } from "./useMatchHistory";
 import { premoveBoard, usePremoveQueue } from "./premoves";
+import { normalizeMoveTimes, appendMoveTime } from "./moveTiming";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 const BOSS_MASCOTS = [
@@ -405,7 +406,7 @@ function getMaterialPoints(pieces: Record<MedievalPieceType, number>) {
 type BotMoveData = { from: Square; to: Square; promotion?: string };
 type Premove = { from: Square; to: Square; position?: PromotionPosition };
 type PromotionMove = { from: Square; to: Square; fen: string; matchId: string; position: PromotionPosition; queued?: boolean };
-type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string; debug?: boolean };
+type SavedMatch = { bossIndex: number; pgn: string; tauntIndex: number; id?: string; startedAt?: string; debug?: boolean; moveTimesMs?: (number | null)[]; turnStartedAt?: number };
 type OpponentLine = { label: "TAUNT" | "EXCUSE"; text: string };
 
 function readProgress(key = STORAGE_KEY): Progress {
@@ -792,6 +793,8 @@ function readSavedMatch(): SavedMatch | null {
       id: typeof value.id === "string" ? value.id : undefined,
       startedAt: typeof value.startedAt === "string" && Number.isFinite(Date.parse(value.startedAt))
         ? value.startedAt : undefined,
+      moveTimesMs: normalizeMoveTimes(value.moveTimesMs, game.history().length),
+      turnStartedAt: typeof value.turnStartedAt === "number" && Number.isFinite(value.turnStartedAt) ? value.turnStartedAt : Date.now(),
       tauntIndex: Math.max(0, Math.floor(Number(value.tauntIndex) || 0)),
       debug: value.debug === true,
     };
@@ -929,6 +932,7 @@ function App() {
   const [excuseIndex, setExcuseIndex] = useState(0);
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
   const [pgn, setPgn] = useState(savedMatch?.pgn ?? "");
+  const moveTiming = useRef({ times: savedMatch?.moveTimesMs ?? [] as (number | null)[], turnStartedAt: savedMatch?.turnStartedAt ?? Date.now() });
   const [reviewPly, setReviewPly] = useState<number | null>(null);
   const { premoves, setPremoves, takePremove } = usePremoveQueue<Premove>();
   const [promotionMove, setPromotionMove] = useState<PromotionMove | null>(null);
@@ -1058,7 +1062,7 @@ function App() {
     const record: ArchivedMatch = {
       id: matchId.current, startedAt: matchStarted.current, updatedAt: new Date().toISOString(),
       bossIndex, opponent: boss.name, playerName: user ? playerName : "Guest player", elo: boss.elo, color: playerColor, pgn,
-      result: currentResult ?? "unfinished", debug: debugMatch,
+      result: currentResult ?? "unfinished", debug: debugMatch, moveTimesMs: normalizeMoveTimes(moveTiming.current.times, moveHistory.length),
       reason: debugCheckmate ? "Debug auto checkmate (simulated)" : resigned ? "Resignation" : game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isThreefoldRepetition() ? "Threefold repetition" : game.isInsufficientMaterial() ? "Insufficient material" : game.isDraw() ? "Draw by the fifty-move rule" : "Match in progress",
     };
     setHistory((previous) => {
@@ -1323,6 +1327,7 @@ function App() {
         if (window.location.hash.startsWith("#battle")) { window.location.hash = "home"; setRoute("home"); }
         setSavedMatch(nextUser ? null : readSavedMatch());
         setPgn("");
+        moveTiming.current = { times: [], turnStartedAt: Date.now() };
         setResigned(false);
         setDebugCheckmate(false);
       }
@@ -1749,6 +1754,11 @@ function App() {
     previewSoundTheme(theme, soundEnabled);
   }
 
+  function recordMoveTime() {
+    const now = Date.now();
+    moveTiming.current = { times: appendMoveTime(moveTiming.current.times, moveHistory.length, now - moveTiming.current.turnStartedAt), turnStartedAt: now };
+  }
+
   function commitBotMove(move: BotMoveData | null, positionFen: string) {
     if (!move) {
       setThinking(false);
@@ -1771,6 +1781,7 @@ function App() {
         setSelectedSquare((selected) =>
           selected && plannedBoard.get(selected)?.color === playerColor ? selected : null,
         );
+        recordMoveTime();
         setPgn(next.pgn());
         setThinking(false);
         if (result.captured) showCaptureReaction(result.color);
@@ -1810,6 +1821,7 @@ function App() {
       const move = next.move({ from, to, promotion });
       const finishMove = () => {
         setOpponentLine(null);
+        recordMoveTime();
         setPgn(next.pgn());
         setLastMove({ from, to });
         if (!executeQueued) setSelectedSquare(null);
@@ -1855,7 +1867,7 @@ function App() {
   }
 
   function persistCurrentMatch() {
-    const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current, debug: debugMatch };
+    const match = { bossIndex, pgn, tauntIndex, id: matchId.current, startedAt: matchStarted.current, debug: debugMatch, moveTimesMs: normalizeMoveTimes(moveTiming.current.times, moveHistory.length), turnStartedAt: moveTiming.current.turnStartedAt };
     try {
       localStorage.setItem(user ? `${SAVED_MATCH_KEY}:${user.id}` : SAVED_MATCH_KEY, JSON.stringify(match));
     } catch {
@@ -1890,6 +1902,7 @@ function App() {
     matchStarted.current = match.startedAt ?? history.find((item) => item.id === matchId.current)?.startedAt ?? new Date().toISOString();
     const restored = restoreGame(match.pgn);
     const restoredMoves = restored.history({ verbose: true });
+    moveTiming.current = { times: normalizeMoveTimes(match.moveTimesMs, restoredMoves.length), turnStartedAt: match.turnStartedAt ?? Date.now() };
     const lastMove = restoredMoves[restoredMoves.length - 1];
     setBossIndex(match.bossIndex);
     setPgn(match.pgn);
@@ -1949,6 +1962,7 @@ function App() {
     if (savedMatch?.bossIndex === index) clearSavedMatch(index);
     setBossIndex(index);
     setPgn(playMode === "freestyle" ? new Chess(freestyleFen()).pgn() : "");
+    moveTiming.current = { times: [], turnStartedAt: Date.now() };
     setPremoves([]);
     setSelectedSquare(null);
     setLastMove(null);
@@ -2506,7 +2520,7 @@ function App() {
         {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
-          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
+          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
             onMoveSound={(move, position) => playBoardSound(boardSoundForMove(move, position, selectedMatch.color), soundEnabled, soundTheme)} />
         ) : <section className="game-review"><h2>Game not found</h2><p>This game is not available in your history.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {(screen === "roster" || screen === "battle") && (

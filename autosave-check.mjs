@@ -40,6 +40,8 @@ try {
   await page.getByRole('button', { name: 'Standard', exact: true }).click();
   await page.getByRole('button', { name: /^Fight against/ }).click();
   const opening = await waitForMoves(1);
+  assert.equal(opening.moveTimesMs.length, 1);
+  assert.ok(Number.isFinite(opening.moveTimesMs[0]));
   const move = chess(opening.pgn).moves({ verbose: true }).find(move => move.from === 'e7') ?? chess(opening.pgn).moves({ verbose: true })[0];
   await page.locator(`[data-square="${move.from}"]`).click();
   await page.locator(`[data-square="${move.to}"]`).click();
@@ -47,6 +49,8 @@ try {
   assert.equal(chess(afterPlayer.pgn).history().length, 2, 'player move saved before bot reply');
   await page.reload();
   const afterBot = await waitForMoves(3);
+  assert.equal(afterBot.moveTimesMs.length, 3);
+  assert.ok(afterBot.moveTimesMs.every(time => Number.isFinite(time) && time >= 0));
   assert.equal(afterBot.id, opening.id, 'reload retains match identity');
   assert.equal(afterBot.startedAt, opening.startedAt, 'reload retains start time');
   assert.deepEqual(chess(afterBot.pgn).history().slice(0, 2), chess(afterPlayer.pgn).history());
@@ -76,6 +80,7 @@ try {
   await page.reload();
   const legacy = await waitForMoves(2);
   assert.equal(legacy.bossIndex, 1);
+  assert.deepEqual(legacy.moveTimesMs, [null, null]);
   assert.ok(legacy.id && legacy.startedAt);
   assert.equal(chess(legacy.pgn).fen(), chess('1. e4 e5').fen());
   await page.evaluate(key => {

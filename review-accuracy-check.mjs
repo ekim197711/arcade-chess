@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { chromium } from 'file:///C:/Users/mikem/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs';
 import { moveAccuracy, reviewAccuracy } from './src/reviewAccuracy.ts';
-import { reviewEngineAgreement } from './src/reviewAssistance.ts';
+const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
+const { reviewEngineAgreement } = await server.ssrLoadModule('/src/reviewAssistance.ts');
 
 assert.equal(moveAccuracy(), null);
 assert.equal(moveAccuracy({ loss: NaN }), null);
@@ -25,7 +26,6 @@ const runMoves = Array.from({ length: 5 }, () => ({ color: 'b' }));
 assert.equal(reviewEngineAgreement(runMoves, { 0: { loss: 0 }, 1: { loss: 0 }, 3: { loss: 0 }, 4: { loss: 0 } }, 'b').longestStreak, 2);
 assert.equal(reviewEngineAgreement(runMoves, { 0: { loss: NaN }, 1: { loss: -1 }, 2: { loss: Infinity } }, 'b').analyzed, 0);
 
-const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
 let browser;
 try {
   const { Chess } = await server.ssrLoadModule('/src/chess.ts');
@@ -53,12 +53,12 @@ try {
   const scores = await summary.locator('.review-accuracy-scores strong').allTextContents();
   assert.deepEqual(scores, ['b', 'w'].map(side => `${reviewAccuracy(moves, analyses, side).score.toFixed(1)}%`));
   const assistance = page.getByRole('region', { name: 'Assistance assessment', exact: true });
-  assert.match(await assistance.getByRole('article', { name: 'Player assistance assessment', exact: true }).innerText(), /Assistance likelihood: undetermined/);
+  assert.match(await assistance.getByRole('article', { name: 'Player assistance assessment', exact: true }).innerText(), /Not enough evidence/);
   assert.match(await assistance.getByRole('article', { name: 'Bot assistance assessment', exact: true }).innerText(), /Known automated opponent/);
   for (const [index, side] of ['b', 'w'].entries()) {
     const expected = reviewEngineAgreement(moves, analyses, side);
     assert.deepEqual(await assistance.locator('article').nth(index).locator('dd').allTextContents(), [
-      `${expected.agreement.toFixed(1)}%`, `${expected.matches} / ${expected.analyzed}`, `${expected.longestStreak} moves`,
+      `${expected.agreement.toFixed(1)}%`, `${expected.matches} / ${expected.analyzed}`, `${expected.longestStreak} moves`, "0 / 0", `0 / ${expected.expected}`, "Not recorded",
     ]);
   }
   const buttons = page.getByRole('navigation', { name: 'Review move list' }).getByRole('button');

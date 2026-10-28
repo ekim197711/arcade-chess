@@ -52,6 +52,8 @@ alter table public.online_games add column if not exists white_seen_at timestamp
 alter table public.online_games add column if not exists black_seen_at timestamptz not null default clock_timestamp();
 alter table public.online_games add column if not exists white_disconnected_at timestamptz;
 alter table public.online_games add column if not exists black_disconnected_at timestamptz;
+-- One server-measured elapsed time per committed ply. Old plies stay unknown.
+alter table public.online_games add column if not exists move_times_ms jsonb not null default '[]'::jsonb;
 create index if not exists online_games_white on public.online_games(white_id,created_at desc);
 create index if not exists online_games_black on public.online_games(black_id,created_at desc);
 alter table public.online_players enable row level security;
@@ -164,6 +166,10 @@ begin
   elsif p_kind='move' then
     if p_actor is distinct from actor_turn then raise exception 'Wait for your turn'; end if;
     if p_pgn is null or p_fen is null or p_turn is null or p_turn not in ('w','b') or p_turn=g.turn then raise exception 'Invalid move'; end if;
+    if jsonb_array_length(g.move_times_ms) <> g.ply_count then
+      select coalesce(jsonb_agg(null::bigint), '[]'::jsonb) into g.move_times_ms from generate_series(1,g.ply_count);
+    end if;
+    g.move_times_ms:=g.move_times_ms || jsonb_build_array(elapsed);
     g.pgn:=p_pgn; g.fen:=p_fen; g.turn:=p_turn; g.ply_count:=g.ply_count+1;
     if p_turn='b' then g.white_ms:=remaining; else g.black_ms:=remaining; end if;
     g.turn_started_at:=stamp; g.result:=p_result; g.reason:=p_reason;
@@ -213,7 +219,7 @@ begin
   if p_kind not in ('tick','disconnect','inspect') or g.result is not null then g.version:=g.version+1; end if;
   update public.online_games set pgn=g.pgn,fen=g.fen,turn=g.turn,white_ms=g.white_ms,black_ms=g.black_ms,
     turn_started_at=g.turn_started_at,result=g.result,reason=g.reason,finished_at=g.finished_at,version=g.version,
-    ply_count=g.ply_count,draw_offer=g.draw_offer,rated=g.rated,white_delta=g.white_delta,black_delta=g.black_delta,
+    ply_count=g.ply_count,move_times_ms=g.move_times_ms,draw_offer=g.draw_offer,rated=g.rated,white_delta=g.white_delta,black_delta=g.black_delta,
     white_seen_at=g.white_seen_at,black_seen_at=g.black_seen_at,white_disconnected_at=g.white_disconnected_at,black_disconnected_at=g.black_disconnected_at where id=g.id;
   return to_jsonb(g);
 end;

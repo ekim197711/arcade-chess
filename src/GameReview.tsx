@@ -5,7 +5,9 @@ import { useGameAnalysis } from "./useGameAnalysis";
 import { evaluatePlayerElo, evaluateReviewSkills } from "./reviewSkills";
 import { reviewAdvantage, reviewEvaluationChange } from "./reviewAdvantage";
 import { moveAccuracy, reviewAccuracy } from "./reviewAccuracy";
-import { reviewEngineAgreement } from "./reviewAssistance";
+import { reviewEngineAgreement, assistanceSample, assistanceAssessment } from "./reviewAssistance";
+import { normalizeMoveTimes, formatMoveTime, type MoveTimes } from "./moveTiming";
+import { CheckCircle2, TriangleAlert, CircleAlert } from "lucide-react";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
@@ -42,9 +44,11 @@ type Props = {
   dark: string;
   onClose: () => void;
   onMoveSound?: (move: Move, position: Chess) => void;
+  moveTimesMs?: MoveTimes;
+  timingSource?: "server" | "device";
 };
 
-export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", closeLabel = "Back to home", playerName, theme, color, light, dark, onClose, onMoveSound }: Props) {
+export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", closeLabel = "Back to home", playerName, theme, color, light, dark, onClose, onMoveSound, moveTimesMs, timingSource = "device" }: Props) {
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
   const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme } = preferences;
   const [savingFailed, setSavingFailed] = useState(false);
@@ -88,6 +92,9 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
     game.loadPgn(pgn);
     return game.history({ verbose: true });
   }, [pgn]);
+  const timings = useMemo(() => normalizeMoveTimes(moveTimesMs, moves.length), [moveTimesMs, moves.length]);
+  const samples = useMemo(() => ({ w: assistanceSample(moves, "w"), b: assistanceSample(moves, "b") }), [moves]);
+  const assessments = useMemo(() => ({ w: assistanceAssessment(samples.w, analyses, timings, timingSource), b: assistanceAssessment(samples.b, analyses, timings, timingSource) }), [samples, analyses, timings, timingSource]);
   const skillRatings = useMemo(() => evaluateReviewSkills(moves, analyses, color), [moves, analyses, color]);
   const playerElo = useMemo(() => evaluatePlayerElo(moves, analyses, color), [moves, analyses, color]);
   const move = moves[ply - 1];
@@ -224,6 +231,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
               <span className="review-move-notation">{Math.floor(index / 2) + 1}{item.color === "w" ? "." : "..."} {item.san}</span>
               <RatingBadge analysis={analyses[index]} />
               <AccuracyBadge analysis={analyses[index]} failed={failed} />
+              {timings[index] !== null && <span className="review-move-time" aria-label={`Time spent: ${formatMoveTime(timings[index])}`}>{formatMoveTime(timings[index])}</span>}
             </button>)}
           </nav>
         </aside>
@@ -280,6 +288,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
             <p>{move ? preview ? "Suggested alternative shown on the board." : `${move.color === "w" ? "White" : "Black"} played ${move.san}.` : moves.length ? "Choose Play or Next to start the replay." : "No moves were played in this game."}</p>
             {move && <RatingBadge analysis={analysis} />}
             {move && <p className="review-selected-accuracy">Move accuracy: <AccuracyBadge analysis={analysis} failed={failed} /></p>}
+            {move && <p className="review-note">Time spent on this move: <strong>{formatMoveTime(timings[ply - 1])}</strong></p>}
             <div className="review-move-actions">
               <button className="review-explain-toggle" type="button" disabled={!move || !analysis} aria-expanded={explainOpen} aria-controls="review-move-explanation" onClick={() => {
                 setPlaying(false);
@@ -383,15 +392,25 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
             const agreement = reviewEngineAgreement(moves, analyses, side);
             const isPlayer = side === color;
             const isHuman = isPlayer || opponentKind === "human";
+            const assessment = assessments[side];
+            const tone = !isHuman || assessment.level === "strong" ? "red" : assessment.level === "elevated" ? "yellow" : assessment.level === "insufficient" ? "neutral" : "green";
+            const Icon = tone === "green" ? CheckCircle2 : tone === "yellow" ? TriangleAlert : CircleAlert;
+            const sideTimes = timings.filter((time, index): time is number => time !== null && moves[index].color === side).sort((a, b) => a - b);
+            const medianTime = sideTimes.length ? (sideTimes[Math.floor((sideTimes.length - 1) / 2)] + sideTimes[Math.floor(sideTimes.length / 2)]) / 2 : null;
             return <article key={side} aria-label={`${isPlayer ? "Player" : opponentKind === "human" ? "Opponent" : "Bot"} assistance assessment`}>
               <h4>{isPlayer ? playerName : opponent} / {side === "w" ? "White" : "Black"}</h4>
-              <p className="review-assistance-verdict">{isHuman ? "Assistance likelihood: undetermined" : "Known automated opponent"}</p>
-              <p className="review-note">{isHuman ? "This game's moves cannot establish whether outside help was used." : "This opponent is controlled by the game's bot. Use of an additional engine cannot be inferred from its moves."}</p>
+              <p className={`review-assistance-verdict assistance-${tone}`}><Icon size={22} aria-hidden="true" />{isHuman ? assessment.label : "Known automated opponent"}</p>
+              <p className="review-note">{isHuman ? assessment.level === "insufficient" ? "At least 12 analyzed positions after the opening are needed. Forced play, checks and reduced endgames are excluded." : "Heuristic pattern assessment, not a cheating verdict or a probability. A green check means few indicators, not proof of unassisted play." : "This is the built-in bot, so automated play is expected."}</p>
+              {isHuman && assessment.signals.length > 0 && <ul className="review-assistance-signals">{assessment.signals.map(signal => <li key={signal}>{signal}</li>)}</ul>}
               <dl>
                 <div><dt>Review engine agreement</dt><dd>{agreement.agreement === null ? "—" : `${agreement.agreement.toFixed(1)}%`}</dd></div>
                 <div><dt>Best-scoring moves</dt><dd>{agreement.matches} / {agreement.analyzed}</dd></div>
                 <div><dt>Longest matching run</dt><dd>{agreement.analyzed ? `${agreement.longestStreak} moves` : "—"}</dd></div>
+                <div><dt>Positions used in assessment</dt><dd>{assessment.considered} / {assessment.available}</dd></div>
+                <div><dt>Move times recorded</dt><dd>{sideTimes.length} / {agreement.expected}</dd></div>
+                <div><dt>Median turn time</dt><dd>{formatMoveTime(medianTime)}</dd></div>
               </dl>
+              <p className="review-note">{sideTimes.length ? timingSource === "server" ? "Times recorded by the game server. They include network delay and reconnect waits." : "Times recorded on this device. Pauses and reloads can affect them; they are not independently verified." : "Move timing was not recorded for this game. Missing times are not estimated."}</p>
               <small>{agreement.expected === 0 ? "No moves played" : `${agreement.analyzed} / ${agreement.expected} moves analyzed${agreement.analyzed < agreement.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
             </article>;
           })}
@@ -399,7 +418,8 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
         <details className="review-skill-method">
           <summary>What this assessment can tell you</summary>
           <p>Agreement counts moves tied for the best score in the short review search. Runs count consecutive analyzed turns for that side; missing analysis breaks a run. Opening knowledge, forced moves and straightforward positions can all produce high agreement. A low score also cannot rule out occasional help.</p>
-          <p>These figures describe play, not the probability of assistance. This review has no validated detection model, move-timing evidence or comparison against the player's history. Its two-ply search can miss stronger moves.</p>
+          <p>The four indicator levels combine agreement, average evaluation loss and matching runs in eligible positions. Consistent turn times may strengthen a pattern only with at least 12 measured moves, excluding sub-0.5-second premoves and interruptions over two minutes. Strong indicators require at least 25 analyzed positions and 20 server-timed moves. Device timings cannot produce the strongest level.</p>
+          <p>These rules are not calibrated against assisted and unassisted players. The short engine search, limited sample and absence of cross-game context prevent reliable claims of certainty. Missing timing or analysis is shown explicitly.</p>
           <p><a href="https://support.chess.com/en/articles/8568369-what-do-i-need-to-know-about-fair-play-on-chess-com" target="_blank" rel="noreferrer">Why accuracy and fair-play detection are different</a></p>
         </details>
       </section>

@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 const id = '11111111-1111-4111-8111-111111111111';
 const other = '22222222-2222-4222-8222-222222222222';
 const user = { id, aud: 'authenticated', role: 'authenticated', email: 'history@example.com', app_metadata: {}, user_metadata: { full_name: 'History Player' }, created_at: '2026-01-01T00:00:00Z' };
-const standard = { id: 'standard', startedAt: '2026-10-20T12:00:00Z', updatedAt: '2026-10-20T12:00:00Z', bossIndex: 1, opponent: 'Standard boss', elo: 150, color: 'w', pgn: '1. e4 e5', result: 'win', reason: 'Checkmate' };
+const standard = { id: 'standard', startedAt: '2026-10-20T12:00:00Z', updatedAt: '2026-10-20T12:00:00Z', bossIndex: 1, opponent: 'Standard boss', elo: 150, color: 'w', pgn: '1. e4 e5', result: 'win', reason: 'Checkmate', moveTimesMs: [1200, 3200] };
 const freestyle = { ...standard, id: 'freestyle', opponent: 'Freestyle boss', pgn: '[Variant "Chess960"]\n[SetUp "1"]\n[FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"]\n\n1. e4 e5 *' };
 const human = { id: 'human-game', white_id: other, black_id: id, white_name: 'Human opponent', black_name: 'History Player', white_rating: 1350, black_rating: 1250, is_bot: false, created_at: '2026-10-22T12:00:00Z', finished_at: '2026-10-22T12:10:00Z', pgn: '1. e4 e5', ply_count: 2, minutes: 5, result: '0-1', rated: true };
 const practice = { ...human, id: 'practice-game', white_id: id, black_id: null, black_name: 'Practice bot', is_bot: true, result: '1/2-1/2', rated: false, created_at: '2026-10-21T12:00:00Z' };

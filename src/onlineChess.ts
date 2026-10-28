@@ -11,6 +11,7 @@ export type OnlineGame = {
   rated: boolean; white_delta: number; black_delta: number;
   white_seen_at: string; black_seen_at: string;
   white_disconnected_at: string | null; black_disconnected_at: string | null;
+  move_times_ms?: (number | null)[];
 };
 export type OnlinePremove = { from: import("./chess").Square; to: import("./chess").Square; promotion?: "q" | "r" | "b" | "n"; x?: number; y?: number };
 export function reconnectDeadline(game: OnlineGame, side: "w" | "b") {

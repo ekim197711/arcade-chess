@@ -17,6 +17,14 @@
 .review-assistance-grid article { min-width: 0; padding: 14px; border-radius: 6px; background: #0c163b; overflow-wrap: anywhere; }
 .review-assistance-grid h4 { margin: 0; color: #91e9ff; font-size: 13px; }
 .review-assistance-verdict { color: #eff5ff; font-size: 15px; font-weight: 700; }
+.review-assistance-verdict { display: flex; align-items: center; gap: 9px; }
+.review-assistance-verdict svg { flex-shrink: 0; }
+.assistance-green { color: #adffd2; }
+.assistance-yellow { color: #ffe59a; }
+.assistance-red { color: #ff9caa; }
+.assistance-neutral { color: #c4d0f5; }
+.review-assistance-signals { padding-left: 18px; color: #c4d0f5; font-size: 12px; line-height: 1.6; }
+.review-move-time { color: #c4d0f5; font-size: 10px; white-space: nowrap; }
 .review-assistance-grid dl { margin: 14px 0; font-size: 12px; }
 .review-assistance-grid dl > div { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; }
 .review-assistance-grid dt, .review-assistance-grid small { color: #c4d0f5; }

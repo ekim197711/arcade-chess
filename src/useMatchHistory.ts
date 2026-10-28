@@ -5,7 +5,8 @@ import { historyKey, readHistory, saveHistory, type ArchivedMatch } from "./matc
 
 function sameMatch(a: ArchivedMatch, b: ArchivedMatch) {
   // JSONB can return keys in a different order than local browser storage.
-  return (Object.keys({ ...a, ...b }) as (keyof ArchivedMatch)[]).every(key => a[key] === b[key]);
+  return (Object.keys({ ...a, ...b }) as (keyof ArchivedMatch)[]).every(key =>
+    a[key] === b[key] || (key === "moveTimesMs" && JSON.stringify(a[key]) === JSON.stringify(b[key])));
 }
 
 export function mergeHistory(...lists: ArchivedMatch[][]): ArchivedMatch[] {
