@@ -7,6 +7,8 @@ import type { ArchivedMatch } from "./matchArchive";
 import { bossPortrait, resolveBossCharacter } from "./bossArtwork";
 import { bossRematchPlea } from "./bossRematches";
 import { bossVictoryTaunt } from "./bossVictoryTaunts";
+import { FinalPositionBoard } from "./FinalPositionBoard";
+import type { PieceStyle } from "./PieceArtwork";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
 function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
@@ -112,7 +114,7 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: 
       </div>)}</div>}
   </section>;
 }
-export function MatchResult({ match, onReview, onHome }: { match: ArchivedMatch; onReview: () => void; onHome: () => void }) {
+export function MatchResult({ match, onReview, onHome, theme, light, dark }: { match: ArchivedMatch; onReview: () => void; onHome: () => void; theme: PieceStyle; light: string; dark: string }) {
   const moves = movesFor(match);
   const character = resolveBossCharacter(match.opponent, __BOSS_PORTRAITS__);
   const angryPortrait = character && __BOSS_PORTRAITS__[character]?.includes("angry")
@@ -149,6 +151,7 @@ export function MatchResult({ match, onReview, onHome }: { match: ArchivedMatch;
         <blockquote>{bossVictoryTaunt(match.opponent)}</blockquote>
       </div>
     </section>}
+    <FinalPositionBoard pgn={match.pgn} color={match.color} theme={theme} light={light} dark={dark} />
     <dl className="result-stats">
       <div><dt>Your pieces</dt><dd>{match.color === "w" ? "White" : "Black"}</dd></div>
       <div><dt>Moves played</dt><dd>{moves.length} plies</dd></div>

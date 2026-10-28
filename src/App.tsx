@@ -2519,7 +2519,7 @@ function App() {
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Cloud sync will retry automatically.</p>}
         {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
-          screen === "result" ? <MatchResult match={selectedMatch} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
+          screen === "result" ? <MatchResult match={selectedMatch} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
           <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
             onMoveSound={(move, position) => playBoardSound(boardSoundForMove(move, position, selectedMatch.color), soundEnabled, soundTheme)} />
         ) : <section className="game-review"><h2>Game not found</h2><p>This game is not available in your history.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}

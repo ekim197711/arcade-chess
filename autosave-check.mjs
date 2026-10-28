@@ -66,6 +66,7 @@ try {
   assert.equal(chess(restarted.pgn).history().length, 0, 'restart replaces old save');
   await page.getByRole('button', { name: /^RESIGN$/ }).click();
   await page.waitForURL('**/#result/*');
+  await page.getByRole('group', { name: 'Final chessboard', exact: true }).waitFor();
   assert.equal(await read(), null, 'resignation clears resumable save');
   await page.evaluate(key => localStorage.setItem(key, '{broken'), key);
   await page.goto(`${url}#roster`);
@@ -104,6 +105,8 @@ try {
   await page.locator('[data-square="d8"]').click();
   await page.locator('[data-square="h4"]').click();
   await page.waitForURL('**/#result/mate-test');
+  await page.getByRole('group', { name: 'Final chessboard', exact: true }).waitFor();
+  assert.equal(await page.locator('.final-position-checkmate').count(), 1, 'actual checkmate stays visible on the result page');
   assert.equal(await read(), null, 'checkmate clears resumable save');
   assert.deepEqual(errors, [], 'no browser runtime errors');
   console.log('PASS automatic player/bot saves, reload during bot turn, identity and history restoration, roster resume, restart, resignation, corrupt and legacy saves, storage failure, checkmate');

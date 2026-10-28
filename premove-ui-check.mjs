@@ -31,7 +31,7 @@ try {
   }
   await server.listen();
   browser = await chromium.launch({ channel: 'msedge', headless: true });
-  async function scenario({ pgn = '1. e4', side = 'w', bot = false, test }) {
+  async function scenario({ pgn = '1. e4', side = 'w', bot = false, result = null, test }) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     page.setDefaultTimeout(12000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -42,7 +42,7 @@ try {
       id: 'premove-game', white_id: side === 'w' ? userId : otherId, black_id: side === 'b' ? userId : bot ? null : otherId,
       white_name: 'White player', black_name: 'Black player', white_rating: 1200, black_rating: 1200,
       is_bot: bot, minutes: 5, white_ms: 300000, black_ms: 300000, pgn: position.pgn(), fen: position.fen(), turn: position.turn(),
-      version: position.history().length, ply_count: position.history().length, result: null, reason: '', rated: false,
+      version: position.history().length, ply_count: position.history().length, result, reason: result ? 'Checkmate' : '', rated: false,
       white_delta: 0, black_delta: 0, draw_offer: null, created_at: new Date().toISOString(), finished_at: null,
       turn_started_at: new Date().toISOString(), white_seen_at: new Date().toISOString(), black_seen_at: new Date().toISOString(),
       white_disconnected_at: null, black_disconnected_at: null,
@@ -72,7 +72,7 @@ try {
     }, { user });
     try {
       await page.goto(`${server.resolvedUrls.local[0]}#online/premove-game`);
-      const board = page.getByRole('group', { name: 'Online chessboard' });
+      const board = page.getByRole('group', { name: result ? 'Final chessboard' : 'Online chessboard' });
       await board.waitFor();
       const square = name => board.locator(`[data-square="${name}"]`);
       const queue = async (from, to) => { await square(from).click(); await square(to).click(); };
@@ -92,6 +92,14 @@ try {
     await square('f3').click();
     await page.waitForFunction(() => document.querySelector('[data-square="f3"]')?.getAttribute('aria-label')?.includes('White n'));
     assert.equal(sent.length, 1, 'preserved selection completes the intended move');
+  } });
+  await scenario({ pgn: '1. f3 e5 2. g4 Qh4#', bot: true, result: '0-1', test: async ({ page, board, square }) => {
+    const heading = page.getByRole('heading', { name: 'Defeat', exact: true });
+    await heading.waitFor();
+    assert.ok((await heading.boundingBox()).y < (await board.boundingBox()).y);
+    assert.equal(await board.locator('[data-square]').count(), 64);
+    assert.match(await square('e1').getAttribute('aria-label'), /checkmated king/);
+    assert.match(await square('h4').getAttribute('aria-label'), /Black q/);
   } });
   await scenario({ test: async ({ page, square, opponent, sent }) => {
     const source = await square('g1').boundingBox(), target = await square('f3').boundingBox();

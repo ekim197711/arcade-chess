@@ -155,6 +155,13 @@
 .outcome-win { color: #adffd2; }
 .outcome-loss { color: #ffb3bd; }
 .match-result { text-align: center; padding: 48px 24px; }
+.final-position { margin: 24px 0; padding-top: 20px; border-top: 1px solid #536bb3; text-align: center; }
+.final-position h2 { font-size: 20px; }
+.final-position-caption { color: #ffb3bd; font-size: 14px; }
+.final-position-frame { width: min(100%, 560px); margin: 16px auto 0; padding: 8px; border: 1px solid #637ed4; border-radius: 8px; background: #101a3c; box-sizing: border-box; }
+.final-position .chessboard { aspect-ratio: 1; }
+.final-position .square { min-height: 0; min-width: 0; padding: 0; }
+.final-position .final-position-checkmate { box-shadow: inset 0 0 0 4px #ff536f, inset 0 0 24px #b6003b99; }
 .match-result h1 { color: #eff5ff; font-size: clamp(36px, 6vw, 64px); margin: 15px 0; }
 .result-reason { color: #91e9ff; font-size: 22px; }
 .debug-match-tools { padding: 12px; border: 1px dashed #85e7ff; border-radius: 8px; color: #c4d0f5; }
