@@ -23,7 +23,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
     <h1 id="online-result-title">{draw ? "Draw" : participant ? won ? "Victory" : "Defeat" : `${winner} wins`}</h1>
     <p className="online-result-winner">{draw ? `${game.white_name} and ${game.black_name} drew.` : `${winner} won ${game.result === "1-0" ? "as White" : "as Black"}.`}</p>
     <p className="result-reason">{game.result} · {game.reason}</p>
-    {game.is_bot && <FinalPositionBoard pgn={game.pgn} color={side} theme={theme} light={light} dark={dark} />}
+    {game.is_bot && <FinalPositionBoard key={game.id} pgn={game.pgn} color={side} theme={theme} light={light} dark={dark} />}
     <dl className="result-stats">
       <div><dt>White</dt><dd>{game.white_name}</dd></div><div><dt>Black</dt><dd>{game.black_name}</dd></div>
       <div><dt>Moves played</dt><dd>{moves.length} plies</dd></div><div><dt>Captures</dt><dd>{moves.filter(move => move.captured).length}</dd></div>

@@ -4,6 +4,7 @@ import { supabase, supabaseConfiguration } from "./supabase";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
 import { DragSquare } from "./DragSquare";
 import { BoardResizeHandle } from "./BoardResizeHandle";
+import { BoardAnnotations } from "./BoardAnnotations";
 import type { BoardSound } from "./soundThemes";
 import { PromotionMenu, type PromotionPiece } from "./PromotionMenu";
 import { premoveBoard, usePremoveQueue } from "./premoves";
@@ -292,7 +293,8 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <div className="board-stage online-board-stage"><div className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
         <div className="board-coordinates board-files-top">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
         <div className="board-wrap"><div className="board-coordinates board-ranks">{Array.from({length:8},(_,index) => <span key={index}>{side === "w" ? 8-index : 1+index}</span>)}</div>
-        <div className="online-board chessboard" role="group" aria-label="Online chessboard" onContextMenu={event => { event.preventDefault(); setPremoves([]); setSelected(null); setPromotion(null); }} onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelected(null); setPromotion(null); } }}>
+        <div className="online-board chessboard" role="group" aria-label="Online chessboard" onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelected(null); setPromotion(null); } }}>
+          <BoardAnnotations color={side} positionKey={`${game.id}:${position.fen()}`} onCancelPremoves={() => { setPremoves([]); setSelected(null); setPromotion(null); }} />
           {Array.from({length:64},(_,index) => {
             const file=side === "w" ? index%8 : 7-index%8; const rank=side === "w" ? 8-Math.floor(index/8) : 1+Math.floor(index/8);
             const square=`${String.fromCharCode(97+file)}${rank}` as Square; const piece=plannedBoard.get(square); const target=legal.includes(square);
@@ -316,7 +318,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
         {error && game && !game.result && <p role="status">Reconnect window: {Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now)-now)/1000))} seconds remaining.</p>}
-        {!game.result && <p className="review-note">Moves save automatically. After closing the browser or disconnecting, return within 20 seconds or forfeit. Your clock keeps running. During your opponent’s turn, select or drag a piece to queue moves. Keep selecting pieces to add more premoves; right-click or press Escape to cancel all.</p>}
+        {!game.result && <p className="review-note">Moves save automatically. After closing the browser or disconnecting, return within 20 seconds or forfeit. Your clock keeps running. During your opponent’s turn, select or drag a piece to queue moves. Keep selecting pieces to add more premoves; right-click or press Escape to cancel all. Right-drag between squares to draw translucent arrows; click to clear them.</p>}
         {premoves.length > 0 && <button className="premove-cancel" onClick={() => { setPremoves([]); setSelected(null); setPromotion(null); }} aria-label={premoves.length === 1 ? "Cancel premove" : `Cancel all ${premoves.length} premoves`}>{premoves.length} PREMOVE{premoves.length === 1 ? "" : "S"}: {premoves.map(move => `${move.from}\u2192${move.to}`).join(" / ")} - CANCEL</button>}
         {notice && <p role="status">{notice}</p>}
           {!game.is_bot && !game.draw_offer && <button disabled={busy} onClick={() => void request("offer_draw")}>Offer draw</button>}

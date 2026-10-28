@@ -148,7 +148,7 @@ export function MatchResult({ match, onReview, onHome, theme, light, dark }: { m
         <blockquote>{bossVictoryTaunt(match.opponent)}</blockquote>
       </div>
     </section>}
-    <FinalPositionBoard pgn={match.pgn} color={match.color} theme={theme} light={light} dark={dark} />
+    <FinalPositionBoard key={match.id} pgn={match.pgn} color={match.color} theme={theme} light={light} dark={dark} />
     <dl className="result-stats">
       <div><dt>Your pieces</dt><dd>{match.color === "w" ? "White" : "Black"}</dd></div>
       <div><dt>Moves played</dt><dd>{moves.length} plies</dd></div>

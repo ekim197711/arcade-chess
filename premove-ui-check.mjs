@@ -93,6 +93,45 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-square="f3"]')?.getAttribute('aria-label')?.includes('White n'));
     assert.equal(sent.length, 1, 'preserved selection completes the intended move');
   } });
+  for (const side of ['w','b']) await scenario({ side, pgn: side === 'w' ? '1. e4' : '', test: async ({ page, board, square, queue, opponent, sent }) => {
+    const from = side === 'w' ? 'g1' : 'g8', to = side === 'w' ? 'f3' : 'f6';
+    const secondFrom = side === 'w' ? 'b1' : 'b8', secondTo = side === 'w' ? 'c3' : 'c6';
+    const arrow = board.locator('.board-thought-arrow');
+    const draw = async (from, to, checkCancel = false) => {
+      const a = await square(from).boundingBox(), b = await square(to).boundingBox();
+      await page.mouse.move(a.x+a.width/2,a.y+a.height/2);
+      await page.mouse.down({button:'right'});
+      if (checkCancel) assert.equal(await page.locator('.premove-cancel').count(),0,'right press cancels before release');
+      await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:5});
+      await page.mouse.up({button:'right'});
+    };
+    await queue(from,to); await queue(to,from);
+    await draw(from,to,true);
+    assert.equal(await arrow.count(),1);
+    assert.equal(await arrow.getAttribute('data-from'),from);
+    assert.equal(await arrow.getAttribute('data-to'),to);
+    assert.equal(await arrow.evaluate(node => Number(getComputedStyle(node).opacity)),.45);
+    assert.equal(await board.locator('.board-annotations').evaluate(node => getComputedStyle(node).pointerEvents),'none');
+    assert.equal(sent.length,0,'drawing arrows never submits a move');
+    await draw(from,to);
+    assert.equal(await arrow.count(),0,'same arrow toggles off');
+    await draw(from,to); await draw(secondFrom,secondTo);
+    assert.equal(await arrow.count(),2);
+    await board.click({button:'right'});
+    assert.equal(await arrow.count(),0,'plain right-click clears arrows');
+    await draw(from,to); await page.keyboard.press('Escape');
+    assert.equal(await arrow.count(),0,'Escape works after a right drag');
+    await draw(from,to); await square(from).click();
+    assert.equal(await arrow.count(),0,'left-click clears arrows without blocking selection');
+    assert.equal(await square(from).getAttribute('aria-pressed'),'true');
+    await square(to).click();
+    await page.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
+    await draw(secondFrom,secondTo,true);
+    assert.equal(sent.length,0);
+    await opponent(side === 'w' ? 'e5' : 'e4');
+    await page.waitForFunction(() => !document.querySelector('.board-thought-arrow'));
+    assert.equal(sent.length,0,'canceled premoves stay canceled after the opponent replies');
+  } });
   await scenario({ pgn: '1. f3 e5 2. g4 Qh4#', bot: true, result: '0-1', test: async ({ page, board, square }) => {
     const heading = page.getByRole('heading', { name: 'Defeat', exact: true });
     await heading.waitFor();
@@ -239,6 +278,17 @@ try {
       await reply('a7a6');
       await page.getByText('PREMOVE CANCELED - MOVE IS NO LONGER LEGAL').waitFor();
       assert.equal(await page.locator('.premove-cancel').count(), 0, 'illegal boss premove clears its dependent tail');
+      await square('b1').click(); await square('c3').click();
+      await square('f3').click(); await square('g1').click();
+      await page.getByRole('button', { name: 'Cancel premove', exact: true }).waitFor();
+      const a = await square('f3').boundingBox(), b = await square('h4').boundingBox();
+      await page.mouse.move(a.x+a.width/2,a.y+a.height/2);
+      await page.mouse.down({button:'right'});
+      assert.equal(await page.locator('.premove-cancel').count(),0,'boss premove cancels on right press');
+      await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:5}); await page.mouse.up({button:'right'});
+      assert.equal(await board.locator('.board-thought-arrow').count(),1);
+      await reply('b7b6');
+      await page.waitForFunction(() => !document.querySelector('.board-thought-arrow'));
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   }

@@ -11,6 +11,7 @@ import { CheckCircle2, TriangleAlert, CircleAlert } from "lucide-react";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
+import { BoardAnnotations } from "./BoardAnnotations";
 
 const MOVE_SPEEDS = [0.5, 1, 1.5, 2, 3, 5, 10];
 const SPECIAL_MOVE_WAITS = [0.5, 1, 1.5, 2, 2.5, 3];
@@ -254,11 +255,12 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
           <div className={`review-board-frame${showCoordinates ? " review-board-with-coordinates" : ""}`}>
           {showCoordinates && <div className="review-axis review-rank-axis" aria-label="Board ranks">{Array.from({ length: 8 }, (_, index) => <span key={index}>{color === "w" ? 8 - index : index + 1}</span>)}</div>}
           <div className="review-board chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties} aria-label={preview ? "Best move line chessboard" : "Replay chessboard"}>
+            <BoardAnnotations color={color} positionKey={positionFen} />
             {rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
               const file = String.fromCharCode(97 + (color === "w" ? columnIndex : 7 - columnIndex));
               const rank = color === "w" ? 8 - rowIndex : rowIndex + 1;
               const square = `${file}${rank}`;
-              return <div key={square} className={`square square-${(rowIndex + columnIndex) % 2 ? "dark" : "light"}${last && (last.from === square || last.to === square) ? " review-highlight" : ""}`} aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}`}>
+              return <div key={square} data-square={square} className={`square square-${(rowIndex + columnIndex) % 2 ? "dark" : "light"}${last && (last.from === square || last.to === square) ? " review-highlight" : ""}`} aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}`}>
                 {piece && <span className="chess-piece"><PieceArtwork type={piece.type} color={piece.color} theme={reviewTheme} fitToSquare /></span>}
                 {!preview && piece && move?.to === square && <span className={`review-piece-rating rating-${boardRating.key}`} role="img" aria-label={boardRating.label} title={boardRating.label}>{boardRating.icon}</span>}
               </div>;

@@ -45,6 +45,7 @@ import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./
 import { DragSquare } from "./DragSquare";
 import { PromotionMenu, type PromotionPiece, type PromotionPosition } from "./PromotionMenu";
 import { BoardResizeHandle } from "./BoardResizeHandle";
+import { BoardAnnotations } from "./BoardAnnotations";
 import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
 import { SegmentedCredits } from "./SegmentedCredits";
 import { GameReview } from "./GameReview";
@@ -2817,10 +2818,10 @@ function App() {
                             <div
                               className="chessboard"
                               role="group"
-                              onContextMenu={event => { event.preventDefault(); setPremoves([]); setSelectedSquare(null); setPromotionMove(null); }}
                               onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelectedSquare(null); setPromotionMove(null); } }}
                               aria-label={`Chess board. ${reviewing ? `Reviewing after move ${Math.ceil(reviewPly / 2)} ${viewedMove?.san}.` : `You are playing as ${playerColor === "w" ? "white" : "black"}.`}`}
                             >
+                              <BoardAnnotations color={playerColor} positionKey={`${matchId.current}:${viewedGame.fen()}`} onCancelPremoves={() => { setPremoves([]); setSelectedSquare(null); setPromotionMove(null); }} />
                               {boardRanks.map((rank) =>
                                 boardFiles.map((file) => {
                                   const square = `${file}${rank}` as Square;

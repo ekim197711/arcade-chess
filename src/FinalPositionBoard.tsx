@@ -2,6 +2,7 @@ import { useId, useMemo, type CSSProperties } from "react";
 import { Chess, type Color, type Square } from "./chess";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
 import "./review.css";
+import { BoardAnnotations } from "./BoardAnnotations";
 
 export function FinalPositionBoard({ pgn, color, theme, light, dark }: {
   pgn: string; color: Color; theme: PieceStyle; light: string; dark: string;
@@ -19,6 +20,7 @@ export function FinalPositionBoard({ pgn, color, theme, light, dark }: {
     <div className="final-position-frame">
       <div className="review-board chessboard" role="group" aria-label="Final chessboard"
         style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties}>
+        <BoardAnnotations color={color} positionKey={game.fen()} />
         {Array.from({ length: 64 }, (_, index) => {
           const row = Math.floor(index / 8), column = index % 8;
           const square = `${String.fromCharCode(97 + (color === "w" ? column : 7 - column))}${color === "w" ? 8 - row : row + 1}` as Square;
