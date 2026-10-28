@@ -10,4 +10,8 @@ export const supabaseConfiguration = resolveSupabaseEnvironment(window.location.
   VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
   VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
-export const supabase = supabaseConfiguration.error ? null : createClient(supabaseConfiguration.url, supabaseConfiguration.key);
+// The app owns retries and pending writes. SDK retries otherwise multiply each
+// failed read, including the front-page snapshots, into several requests.
+export const supabase = supabaseConfiguration.error ? null : createClient(supabaseConfiguration.url, supabaseConfiguration.key, {
+  db: { retry: false },
+});

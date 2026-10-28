@@ -62,6 +62,7 @@ import { supabase, supabaseConfiguration } from "./supabase";
 import { useMatchHistory } from "./useMatchHistory";
 import { premoveBoard, usePremoveQueue } from "./premoves";
 import { normalizeMoveTimes, appendMoveTime } from "./moveTiming";
+import { invalidateHomeData, readHomeOnce } from "./homeDataCache";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 const BOSS_MASCOTS = [
@@ -888,13 +889,16 @@ function App() {
   const [opponentColumnCollapsed, setOpponentColumnCollapsed] = useState(false);
   const [playerColumnCollapsed, setPlayerColumnCollapsed] = useState(false);
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
-  const { history, setHistory, historyError, historyCloudError } = useMatchHistory(user?.id ?? (authReady ? null : undefined));
+  const [route, setRoute] = useState(readPageRoute);
+  const screen = route.split("/")[0];
+  const [homeRefreshToken, setHomeRefreshToken] = useState(0);
+  const [homeRefreshing, setHomeRefreshing] = useState(false);
+  const homeRefreshBusy = useRef(false);
+  const { history, setHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home");
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
-  const [route, setRoute] = useState(readPageRoute);
-  const screen = route.split("/")[0];
   const isReviewPage = screen === "review" || (screen === "online" && route.split("/")[1] === "review");
   const activeMusicTrack: MusicTrack = screen === "battle" || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
@@ -1337,11 +1341,9 @@ function App() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("player_progress")
-        .select("progress")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const client = supabase;
+      const { data, error } = await readHomeOnce(userId, "progress", () => client.from("player_progress")
+        .select("progress").eq("user_id", userId).maybeSingle());
       if (!active || request !== loadSequence.current) return;
       if (error) {
         setCloudSyncError(true);
@@ -1360,7 +1362,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of pending) {
+      for (const event of (screenRef.current === "home" ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1383,40 +1385,46 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        const mergeKey = guestMergeStorageKey(userId);
-        const mergeId = getGuestMergeId(userId);
-        const { data: merged, error: mergeError } = await supabase.rpc(
-          "merge_guest_progress",
-          {
-            p_event_id: mergeId,
-            p_wins: guest.wins,
-            p_losses: guest.losses,
-            p_streak: guest.streak,
-            p_best_streak: guest.bestStreak,
-            p_bosses_defeated: guest.bossesDefeated,
-
-            p_freestyle_bosses_defeated: guest.freestyleBossesDefeated,
-          },
-        );
-        if (!active || request !== loadSequence.current) return;
-        if (mergeError) {
-          setCloudSyncError(true);
+        if (screenRef.current === "home") {
           syncedProgress = mergeProgress(syncedProgress, guest);
-          showToast("GUEST PROGRESS WILL RETRY ON YOUR NEXT SIGN-IN");
+          setCloudSyncError(true);
         } else {
-          syncedProgress = normalizeProgress(merged as Partial<Progress>);
-          setGuestProgress(EMPTY_PROGRESS);
-          try {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(mergeKey);
-          } catch {
-            /* Guest state was merged remotely; unavailable storage is harmless. */
+          const mergeKey = guestMergeStorageKey(userId);
+          const mergeId = getGuestMergeId(userId);
+          const { data: merged, error: mergeError } = await supabase.rpc(
+            "merge_guest_progress",
+            {
+              p_event_id: mergeId,
+              p_wins: guest.wins,
+              p_losses: guest.losses,
+              p_streak: guest.streak,
+              p_best_streak: guest.bestStreak,
+              p_bosses_defeated: guest.bossesDefeated,
+
+              p_freestyle_bosses_defeated: guest.freestyleBossesDefeated,
+            },
+          );
+          if (!active || request !== loadSequence.current) return;
+          if (mergeError) {
+            setCloudSyncError(true);
+            syncedProgress = mergeProgress(syncedProgress, guest);
+            showToast("GUEST PROGRESS WILL RETRY ON YOUR NEXT SIGN-IN");
+          } else {
+            syncedProgress = normalizeProgress(merged as Partial<Progress>);
+            setGuestProgress(EMPTY_PROGRESS);
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+              localStorage.removeItem(mergeKey);
+            } catch {
+              /* Guest state was merged remotely; unavailable storage is harmless. */
+            }
           }
         }
       }
 
       if (pending.length > 0) {
         syncedProgress = pending.reduce(applyResult, syncedProgress);
+        setCloudSyncError(true);
       }
       setAccountProgress(syncedProgress);
       setBossIndex(Math.min(ladderClears(syncedProgress, activeMode.current), BOSSES.length - 1));
@@ -1450,11 +1458,9 @@ function App() {
   }, []);
 
   const progressRetryInFlight = useRef(false);
-  const progressLastRefresh = useRef(Date.now());
   async function retryPendingProgress(userId: string) {
     if (progressRetryInFlight.current) return;
     progressRetryInFlight.current = true;
-    progressLastRefresh.current = Date.now();
     try { await syncPendingProgress(userId); }
     finally { progressRetryInFlight.current = false; }
   }
@@ -1472,7 +1478,7 @@ function App() {
       else latest = normalizeProgress(data?.progress);
     } catch { readFailed = true; }
 
-    for (const event of [...pending]) {
+    for (const event of pending.slice(0, 5)) {
       try {
         const { data, error } = await supabase.rpc("record_game_result", {
           p_event_id: event.id,
@@ -1554,24 +1560,28 @@ function App() {
       mode: game.mode,
     });
     writePendingResults(userId, pending);
+    invalidateHomeData(userId);
     await retryPendingProgress(userId);
   }
 
+  async function refreshSavedData() {
+    if (!user || homeRefreshBusy.current) return;
+    homeRefreshBusy.current = true;
+    setHomeRefreshing(true);
+    invalidateHomeData(user.id);
+    setHomeRefreshToken(value => value + 1);
+    try { await Promise.all([refreshHistory(), retryPendingProgress(user.id)]); }
+    finally { homeRefreshBusy.current = false; setHomeRefreshing(false); }
+  }
+
   useEffect(() => {
-    const retryPending = () => {
+    const reconnect = () => {
       const userId = activeUserId.current;
-      if (!document.hidden && navigator.onLine && userId &&
-        (readPendingResults(userId).length > 0 || hasProgress(readProgress()))) void retryPendingProgress(userId);
+      if (screenRef.current !== "home" && !document.hidden && userId &&
+        (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
-    const handleOnline = () => {
-      const userId = activeUserId.current;
-      if (!document.hidden && userId) void retryPendingProgress(userId);
-    };
-    const focus = () => { if (Date.now() - progressLastRefresh.current >= 60000 && navigator.onLine) handleOnline(); };
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("focus", focus);
-    const retryTimer = window.setInterval(retryPending, 30000);
-    return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("focus", focus); window.clearInterval(retryTimer); };
+    window.addEventListener("online", reconnect);
+    return () => window.removeEventListener("online", reconnect);
   }, []);
 
   useEffect(() => {
@@ -2001,6 +2011,7 @@ function App() {
   }
 
   async function signOut() {
+    if (user) invalidateHomeData(user.id);
     if (supabase) await supabase.auth.signOut();
     setUser(null);
     setAuthOpen(false);
@@ -2449,7 +2460,7 @@ function App() {
           </section>
         )}
 
-        {screen === "home" && user && <OnlineHomeCard key={user.id} userId={user.id} navigate={setScreen} />}
+        {screen === "home" && user && <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} />}
         {screen === "home" && (
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
@@ -2461,7 +2472,7 @@ function App() {
                 <div className="hud-player-name-row">
                   <strong>{user ? playerName : "GUEST PLAYER"}</strong>
                 </div>
-                <HumanElo key={user?.id ?? "guest"} userId={user?.id} />
+                <HumanElo key={user?.id ?? "guest"} userId={user?.id} refreshToken={homeRefreshToken} />
                 {!savedMatch && user && (
                   <span className="pilot-status">
                     <span />{" "}
@@ -2516,8 +2527,10 @@ function App() {
         )}
 
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
-        {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Cloud sync will retry automatically.</p>}
-        {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
+        {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
+        {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
+        {screen === "home" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
+        {screen === "home" && user && historyPending > 0 && <p className="review-note">{historyPending} local saves awaiting cloud verification. Refresh saved data syncs up to 5 at a time.</p>}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
           <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}

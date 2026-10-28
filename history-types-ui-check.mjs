@@ -46,7 +46,7 @@ try {
       assert.equal(url.searchParams.get('or'), `(white_id.eq.${id},black_id.eq.${id})`, 'history is scoped to the signed-in player');
       reads++;
       assert.ok(!url.searchParams.get('select').split(',').includes('pgn'), 'front-page history excludes full PGNs');
-      data = [ongoing, human, practice];
+      data = url.searchParams.get("result") === "is.null" ? homeGame : [ongoing, human, practice];
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     else if (url.pathname.endsWith('/multiplayer')) { homeReads++; data = { game: homeGame, server_now: new Date().toISOString() }; }
@@ -73,14 +73,9 @@ try {
   await page.clock.fastForward(90000);
   await page.waitForTimeout(250);
   assert.equal(requests.length, idleRequests, '90 seconds idle produces no Supabase requests');
-  await page.evaluate(() => { for (let i = 0; i < 12; i++) window.dispatchEvent(new Event('focus')); });
-  await page.waitForResponse(response => response.url().includes('/online_games'));
+  await page.evaluate(() => { for (let i = 0; i < 12; i++) { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('online')); } });
   await page.waitForTimeout(250);
-  const afterFocus = requests.length;
-  assert.ok(afterFocus - idleRequests <= 5, 'focus burst is coalesced to one refresh per resource');
-  await page.evaluate(() => { for (let i = 0; i < 12; i++) window.dispatchEvent(new Event('focus')); });
-  await page.waitForTimeout(250);
-  assert.equal(requests.length, afterFocus, 'fresh data is not reloaded on repeated focus');
+  assert.equal(requests.length, idleRequests, 'focus and reconnect bursts never refresh home');
   assert.equal(await filter.inputValue(), 'all');
   assert.equal(await card.locator('.history-item').count(), 5);
   assert.deepEqual(await card.locator('.history-item > span:first-child > strong').allTextContents(), ['Active opponent', 'Human opponent', 'Practice bot', 'Standard boss', 'Freestyle boss']);
@@ -101,7 +96,7 @@ try {
   await card.scrollIntoViewIfNeeded();
   const before = await card.boundingBox();
   const previousReads = reads;
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await card.getByRole('button', { name: 'Refresh saved data', exact: true }).click();
   await page.waitForResponse(response => response.url().includes('/online_games'));
   assert.ok(reads > previousReads);
   assert.equal((await card.boundingBox()).y, before.y, 'background refresh does not move the history card');
@@ -118,13 +113,20 @@ try {
     match.pgn = '1. e4 e5 2. Nf3';
     match.updatedAt = '2026-10-28T12:00:00Z';
     localStorage.setItem(key, JSON.stringify(matches));
+    localStorage.setItem(`${key}:pending`, JSON.stringify(["standard"]));
   }, { id });
   await page.reload();
   await page.clock.runFor(1000);
+  await card.getByRole('button', { name: 'Refresh saved data', exact: true }).click();
   await page.getByText('Game history is saved on this device.', { exact: false }).waitFor();
   assert.ok(failedWrites > 0, 'unsaved local changes are attempted');
+  assert.ok(await page.evaluate(id => JSON.parse(localStorage.getItem(`arcade-chess-history-v1:${id}`)).find(match => match.id === 'standard').pgn.includes('Nf3'), id), 'a newer cloud timestamp cannot overwrite a pending local move');
+  await page.reload();
+  await page.clock.runFor(1000);
+  await card.getByRole('button', { name: 'Refresh saved data', exact: true }).waitFor();
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(button => button.textContent === 'Refresh saved data' && button.disabled));
   rejectUploads = false;
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await card.getByRole('button', { name: 'Refresh saved data', exact: true }).click();
   await page.waitForFunction(() => ![...document.querySelectorAll('[role="status"]')].some(node => node.textContent.includes('Game history is saved on this device.')));
   assert.equal(writes, 1, 'only the unsaved match is uploaded on reconnect');
   assert.ok(cloud.find(match => match.id === 'standard').pgn.includes('Nf3'), 'clock differences do not discard an unsaved move');
@@ -134,25 +136,12 @@ try {
     await page.reload();
     await page.clock.runFor(500);
     await page.getByRole('timer', { name: 'Seconds before auto-resign' }).waitFor();
-    const initialReads = homeReads;
-    homeGame = null; // Server will adjudicate the disconnected game on inspection.
-    await page.clock.fastForward(4000);
-    assert.equal(homeReads, initialReads, 'active countdown runs locally without polling');
-    if (hiddenAtExpiry) await page.evaluate(() => Object.defineProperty(document, 'hidden', { configurable: true, value: true }));
-    const inspection = hiddenAtExpiry ? null : page.waitForResponse(response => response.url().includes('/multiplayer'));
-    await page.clock.fastForward(4000);
-    if (hiddenAtExpiry) {
-      assert.equal(homeReads, initialReads, 'hidden tab does not inspect expiry');
-      await page.evaluate(() => {
-        delete document.hidden;
-        window.dispatchEvent(new Event('focus'));
-      });
-    } else await inspection;
-    await page.getByRole('timer', { name: 'Seconds before auto-resign' }).waitFor({ state: 'detached' });
-    assert.equal(homeReads, initialReads + 1, 'one inspection at expiry or on returning to the tab');
-    const afterExpiry = requests.length;
-    await page.clock.fastForward(60000);
-    assert.equal(requests.length, afterExpiry, 'no polling after the active game has ended');
+    const initialRequests = requests.length;
+    await page.clock.fastForward(90000);
+    await page.evaluate(() => { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('online')); });
+    await page.waitForTimeout(250);
+    assert.equal(requests.length, initialRequests, 'even an expired active game never contacts Supabase from home');
+    assert.equal(homeReads, 0, 'home never invokes the multiplayer Edge Function');
   }
   const guest = await browser.newPage();
   await guest.goto(server.resolvedUrls.local[0]);
@@ -161,5 +150,5 @@ try {
   await guestCard.getByText('No games of this type yet.').waitFor();
   assert.equal(await guestCard.locator('.history-item').count(), 0, 'guest cannot see account history');
   assert.deepEqual(errors, []);
-  console.log('PASS combined history, filters/colors/links, mobile/guest isolation, zero idle requests for 90 seconds, throttled focus, lean history query, no repeat uploads, offline-save retry, local countdown and single expiry check, hidden-tab deferral');
+  console.log('PASS history/filter UI, explicit refresh/retry, no requests on idle/focus/reconnect/expiry, no home Edge calls, mobile and account isolation');
 } finally { await browser?.close(); await server.close(); }

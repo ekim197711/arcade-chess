@@ -11,6 +11,7 @@ import { GameReview } from "./GameReview";
 import { OnlineResult } from "./OnlineResult";
 import { clockRemaining, formatClock, reconnectDeadline, predictOnlineMove, predictionWasSaved, ONLINE_TIME_CONTROLS, type OnlineGame, type OnlineProfile, type OnlinePremove, type OnlineMovePrediction } from "./onlineChess";
 import "./online.css";
+import { invalidateHomeData } from "./homeDataCache";
 
 type Reply = { game?: OnlineGame | null; profile?: OnlineProfile; queued?: boolean; fallback_at?: string; server_now: string; error?: string };
 type Props = {
@@ -56,6 +57,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     mounted.current = true;
     return () => {
       mounted.current = false;
+      invalidateHomeData(userId);
       if (queueRef.current) void supabase?.functions.invoke("multiplayer", { body: { action: "cancel", minutes: minutesRef.current } });
     };
   }, []);

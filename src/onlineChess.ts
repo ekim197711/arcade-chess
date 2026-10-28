@@ -14,11 +14,12 @@ export type OnlineGame = {
   move_times_ms?: (number | null)[];
 };
 export type OnlinePremove = { from: import("./chess").Square; to: import("./chess").Square; promotion?: "q" | "r" | "b" | "n"; x?: number; y?: number };
-export function reconnectDeadline(game: OnlineGame, side: "w" | "b") {
+export function reconnectDeadline(game: Pick<OnlineGame, "result" | "is_bot" | "white_disconnected_at" | "black_disconnected_at" | "white_seen_at" | "black_seen_at">, side: "w" | "b") {
   if (game.result || (side === "b" && game.is_bot)) return null;
   const disconnected = side === "w" ? game.white_disconnected_at : game.black_disconnected_at;
   const seen = side === "w" ? game.white_seen_at : game.black_seen_at;
-  return Date.parse(disconnected ?? seen) + 20_000;
+  const stamp = Date.parse(disconnected ?? seen);
+  return Number.isFinite(stamp) ? stamp + 20_000 : null;
 }
 export type OnlineProfile = { user_id: string; display_name: string; rating: number; peak_rating: number; rated_games: number };
 export function clockRemaining(game: OnlineGame, side: "w" | "b", serverNow: number) {

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { supabase } from "./supabase";
+import { readHomeOnce } from "./homeDataCache";
 import type { OnlineGame } from "./onlineChess";
 import { Star } from "lucide-react";
 import { Chess } from "./chess";
@@ -17,58 +18,51 @@ type OnlineHistoryGame = Pick<OnlineGame, "id" | "white_id" | "black_id" | "whit
 const typeLabels: Record<GameType, string> = { standard: "Standard", freestyle: "Freestyle", human: "Human", practice: "Bot practice" };
 type HistoryEntry = {
   id: string; type: GameType; startedAt: string; opponent: string; elo: number;
-  color: "w" | "b"; result: keyof typeof labels; plies: number;
+  color: "w" | "b"; result: keyof typeof labels; plies?: number;
   archived?: ArchivedMatch; online?: OnlineHistoryGame;
 };
 
-export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: {
+export function MatchHistory({ matches, userId, onReview, onResume, onOnline, refreshToken = 0, onRefresh, refreshing = false }: {
   matches: ArchivedMatch[]; userId?: string; onReview: (id: string) => void;
   onResume: (match: ArchivedMatch) => void; onOnline: (route: string) => void;
+  refreshToken?: number; onRefresh?: () => void; refreshing?: boolean;
 }) {
   const [filter, setFilter] = useState<"all" | GameType>("all");
+  const [visibleLimit, setVisibleLimit] = useState(50);
   const [online, setOnline] = useState<OnlineHistoryGame[]>([]);
   const [onlineError, setOnlineError] = useState(false);
-  useEffect(() => {
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const pageOffset = useRef(0), generation = useRef(0);
+  async function loadOnline(reset: boolean) {
     if (!userId || !supabase) return;
     const client = supabase;
-    let active = true, inFlight = false, lastRefresh = 0;
-    const refresh = async (force = false) => {
-      if (inFlight || document.hidden || !navigator.onLine || (!force && Date.now() - lastRefresh < 60000)) return;
-      lastRefresh = Date.now();
-      inFlight = true;
-      try {
-        const games: OnlineHistoryGame[] = [];
-        for (let offset = 0; ; offset += 500) {
-          const { data, error } = await client.from("online_games")
-            .select("id,white_id,black_id,white_name,black_name,white_rating,black_rating,is_bot,created_at,result,ply_count,minutes,rated")
-            .or(`white_id.eq.${userId},black_id.eq.${userId}`)
-            .order("created_at", { ascending: false }).order("id")
-            .range(offset, offset + 499);
-          if (!active) return;
-          if (error) throw error;
-          games.push(...data);
-          if (data.length < 500) break;
-        }
-        if (active) { setOnline(games); setOnlineError(false); }
-      } catch { if (active) setOnlineError(true); }
-      finally { inFlight = false; }
-    };
-    void refresh();
-    const focus = () => void refresh();
-    const retry = () => void refresh(true);
-    window.addEventListener("focus", focus);
-    window.addEventListener("online", retry);
-    return () => {
-      active = false;
-      window.removeEventListener("focus", focus);
-      window.removeEventListener("online", retry);
-    };
-  }, [userId]);
+    const request = reset ? ++generation.current : generation.current;
+    const offset = reset ? 0 : pageOffset.current;
+    setOnlineLoading(true);
+    try {
+      const { data, error } = await readHomeOnce(userId, `online-history:${offset}`, () => client.from("online_games")
+        .select("id,white_id,black_id,white_name,black_name,white_rating,black_rating,is_bot,created_at,result,ply_count,minutes,rated")
+        .or(`white_id.eq.${userId},black_id.eq.${userId}`)
+        .order("created_at", { ascending: false }).order("id").range(offset, offset + 49));
+      if (request !== generation.current) return;
+      if (error) throw error;
+      setOnline(previous => reset ? data : [...new Map([...previous, ...data].map(game => [game.id, game])).values()]);
+      pageOffset.current = offset + data.length;
+      setHasMore(data.length === 50);
+      setOnlineError(false);
+    } catch { if (request === generation.current) setOnlineError(true); }
+    finally { if (request === generation.current) setOnlineLoading(false); }
+  }
+  useEffect(() => {
+    void loadOnline(true);
+    return () => { generation.current++; };
+  }, [userId, refreshToken]);
   const entries = useMemo(() => {
     const local: HistoryEntry[] = matches.map(match => ({
       id: `boss:${match.id}`, type: styleFor(match) === "Freestyle" ? "freestyle" : "standard",
       startedAt: match.startedAt, opponent: match.opponent, elo: match.elo, color: match.color,
-      result: match.result, plies: movesFor(match).length, archived: match,
+      result: match.result, archived: match,
     }));
     const remote: HistoryEntry[] = online.map(game => {
       const color = game.white_id === userId ? "w" : "b";
@@ -87,22 +81,23 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: 
     <header><h2 id="history-title">Historic games</h2>
       <div className="history-toolbar">
         <label className="history-filter">Game type
-          <select value={filter} onChange={event => setFilter(event.target.value as typeof filter)}>
+          <select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setVisibleLimit(50); }}>
             <option value="all">All types</option>
             {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
+        {userId && onRefresh && <button type="button" disabled={refreshing || onlineLoading} onClick={onRefresh}>{refreshing ? "Refreshing..." : "Refresh saved data"}</button>}
         <span>{filter === "all" ? `${entries.length} saved` : `${visible.length} of ${entries.length} saved`}</span>
       </div>
     </header>
     <p className="review-note">{userId ? "Your boss, human and practice games in one place. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices and play humans."}</p>
-    {onlineError && <p className="review-note" role="status">Online game history is temporarily unavailable. It will retry automatically.</p>}
-    {!visible.length ? <p>{filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.map(entry =>
+    {onlineError && <p className="review-note" role="status">Online game history is unavailable. Use Refresh saved data to retry.</p>}
+    {!visible.length ? <p>{filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.slice(0, visibleLimit).map(entry =>
       <div className={`history-item history-type-${entry.type}`} key={entry.id}>
         <span><strong>{entry.opponent}</strong><small>{new Date(entry.startedAt).toLocaleString()} &middot; {entry.elo} ELO &middot; You played {entry.color === "w" ? "White" : "Black"}{entry.archived?.debug ? " \u00b7 DEBUG TEST" : ""}{entry.online ? ` \u00b7 ${entry.online.minutes}+0 \u00b7 ${entry.online.rated ? "Rated" : "Unrated"}` : ""}</small></span>
         <span className={`match-style match-style-${entry.type}`}>{typeLabels[entry.type]}</span>
         <span className={`match-outcome outcome-${entry.result}`}>{labels[entry.result]}</span>
-        <span>{entry.plies} plies</span>
+        <span>{entry.plies ?? movesFor(entry.archived!).length} plies</span>
         <div className="history-actions">
           {entry.result === "unfinished" && <button onClick={() => entry.online ? onOnline(`online/${entry.online.id}`) : onResume(entry.archived!)}>Resume game</button>}
           <a href={entry.online ? `#online/review/${entry.online.id}` : `#review/${entry.archived!.id}`} onClick={event => {
@@ -112,6 +107,8 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: 
           }}>Review &rarr;</a>
         </div>
       </div>)}</div>}
+    {visible.length > visibleLimit && <button type="button" onClick={() => setVisibleLimit(limit => limit + 50)}>Show more saved games</button>}
+    {hasMore && <button type="button" disabled={onlineLoading || refreshing} onClick={() => void loadOnline(false)}>{onlineLoading ? "Loading..." : "Load older online games"}</button>}
   </section>;
 }
 export function MatchResult({ match, onReview, onHome, theme, light, dark }: { match: ArchivedMatch; onReview: () => void; onHome: () => void; theme: PieceStyle; light: string; dark: string }) {
