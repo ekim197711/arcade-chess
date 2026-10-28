@@ -35,6 +35,7 @@ try {
   for (const [index, boss] of BOSS_CHARACTERS.entries()) {
     const image = page.locator('.boss-line').nth(index).locator('img');
     assert.equal(await image.getAttribute('src'), `/boss-thumbnails/${boss.folder}/focused.png`);
+    await image.scrollIntoViewIfNeeded();
     await image.evaluate(image => image.decode());
     assert.equal(await image.evaluate(image => image.naturalWidth),112);
   }
