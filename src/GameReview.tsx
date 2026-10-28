@@ -210,72 +210,6 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
         <h2 id="review-title">Game review</h2>
         <button type="button" onClick={onClose} >{closeLabel}</button>
       </header>
-      <section className="review-accuracy" aria-labelledby="review-accuracy-title">
-        <h3 id="review-accuracy-title">Game accuracy</h3>
-        <div className="review-accuracy-scores">
-          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
-            const accuracy = reviewAccuracy(moves, analyses, side);
-            return <div key={side}>
-              <span>{side === color ? playerName : opponent} / {side === "w" ? "White" : "Black"}</span>
-              <strong>{accuracy.score === null ? "—" : `${accuracy.score.toFixed(1)}%`}</strong>
-              <small>{accuracy.expected === 0 ? "No moves played" : `${accuracy.analyzed} / ${accuracy.expected} moves analyzed${accuracy.analyzed < accuracy.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
-            </div>;
-          })}
-        </div>
-        <p className="review-note">Estimated from this review engine's move-evaluation loss. Overall accuracy is the average of each side's analyzed move scores.</p>
-        <details className="review-skill-method">
-          <summary>How accuracy is calculated</summary>
-          <p>A best-scoring move earns 100%. Each pawn of evaluation loss halves the score: 0.5 pawns gives 70.7%, 1 pawn gives 50%, and 2 pawns gives 25%. Scores use the short review search and may change with deeper analysis.</p>
-        </details>
-      </section>
-      <section className="review-assistance" aria-labelledby="review-assistance-title">
-        <h3 id="review-assistance-title">Assistance assessment</h3>
-        <div className="review-assistance-grid">
-          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
-            const agreement = reviewEngineAgreement(moves, analyses, side);
-            const isPlayer = side === color;
-            const isHuman = isPlayer || opponentKind === "human";
-            return <article key={side} aria-label={`${isPlayer ? "Player" : opponentKind === "human" ? "Opponent" : "Bot"} assistance assessment`}>
-              <h4>{isPlayer ? playerName : opponent} / {side === "w" ? "White" : "Black"}</h4>
-              <p className="review-assistance-verdict">{isHuman ? "Assistance likelihood: undetermined" : "Known automated opponent"}</p>
-              <p className="review-note">{isHuman ? "This game's moves cannot establish whether outside help was used." : "This opponent is controlled by the game's bot. Use of an additional engine cannot be inferred from its moves."}</p>
-              <dl>
-                <div><dt>Review engine agreement</dt><dd>{agreement.agreement === null ? "—" : `${agreement.agreement.toFixed(1)}%`}</dd></div>
-                <div><dt>Best-scoring moves</dt><dd>{agreement.matches} / {agreement.analyzed}</dd></div>
-                <div><dt>Longest matching run</dt><dd>{agreement.analyzed ? `${agreement.longestStreak} moves` : "—"}</dd></div>
-              </dl>
-              <small>{agreement.expected === 0 ? "No moves played" : `${agreement.analyzed} / ${agreement.expected} moves analyzed${agreement.analyzed < agreement.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
-            </article>;
-          })}
-        </div>
-        <details className="review-skill-method">
-          <summary>What this assessment can tell you</summary>
-          <p>Agreement counts moves tied for the best score in the short review search. Runs count consecutive analyzed turns for that side; missing analysis breaks a run. Opening knowledge, forced moves and straightforward positions can all produce high agreement. A low score also cannot rule out occasional help.</p>
-          <p>These figures describe play, not the probability of assistance. This review has no validated detection model, move-timing evidence or comparison against the player's history. Its two-ply search can miss stronger moves.</p>
-          <p><a href="https://support.chess.com/en/articles/8568369-what-do-i-need-to-know-about-fair-play-on-chess-com" target="_blank" rel="noreferrer">Why accuracy and fair-play detection are different</a></p>
-        </details>
-      </section>
-      <section className="review-skills" aria-labelledby="review-skills-title">
-        <div className="review-elo-scores" aria-label="Player Elo scores">
-          <div><span>{playerName} · ESTIMATE</span><strong>{playerElo === null ? "—" : `~${playerElo}`}</strong><small>{playerElo === null ? "Three analyzed moves needed" : "Estimated from this game"}</small></div>
-          <div><span>{opponent} · {opponentKind === "human" ? "ONLINE ELO" : "LADDER RATING"}</span><strong>{opponentElo}</strong><small>{opponentKind === "human" ? "Online rating at game start" : "Progression rating"}</small></div>
-        </div>
-        <h3 id="review-skills-title">Your estimated Elo by skill</h3>
-        <p className="review-note">{playerName} · {color === "w" ? "White" : "Black"} · {failed ? "Partial analysis" : Object.keys(analyses).length < moves.length ? "Updating as moves are analyzed" : "Game analysis complete"}</p>
-        <dl className="review-skill-grid">
-          {skillRatings.map((skill) => <div key={skill.name}>
-            <dt>{skill.name}</dt>
-            <dd>{skill.elo === null ? <span className="review-skill-empty">Not enough moves</span> : <><strong>~{skill.elo}</strong> <span>Elo</span></>}</dd>
-            <small>{skill.moves} analyzed {skill.moves === 1 ? "move" : "moves"}{skill.moves < 3 ? " · 3 needed" : ""}</small>
-          </div>)}
-        </dl>
-        <details className="review-skill-method">
-          <summary>How these estimates work</summary>
-          <p>Rough single-game estimates from average move-evaluation loss, not official or calibrated Elo ratings. Opening covers the first 10 moves per side; Endgame covers positions with at most 13 points of combined non-pawn, non-king material. Tactics covers captures, checks, promotions and forcing analyzed lines, including missed opportunities. Strategy covers quiet moves between opening and endgame. Tactical moves can also count toward a game phase.</p>
-          <p>At least 3 analyzed moves are needed per skill; small samples are less reliable. Lower average loss produces a higher estimate on a 400–2400 scale, rounded to 50 Elo. The review engine has limited depth, so deeper tactics may change the assessment.</p>
-        </details>
-      </section>
-      <div className="rating-legend">{RATINGS.map((rating) => <span key={rating.label} className={`move-rating rating-${rating.key}`}><b aria-hidden="true">{rating.icon}</b> {rating.label}</span>)}</div>
       <div className="review-layout">
         <aside className="review-move-column" aria-label="All game moves">
           <h3>Moves</h3>
@@ -423,6 +357,72 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
 
         </aside>
       </div>
+      <div className="rating-legend">{RATINGS.map((rating) => <span key={rating.label} className={`move-rating rating-${rating.key}`}><b aria-hidden="true">{rating.icon}</b> {rating.label}</span>)}</div>
+      <section className="review-accuracy" aria-labelledby="review-accuracy-title">
+        <h3 id="review-accuracy-title">Game accuracy</h3>
+        <div className="review-accuracy-scores">
+          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
+            const accuracy = reviewAccuracy(moves, analyses, side);
+            return <div key={side}>
+              <span>{side === color ? playerName : opponent} / {side === "w" ? "White" : "Black"}</span>
+              <strong>{accuracy.score === null ? "—" : `${accuracy.score.toFixed(1)}%`}</strong>
+              <small>{accuracy.expected === 0 ? "No moves played" : `${accuracy.analyzed} / ${accuracy.expected} moves analyzed${accuracy.analyzed < accuracy.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
+            </div>;
+          })}
+        </div>
+        <p className="review-note">Estimated from this review engine's move-evaluation loss. Overall accuracy is the average of each side's analyzed move scores.</p>
+        <details className="review-skill-method">
+          <summary>How accuracy is calculated</summary>
+          <p>A best-scoring move earns 100%. Each pawn of evaluation loss halves the score: 0.5 pawns gives 70.7%, 1 pawn gives 50%, and 2 pawns gives 25%. Scores use the short review search and may change with deeper analysis.</p>
+        </details>
+      </section>
+      <section className="review-assistance" aria-labelledby="review-assistance-title">
+        <h3 id="review-assistance-title">Assistance assessment</h3>
+        <div className="review-assistance-grid">
+          {([color, color === "w" ? "b" : "w"] as const).map((side) => {
+            const agreement = reviewEngineAgreement(moves, analyses, side);
+            const isPlayer = side === color;
+            const isHuman = isPlayer || opponentKind === "human";
+            return <article key={side} aria-label={`${isPlayer ? "Player" : opponentKind === "human" ? "Opponent" : "Bot"} assistance assessment`}>
+              <h4>{isPlayer ? playerName : opponent} / {side === "w" ? "White" : "Black"}</h4>
+              <p className="review-assistance-verdict">{isHuman ? "Assistance likelihood: undetermined" : "Known automated opponent"}</p>
+              <p className="review-note">{isHuman ? "This game's moves cannot establish whether outside help was used." : "This opponent is controlled by the game's bot. Use of an additional engine cannot be inferred from its moves."}</p>
+              <dl>
+                <div><dt>Review engine agreement</dt><dd>{agreement.agreement === null ? "—" : `${agreement.agreement.toFixed(1)}%`}</dd></div>
+                <div><dt>Best-scoring moves</dt><dd>{agreement.matches} / {agreement.analyzed}</dd></div>
+                <div><dt>Longest matching run</dt><dd>{agreement.analyzed ? `${agreement.longestStreak} moves` : "—"}</dd></div>
+              </dl>
+              <small>{agreement.expected === 0 ? "No moves played" : `${agreement.analyzed} / ${agreement.expected} moves analyzed${agreement.analyzed < agreement.expected ? failed ? " · Partial analysis" : " · Updating" : " · Complete"}`}</small>
+            </article>;
+          })}
+        </div>
+        <details className="review-skill-method">
+          <summary>What this assessment can tell you</summary>
+          <p>Agreement counts moves tied for the best score in the short review search. Runs count consecutive analyzed turns for that side; missing analysis breaks a run. Opening knowledge, forced moves and straightforward positions can all produce high agreement. A low score also cannot rule out occasional help.</p>
+          <p>These figures describe play, not the probability of assistance. This review has no validated detection model, move-timing evidence or comparison against the player's history. Its two-ply search can miss stronger moves.</p>
+          <p><a href="https://support.chess.com/en/articles/8568369-what-do-i-need-to-know-about-fair-play-on-chess-com" target="_blank" rel="noreferrer">Why accuracy and fair-play detection are different</a></p>
+        </details>
+      </section>
+      <section className="review-skills" aria-labelledby="review-skills-title">
+        <div className="review-elo-scores" aria-label="Player Elo scores">
+          <div><span>{playerName} · ESTIMATE</span><strong>{playerElo === null ? "—" : `~${playerElo}`}</strong><small>{playerElo === null ? "Three analyzed moves needed" : "Estimated from this game"}</small></div>
+          <div><span>{opponent} · {opponentKind === "human" ? "ONLINE ELO" : "LADDER RATING"}</span><strong>{opponentElo}</strong><small>{opponentKind === "human" ? "Online rating at game start" : "Progression rating"}</small></div>
+        </div>
+        <h3 id="review-skills-title">Your estimated Elo by skill</h3>
+        <p className="review-note">{playerName} · {color === "w" ? "White" : "Black"} · {failed ? "Partial analysis" : Object.keys(analyses).length < moves.length ? "Updating as moves are analyzed" : "Game analysis complete"}</p>
+        <dl className="review-skill-grid">
+          {skillRatings.map((skill) => <div key={skill.name}>
+            <dt>{skill.name}</dt>
+            <dd>{skill.elo === null ? <span className="review-skill-empty">Not enough moves</span> : <><strong>~{skill.elo}</strong> <span>Elo</span></>}</dd>
+            <small>{skill.moves} analyzed {skill.moves === 1 ? "move" : "moves"}{skill.moves < 3 ? " · 3 needed" : ""}</small>
+          </div>)}
+        </dl>
+        <details className="review-skill-method">
+          <summary>How these estimates work</summary>
+          <p>Rough single-game estimates from average move-evaluation loss, not official or calibrated Elo ratings. Opening covers the first 10 moves per side; Endgame covers positions with at most 13 points of combined non-pawn, non-king material. Tactics covers captures, checks, promotions and forcing analyzed lines, including missed opportunities. Strategy covers quiet moves between opening and endgame. Tactical moves can also count toward a game phase.</p>
+          <p>At least 3 analyzed moves are needed per skill; small samples are less reliable. Lower average loss produces a higher estimate on a 400–2400 scale, rounded to 50 Elo. The review engine has limited depth, so deeper tactics may change the assessment.</p>
+        </details>
+      </section>
     </section>
   );
 }
