@@ -18,6 +18,9 @@ try {
     if (offline && url.pathname.startsWith('/rest/')) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Offline' }) });
     let data = {};
     if (url.pathname.endsWith('/player_progress')) data = { progress: { wins: 2, losses: 1, streak: 1, bestStreak: 2, bossesDefeated: 2, freestyleBossesDefeated: 0, progressionVersion: 3 } };
+    else if (url.pathname.endsWith('/online_players')) data = { rating: 1200 };
+    else if (url.pathname.endsWith('/online_games')) data = [];
+    else if (url.pathname.endsWith('/multiplayer')) data = { game: null, server_now: new Date().toISOString() };
     else if (url.pathname.endsWith('/player_games')) data = cloud.map(game => ({ game }));
     else if (url.pathname.endsWith('/save_player_game')) { data = route.request().postDataJSON().p_game; cloud = [data, ...cloud.filter(game => game.id !== data.id)]; uploads++; }
     else if (url.pathname.endsWith('/user')) {
@@ -59,7 +62,7 @@ try {
   await page.getByText('Game history is saved on this device.', { exact: false }).waitFor();
   offline = false;
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await page.getByText('Game history synced to your account.', { exact: true }).waitFor();
+  await page.getByText('Game history is saved on this device.', { exact: false }).waitFor({ state: 'detached' });
   assert.ok(uploads > 0);
   assert.ok(cloud.find(game => game.id === 'cloud-game').pgn.includes('Nf3'), 'offline move reaches the cloud');
   // A different browser profile has only auth credentials, without any game cache.

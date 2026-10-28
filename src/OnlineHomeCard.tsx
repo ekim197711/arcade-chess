@@ -12,6 +12,7 @@ export function OnlineHomeCard({ userId, navigate }: { userId: string; navigate:
   const [now, setNow] = useState(Date.now());
   const offset = useRef(0), inFlight = useRef(false), active = useRef(true);
   const pendingRefresh = useRef<Promise<void> | null>(null);
+  const lastRefresh = useRef(0);
   const gameRef = useRef(game); gameRef.current = game;
   async function refresh(resign = false): Promise<void> {
     if (!supabase) return;
@@ -24,6 +25,7 @@ export function OnlineHomeCard({ userId, navigate }: { userId: string; navigate:
     const current = gameRef.current;
     if (resign && (!current || current.result)) return;
     inFlight.current = true;
+    lastRefresh.current = Date.now();
     let release!: () => void;
     pendingRefresh.current = new Promise<void>(resolve => { release = resolve; });
     if (resign) setBusy(true);
@@ -48,13 +50,29 @@ export function OnlineHomeCard({ userId, navigate }: { userId: string; navigate:
   useEffect(() => {
     active.current = true;
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 2000);
-    const clock = window.setInterval(() => setNow(Date.now() + offset.current), 200);
-    const focus = () => void refresh();
-    window.addEventListener("focus", focus); window.addEventListener("online", focus);
-    return () => { active.current = false; clearInterval(timer); clearInterval(clock); window.removeEventListener("focus", focus); window.removeEventListener("online", focus); };
+    const focus = () => {
+      const current = gameRef.current;
+      const deadline = current ? reconnectDeadline(current, current.black_id === userId ? "b" : "w") : null;
+      const expired = deadline !== null && deadline <= Date.now() + offset.current;
+      if (!document.hidden && navigator.onLine && (expired || Date.now() - lastRefresh.current >= 60000)) void refresh();
+    };
+    const reconnect = () => { if (!document.hidden) void refresh(); };
+    window.addEventListener("focus", focus); window.addEventListener("online", reconnect);
+    return () => { active.current = false; window.removeEventListener("focus", focus); window.removeEventListener("online", reconnect); };
   }, [userId]);
   const side = game?.black_id === userId ? "b" : "w";
+  const deadline = game ? reconnectDeadline(game, side) : null;
+  useEffect(() => {
+    if (deadline === null) return;
+    // Render the countdown locally; only contact the server once it expires.
+    const clock = window.setInterval(() => {
+      if (!document.hidden) setNow(Date.now() + offset.current);
+    }, 1000);
+    const expiry = window.setTimeout(() => {
+      if (!document.hidden && navigator.onLine) void refresh();
+    }, Math.max(0, deadline - Date.now() - offset.current) + 250);
+    return () => { window.clearInterval(clock); window.clearTimeout(expiry); };
+  }, [deadline]);
   const seconds = game ? Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now) - now) / 1000)) : 0;
   return <section className="online-home-card" aria-labelledby="online-home-title">
     <h2 id="online-home-title">Play against human</h2>

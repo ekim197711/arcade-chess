@@ -3,6 +3,11 @@ import { supabase } from "./supabase";
 import { Chess } from "./chess";
 import { historyKey, readHistory, saveHistory, type ArchivedMatch } from "./matchArchive";
 
+function sameMatch(a: ArchivedMatch, b: ArchivedMatch) {
+  // JSONB can return keys in a different order than local browser storage.
+  return (Object.keys({ ...a, ...b }) as (keyof ArchivedMatch)[]).every(key => a[key] === b[key]);
+}
+
 export function mergeHistory(...lists: ArchivedMatch[][]): ArchivedMatch[] {
   const matches = new Map<string, ArchivedMatch>();
   for (const match of lists.flat()) {
@@ -24,10 +29,18 @@ export function useMatchHistory(userId: string | null | undefined) {
   const history = cache[scopeKey] ?? readHistory(scope);
   const dirty = useRef(new Map<string, Map<string, ArchivedMatch>>());
   const running = useRef(new Set<string>());
+  const lastRefresh = useRef(new Map<string, number>());
   const active = useRef(userId);
   active.current = userId;
 
   const store = useCallback((owner: string | null, matches: ArchivedMatch[]) => {
+    const previous = cacheRef.current[owner ?? "guest"];
+    if (previous?.length === matches.length && previous.every((match, index) => sameMatch(match, matches[index]))) {
+      // Retry storage after an earlier failure before claiming a guest copy.
+      const saved = saveHistory(matches, owner);
+      setLocalError(!saved);
+      return saved;
+    }
     const next = { ...cacheRef.current, [owner ?? "guest"]: matches };
     cacheRef.current = next;
     setCache(next);
@@ -39,11 +52,31 @@ export function useMatchHistory(userId: string | null | undefined) {
   const sync = useCallback(async (owner: string, refresh = false) => {
     if (!supabase || running.current.has(owner) || active.current !== owner) return;
     running.current.add(owner);
+    if (refresh) lastRefresh.current.set(owner, Date.now());
     setSyncing(true);
     let failed = false;
     try {
       const queue = dirty.current.get(owner) ?? new Map<string, ArchivedMatch>();
       dirty.current.set(owner, queue);
+      if (refresh) {
+        // Compare the cloud copy before uploading cached games after a reload.
+        const remote: ArchivedMatch[] = [];
+        for (let offset = 0; ; offset += 500) {
+          if (active.current !== owner) return;
+          const { data, error } = await supabase.from("player_games").select("game").eq("user_id", owner)
+            .order("id").range(offset, offset + 499);
+          if (error) throw error;
+          remote.push(...data.map((row) => row.game as ArchivedMatch));
+          if (data.length < 500) break;
+        }
+        if (active.current !== owner) return;
+        const remoteById = new Map(remote.map(match => [match.id, match]));
+        for (const [id, match] of queue) {
+          const saved = remoteById.get(id);
+          if (saved && sameMatch(saved, match)) queue.delete(id);
+        }
+        store(owner, mergeHistory(remote, cacheRef.current[owner] ?? readHistory(owner)));
+      }
       // Upload sequentially so a newer local move cannot be overtaken by an older one.
       while (queue.size) for (const [id, match] of [...queue]) {
         if (active.current !== owner) return;
@@ -54,21 +87,10 @@ export function useMatchHistory(userId: string | null | undefined) {
         if (queue.get(id) === match) {
           queue.delete(id);
           if (active.current === owner && data) {
-            store(owner, (cacheRef.current[owner] ?? []).map((item) => item === match ? data as ArchivedMatch : item));
+            store(owner, (cacheRef.current[owner] ?? []).map((item) => item.id === id ? data as ArchivedMatch : item));
           }
         }
       }
-      if (!refresh) return;
-      const remote: ArchivedMatch[] = [];
-      for (let offset = 0; ; offset += 500) {
-        if (active.current !== owner) return;
-        const { data, error } = await supabase.from("player_games").select("game").eq("user_id", owner)
-          .order("id").range(offset, offset + 499);
-        if (error) throw error;
-        remote.push(...data.map((row) => row.game as ArchivedMatch));
-        if (data.length < 500) break;
-      }
-      if (active.current === owner) store(owner, mergeHistory(remote, cacheRef.current[owner] ?? readHistory(owner)));
     } catch { failed = true; }
     finally {
       running.current.delete(owner);
@@ -90,11 +112,17 @@ export function useMatchHistory(userId: string | null | undefined) {
     }
     dirty.current.set(userId, new Map(matches.map((match) => [match.id, match])));
     void sync(userId, true);
-    const retry = () => { void sync(userId, true); };
-    const timer = window.setInterval(retry, 15000);
-    window.addEventListener("online", retry);
-    window.addEventListener("focus", retry);
-    return () => { window.clearInterval(timer); window.removeEventListener("online", retry); window.removeEventListener("focus", retry); };
+    const retryPending = () => {
+      if (!document.hidden && navigator.onLine && dirty.current.get(userId)?.size) void sync(userId);
+    };
+    const focus = () => {
+      if (!document.hidden && navigator.onLine && Date.now() - (lastRefresh.current.get(userId) ?? 0) >= 60000) void sync(userId, true);
+    };
+    const reconnect = () => { if (!document.hidden) void sync(userId, true); };
+    const timer = window.setInterval(retryPending, 30000);
+    window.addEventListener("online", reconnect);
+    window.addEventListener("focus", focus);
+    return () => { window.clearInterval(timer); window.removeEventListener("online", reconnect); window.removeEventListener("focus", focus); };
   }, [userId, store, sync]);
 
   const setHistory = useCallback((update: (previous: ArchivedMatch[]) => ArchivedMatch[]) => {

@@ -9,8 +9,10 @@ export function HumanElo({ userId }: { userId?: string }) {
     const client = supabase;
     let active = true;
     let inFlight = false;
-    const refresh = async () => {
-      if (inFlight) return;
+    let lastRefresh = 0;
+    const refresh = async (force = false) => {
+      if (inFlight || document.hidden || !navigator.onLine || (!force && Date.now() - lastRefresh < 60000)) return;
+      lastRefresh = Date.now();
       inFlight = true;
       try {
         const { data, error } = await client.from("online_players")
@@ -21,14 +23,13 @@ export function HumanElo({ userId }: { userId?: string }) {
       finally { inFlight = false; }
     };
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 15000);
-    const retry = () => void refresh();
-    window.addEventListener("focus", retry);
+    const focus = () => void refresh();
+    const retry = () => void refresh(true);
+    window.addEventListener("focus", focus);
     window.addEventListener("online", retry);
     return () => {
       active = false;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", retry);
+      window.removeEventListener("focus", focus);
       window.removeEventListener("online", retry);
     };
   }, [userId]);

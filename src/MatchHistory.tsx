@@ -11,11 +11,12 @@ const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfi
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
 function styleFor(match: ArchivedMatch) { return /\[Variant\s+"Chess960"\]/i.test(match.pgn) ? "Freestyle" : "Standard"; }
 type GameType = "standard" | "freestyle" | "human" | "practice";
+type OnlineHistoryGame = Pick<OnlineGame, "id" | "white_id" | "black_id" | "white_name" | "black_name" | "white_rating" | "black_rating" | "is_bot" | "created_at" | "result" | "ply_count" | "minutes" | "rated">;
 const typeLabels: Record<GameType, string> = { standard: "Standard", freestyle: "Freestyle", human: "Human", practice: "Bot practice" };
 type HistoryEntry = {
   id: string; type: GameType; startedAt: string; opponent: string; elo: number;
   color: "w" | "b"; result: keyof typeof labels; plies: number;
-  archived?: ArchivedMatch; online?: OnlineGame;
+  archived?: ArchivedMatch; online?: OnlineHistoryGame;
 };
 
 export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: {
@@ -23,25 +24,27 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: 
   onResume: (match: ArchivedMatch) => void; onOnline: (route: string) => void;
 }) {
   const [filter, setFilter] = useState<"all" | GameType>("all");
-  const [online, setOnline] = useState<OnlineGame[]>([]);
+  const [online, setOnline] = useState<OnlineHistoryGame[]>([]);
   const [onlineError, setOnlineError] = useState(false);
   useEffect(() => {
     if (!userId || !supabase) return;
     const client = supabase;
-    let active = true, inFlight = false;
-    const refresh = async () => {
-      if (inFlight) return;
+    let active = true, inFlight = false, lastRefresh = 0;
+    const refresh = async (force = false) => {
+      if (inFlight || document.hidden || !navigator.onLine || (!force && Date.now() - lastRefresh < 60000)) return;
+      lastRefresh = Date.now();
       inFlight = true;
       try {
-        const games: OnlineGame[] = [];
+        const games: OnlineHistoryGame[] = [];
         for (let offset = 0; ; offset += 500) {
-          const { data, error } = await client.from("online_games").select("*")
+          const { data, error } = await client.from("online_games")
+            .select("id,white_id,black_id,white_name,black_name,white_rating,black_rating,is_bot,created_at,result,ply_count,minutes,rated")
             .or(`white_id.eq.${userId},black_id.eq.${userId}`)
             .order("created_at", { ascending: false }).order("id")
             .range(offset, offset + 499);
           if (!active) return;
           if (error) throw error;
-          games.push(...data as OnlineGame[]);
+          games.push(...data);
           if (data.length < 500) break;
         }
         if (active) { setOnline(games); setOnlineError(false); }
@@ -49,14 +52,13 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline }: 
       finally { inFlight = false; }
     };
     void refresh();
-    const retry = () => void refresh();
-    const timer = window.setInterval(retry, 15000);
-    window.addEventListener("focus", retry);
+    const focus = () => void refresh();
+    const retry = () => void refresh(true);
+    window.addEventListener("focus", focus);
     window.addEventListener("online", retry);
     return () => {
       active = false;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", retry);
+      window.removeEventListener("focus", focus);
       window.removeEventListener("online", retry);
     };
   }, [userId]);

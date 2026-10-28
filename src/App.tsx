@@ -1449,7 +1449,17 @@ function App() {
     };
   }, []);
 
+  const progressRetryInFlight = useRef(false);
+  const progressLastRefresh = useRef(Date.now());
   async function retryPendingProgress(userId: string) {
+    if (progressRetryInFlight.current) return;
+    progressRetryInFlight.current = true;
+    progressLastRefresh.current = Date.now();
+    try { await syncPendingProgress(userId); }
+    finally { progressRetryInFlight.current = false; }
+  }
+
+  async function syncPendingProgress(userId: string) {
     if (!supabase || activeUserId.current !== userId) return;
     let pending = readPendingResults(userId);
     const guest = readProgress();
@@ -1548,14 +1558,20 @@ function App() {
   }
 
   useEffect(() => {
+    const retryPending = () => {
+      const userId = activeUserId.current;
+      if (!document.hidden && navigator.onLine && userId &&
+        (readPendingResults(userId).length > 0 || hasProgress(readProgress()))) void retryPendingProgress(userId);
+    };
     const handleOnline = () => {
       const userId = activeUserId.current;
-      if (userId) void retryPendingProgress(userId);
+      if (!document.hidden && userId) void retryPendingProgress(userId);
     };
+    const focus = () => { if (Date.now() - progressLastRefresh.current >= 60000 && navigator.onLine) handleOnline(); };
     window.addEventListener("online", handleOnline);
-    window.addEventListener("focus", handleOnline);
-    const retryTimer = window.setInterval(handleOnline, 15000);
-    return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("focus", handleOnline); window.clearInterval(retryTimer); };
+    window.addEventListener("focus", focus);
+    const retryTimer = window.setInterval(retryPending, 30000);
+    return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("focus", focus); window.clearInterval(retryTimer); };
   }, []);
 
   useEffect(() => {
