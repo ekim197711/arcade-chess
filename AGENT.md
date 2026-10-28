@@ -54,3 +54,5 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 
 - Home performs one cached, bounded initial snapshot (five database reads); never add focus/reconnect refreshes, polling, expiry inspections, automatic uploads or SDK database retries. Refresh saved data is the explicit network action. Cache failures as well as successes to prevent remount retry storms.
 - Fetch history in pages of 50 only on demand, render 50 rows initially, and preserve the durable account-specific pending-save IDs across reloads. Flush at most five history saves or progress events per action. Preserve normal save-on-move behavior outside home. Run `node frontpage-budget-check.mjs` for the healthy, large-cache and failing-server cases.
+
+- Browser rendering budget: home has at most 12 parade actors, using 112x112 thumbnails; cycle the roster at route boundaries rather than mounting all bosses. Small ladder portraits also use thumbnails. Do not decode full-resolution character artwork for tiny UI images. Bubble events from the child dance animation must not trigger React state updates. Run the isolated Firefox responsiveness check for changes to this path.

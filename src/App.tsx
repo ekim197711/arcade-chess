@@ -1,6 +1,6 @@
 import { CookieNotice } from "./CookieNotice";
 import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
-import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor } from "./bossArtwork";
+import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor, bossThumbnail } from "./bossArtwork";
 import {
   EMPTY_PROGRESS, LEGACY_STAGE_TO_RUNG, normalizeProgress, mergeProgress,
   hasProgress, applyResult, ladderClears, type Progress, type PendingResult,
@@ -2637,7 +2637,8 @@ function App() {
                           {portraitFor(entry.character, __BOSS_PORTRAITS__) ? (
                             <img
                               className="boss-character-image"
-                              src={portraitFor(entry.character, __BOSS_PORTRAITS__)}
+                              src={bossThumbnail(entry.character, __BOSS_PORTRAITS__)}
+                              width={112} height={112} loading="lazy" decoding="async"
                               alt=""
                             />
                           ) : (

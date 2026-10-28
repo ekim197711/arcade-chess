@@ -22,14 +22,15 @@ try {
     readdirSync(`public/characters/${entry.name}`).filter(file => file.endsWith('.png')).map(file => file.slice(0, -4)),
   ]));
   const illustratedBosses = BOSS_CHARACTERS.filter(boss => bossPortrait(resolveBossCharacter(boss.name, inventory), inventory));
-  assert.equal(await page.locator('.dancing-boss').count(), illustratedBosses.length);
-  assert.equal(await page.locator('.dancing-boss img').count(), illustratedBosses.length);
+  assert.equal(await page.locator('.dancing-boss').count(), Math.min(12, illustratedBosses.length));
+  assert.equal(await page.locator('.dancing-boss img').count(), Math.min(12, illustratedBosses.length));
   for (const boss of BOSS_CHARACTERS.filter(boss => !illustratedBosses.includes(boss))) {
     assert.equal(await page.getByRole('button', { name: `Hear a taunt from ${boss.name}`, exact: true }).count(), 0);
   }
   await page.evaluate(async () => {
     await Promise.all([...document.querySelectorAll('.dancing-boss img')].map(image => image.decode()));
   });
+  assert.ok(await page.locator('.dancing-boss img').evaluateAll(images => images.every(image => image.naturalWidth === 112 && image.naturalHeight === 112)));
   // Seek the route to check direction and offscreen transitions without waiting for a loop.
   const route = page.locator('.dancing-boss-route').first();
   const seek = async phase => {

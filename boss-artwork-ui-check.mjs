@@ -34,8 +34,9 @@ try {
   assert.equal(await page.locator('.boss-line img').count(), 59);
   for (const [index, boss] of BOSS_CHARACTERS.entries()) {
     const image = page.locator('.boss-line').nth(index).locator('img');
-    assert.equal(await image.getAttribute('src'), `/characters/${boss.folder}/focused.png`);
+    assert.equal(await image.getAttribute('src'), `/boss-thumbnails/${boss.folder}/focused.png`);
     await image.evaluate(image => image.decode());
+    assert.equal(await image.evaluate(image => image.naturalWidth),112);
   }
   copyFileSync('public/characters/blunder-benny/focused.png', probe);
   await waitForInventory(true);

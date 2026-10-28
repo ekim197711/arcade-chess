@@ -85,3 +85,7 @@ export function bossPortrait(character: string | undefined, inventory: PortraitI
   const selected = available.includes(expression) ? expression : fallback ?? available[0];
   return selected ? `/characters/${encodeURIComponent(character)}/${encodeURIComponent(selected)}.png` : undefined;
 }
+
+export function bossThumbnail(character: string | undefined, inventory: PortraitInventory, expression = "focused") {
+  return bossPortrait(character, inventory, expression)?.replace("/characters/", "/boss-thumbnails/");
+}
