@@ -33,7 +33,7 @@ resource "aws_s3_object" "dist" {
   source        = "${var.app_path}/dist/${each.value}"
   etag          = filemd5("${var.app_path}/dist/${each.value}")
   content_type  = lookup(local.content_types, lower(element(split(".", each.value), length(split(".", each.value)) - 1)), "application/octet-stream")
-  cache_control = each.value == "index.html" ? "no-cache" : "public, max-age=31536000, immutable"
+  cache_control = contains(["index.html", "build-info.json", "deployment.json"], each.value) ? "no-cache" : "public, max-age=31536000, immutable"
 
   depends_on = [aws_s3_bucket_policy.public_read]
 }

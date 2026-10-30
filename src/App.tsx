@@ -1,4 +1,6 @@
 import { CookieNotice } from "./CookieNotice";
+import { Administration } from "./Administration";
+import { roleLabel, useAdministration } from "./useAdministration";
 import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
 import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor, bossThumbnail } from "./bossArtwork";
 import {
@@ -53,7 +55,6 @@ import { OnlinePlay } from "./OnlinePlay";
 import { OnlineHomeCard } from "./OnlineHomeCard";
 import { HumanElo } from "./HumanElo";
 import { MatchHistory, MatchResult } from "./MatchHistory";
-import { DancingBosses } from "./DancingBosses";
 import { SignupDisclaimer } from "./SignupDisclaimer";
 import { EmailAuth } from "./EmailAuth";
 import { SignupPlans, readSignupPlan, PENDING_SIGNUP_PLAN_KEY, type SignupPlan } from "./SignupPlans";
@@ -763,7 +764,7 @@ function resultFor(
 function readPageRoute() {
   const route = window.location.hash.slice(1);
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|settings)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15))?$/.test(route)
+  return /^(home|roster|battle|settings|statistics|administration)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15))?$/.test(route)
     ? route
     : "home";
 }
@@ -820,9 +821,14 @@ function App() {
   );
   const [accountProgress, setAccountProgress] = useState<Progress | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const administration = useAdministration(user?.id);
+  const administrationRole = administration?.role ?? null;
   const [authReady, setAuthReady] = useState(!supabase);
   const [cloudSyncError, setCloudSyncError] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState("");
+  const deletionInFlight = useRef(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
   const [signupPlan, setSignupPlan] = useState<SignupPlan>(readSignupPlan);
@@ -895,7 +901,7 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home");
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home");
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
@@ -1276,6 +1282,7 @@ function App() {
     const handleDialogKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (deletionInFlight.current) return;
         setAuthOpen(false);
         setHelpOpen(false);
         return;
@@ -2012,11 +2019,45 @@ function App() {
   }
 
   async function signOut() {
+    if (deletionInFlight.current) return;
     if (user) invalidateHomeData(user.id);
     if (supabase) await supabase.auth.signOut();
     setUser(null);
     setAuthOpen(false);
     showToast("SIGNED OUT — GUEST MODE ACTIVE");
+  }
+
+  async function deleteAccount() {
+    if (!supabase || !user || deletionInFlight.current) return;
+    if (!window.confirm("Are you really sure you want to delete your account?\n\nAll your user data and progress will be permanently deleted and cannot be recovered or recreated later. Other players will see you as ‘Deleted user’ in their match history. Any live match will end.\n\nThis cannot be undone.")) return;
+    const owner = user.id;
+    deletionInFlight.current = true;
+    setDeletingAccount(true);
+    setDeleteAccountError("");
+    try {
+      const { error } = await supabase.rpc("delete_own_account");
+      if (error) throw error;
+    } catch {
+      deletionInFlight.current = false;
+      setDeletingAccount(false);
+      setDeleteAccountError("Account deletion could not be completed. Please try again. If the connection was interrupted, sign in again to check your account.");
+      return;
+    }
+    // Invalidate outstanding reads/uploads before clearing device copies.
+    activeUserId.current = null;
+    requestedUserId.current = null;
+    loadSequence.current += 1;
+    invalidateHomeData(owner);
+    try {
+      forgetHistory(owner);
+      for (const key of [`${ACCOUNT_STORAGE_PREFIX}${owner}`, pendingStorageKey(owner), guestMergeStorageKey(owner), `${SAVED_MATCH_KEY}:${owner}`, PENDING_SIGNUP_PLAN_KEY]) {
+        localStorage.removeItem(key);
+      }
+    } catch { /* Server deletion succeeded even if browser storage is unavailable. */ }
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    // Discard all in-memory game/analysis/account caches and start in guest mode.
+    window.location.hash = "home";
+    window.location.reload();
   }
 
   function viewHistoryMove(ply: number) {
@@ -2160,6 +2201,17 @@ function App() {
                       </section>
   </>;
 
+  if (user && administration?.restriction) {
+    const restriction = administration.restriction;
+    return <div className="app-shell"><main className="administration-page" aria-labelledby="account-restriction-title">
+      <h1 id="account-restriction-title">Account {restriction.status}</h1>
+      {restriction.reason && <p>{restriction.reason}</p>}
+      {restriction.until && <p>Suspended until {new Date(restriction.until).toLocaleString()}. Access resumes automatically after this time.</p>}
+      <p>Signed-in play, chat and saved account data are unavailable while this restriction is active.</p>
+      <button onClick={() => window.location.reload()}>Check access again</button>{" "}<button onClick={() => void signOut()}>Sign out</button>
+    </main></div>;
+  }
+
   return (
     <div
       className={`app-shell ${screen === "battle" ? "app-shell-battle" : ""} ${
@@ -2187,7 +2239,6 @@ function App() {
       }}
     >
       <div className="crt-overlay" aria-hidden="true" />
-      {screen === "home" && <DancingBosses bosses={BOSSES} playerName={user ? playerName : "rookie"} />}
       <header className="topbar">
         <a
           className="brand"
@@ -2261,6 +2312,10 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
+        {screen === "home" && administrationRole === "administrator" && (
+          <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>
+        )}
+        {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
           <section className="settings-page" aria-labelledby="settings-title">
@@ -3149,7 +3204,7 @@ function App() {
         <div
           className="modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setAuthOpen(false);
+            if (event.target === event.currentTarget && !deletionInFlight.current) setAuthOpen(false);
           }}
         >
           <section
@@ -3162,6 +3217,7 @@ function App() {
             <button
               className="modal-close"
               onClick={() => setAuthOpen(false)}
+              disabled={deletingAccount}
               aria-label="Close"
             >
               <X size={18} />
@@ -3194,6 +3250,7 @@ function App() {
                     : "Your arcade run is synced. Keep climbing the leaderboard."}
                 </p>
                 <div className="account-stats">
+                  {administrationRole && <span>ROLE: {roleLabel(administrationRole).toUpperCase()}</span>}
                   <span>PLAN: {user.user_metadata?.arcade_plan === "very-free" ? "VERY FREE" : "FREE"}</span>
                   <span>
                     <Trophy size={14} /> {progress.wins} WINS
@@ -3205,9 +3262,18 @@ function App() {
                 <button
                   className="social-button guest-button"
                   onClick={() => void signOut()}
+                  disabled={deletingAccount}
                 >
                   <LogIn size={16} /> SIGN OUT
                 </button>
+                <div className="account-delete-section">
+                  <h3>Delete account</h3>
+                  <p>All your user data and progress will be permanently deleted and cannot be recovered or recreated later. Other players will see “Deleted user” in their match history. Any live match will end. This cannot be undone.</p>
+                  {deleteAccountError && <p role="alert">{deleteAccountError}</p>}
+                  <button className="social-button account-delete-button" disabled={deletingAccount} onClick={() => void deleteAccount()}>
+                    {deletingAccount ? "DELETING ACCOUNT…" : "DELETE MY ACCOUNT"}
+                  </button>
+                </div>
               </>
             ) : (
               <>

@@ -1,9 +1,12 @@
 {
   "name": "arcade-gambit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "setup": "node scripts/install-git-hooks.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "aws:login": "aws sso login --profile mikeaa",
     "dev": "vite",
     "build": "tsc -b && vite build",

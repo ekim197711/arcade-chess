@@ -2,7 +2,7 @@ import { Chess, type Move } from "./chess";
 
 export const ONLINE_TIME_CONTROLS = [3, 5, 10, 15] as const;
 export type OnlineGame = {
-  id: string; white_id: string; black_id: string | null;
+  id: string; white_id: string | null; black_id: string | null;
   white_name: string; black_name: string; white_rating: number; black_rating: number;
   is_bot: boolean; minutes: number; pgn: string; fen: string; turn: "w" | "b";
   white_ms: number; black_ms: number; turn_started_at: string; created_at: string;

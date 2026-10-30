@@ -4,6 +4,7 @@ import { formatClock, type OnlineGame } from "./onlineChess";
 import { reviewAccuracy } from "./reviewAccuracy";
 import { useGameAnalysis } from "./useGameAnalysis";
 import { FinalPositionBoard } from "./FinalPositionBoard";
+import { OnlineSocial } from "./OnlineSocial";
 import type { PieceStyle } from "./PieceArtwork";
 
 export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime, onHome, theme, light, dark }: {
@@ -46,6 +47,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
       <button onClick={onReview}>Review game</button><button onClick={onPlayAgain}>New {game.minutes}-minute game</button>
       <button onClick={onChooseTime}>Choose time control</button><button onClick={onHome}>Back to home</button>
     </div>
+    <OnlineSocial userId={userId} game={game} />
     <p className="review-note">A new game finds another human with the same clock, with unrated bot practice if nobody is available after 20 seconds.</p>
   </section>;
 }

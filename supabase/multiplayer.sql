@@ -142,7 +142,7 @@ begin
   select * into g from public.online_games where id=p_game for update;
   stamp:=clock_timestamp();
   if g.id is null then raise exception 'Game not found'; end if;
-  if p_actor is not null and p_actor<>g.white_id and p_actor is distinct from g.black_id then raise exception 'Not a participant'; end if;
+  if p_actor is not null and p_actor is distinct from g.white_id and p_actor is distinct from g.black_id then raise exception 'Not a participant'; end if;
   if p_actor is null and (not g.is_bot or g.turn<>'b' or p_kind<>'move') then raise exception 'Invalid bot action'; end if;
   if g.result is not null or g.version<>p_version then return to_jsonb(g); end if;
   elapsed:=greatest(0,floor(extract(epoch from (stamp-g.turn_started_at))*1000)::bigint);

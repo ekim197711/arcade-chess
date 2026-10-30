@@ -2097,6 +2097,11 @@ button.move-log-row:hover {
     background: #10131e;
     text-align: left;
 }
+.account-delete-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid #865050; text-align: left; }
+.account-delete-section h3 { margin: 0 0 8px; color: #ffb7b7; }
+.account-delete-section p { font: 14px/1.6 Arial, sans-serif; }
+.account-delete-section .account-delete-button { border-color: #d87272; color: #ffb7b7; }
+.account-delete-section [role="alert"] { color: #ffb7b7; }
 .signup-plans { min-width: 0; margin: 0 0 18px; padding: 0; border: 0; text-align: left; }
 .signup-plans legend { color: #eef3ff; font-size: 14px; font-weight: 700; }
 .signup-plans > p { margin: 8px 0 12px; color: #bac5df; font: 12px/1.5 Arial, sans-serif; }

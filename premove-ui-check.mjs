@@ -30,14 +30,16 @@ try {
     assert.equal(promotion.get('a8').type, 'q');
   }
   await server.listen();
-  browser = await chromium.launch({ channel: 'msedge', headless: true });
+  browser = process.argv.includes('--firefox')
+    ? await (await import(process.env.PLAYWRIGHT_FIREFOX_MODULE ?? 'file:///C:/Users/mikem/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs')).firefox.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE })
+    : await chromium.launch({ channel: 'msedge', headless: true });
   async function scenario({ pgn = '1. e4', side = 'w', bot = false, result = null, test }) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     page.setDefaultTimeout(12000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const position = new StandardChess(); if (pgn) position.loadPgn(pgn);
     const sent = [];
-    let reject = false;
+    let reject = false, botPending = null;
     const snapshot = () => ({
       id: 'premove-game', white_id: side === 'w' ? userId : otherId, black_id: side === 'b' ? userId : bot ? null : otherId,
       white_name: 'White player', black_name: 'Black player', white_rating: 1200, black_rating: 1200,
@@ -53,8 +55,17 @@ try {
       if (path.endsWith('/user')) data = user;
       else if (path.endsWith('/player_progress')) data = { progress: {} };
       else if (path.endsWith('/player_games')) data = [];
+      else if (path.endsWith('/app_heartbeat')) data = 'user';
+      else if (path.endsWith('/online_social')) data = { friends: [], messages: [], reactions: [], emojis_enabled: true, peer_emojis_enabled: true };
+      else if (path.endsWith('/online_state')) {
+        const current = snapshot();
+        data = { server_now: new Date().toISOString(), edge_required: !!botPending };
+        if (route.request().postDataJSON().p_version === current.version) data.presence = { game_id: current.id, version: current.version, white_seen_at: current.white_seen_at, black_seen_at: current.black_seen_at, white_disconnected_at: null, black_disconnected_at: null };
+        else data.game = current;
+      }
       else if (path.endsWith('/multiplayer')) {
         const input = route.request().postDataJSON();
+        if (input.action === 'state' && botPending) { position.move(botPending); botPending = null; }
         if (input.action === 'move') {
           sent.push(input);
           if (reject) return route.fulfill({ status: 409, contentType: 'application/json', body: '{"error":"Move rejected"}' });
@@ -77,7 +88,7 @@ try {
       const square = name => board.locator(`[data-square="${name}"]`);
       const queue = async (from, to) => { await square(from).click(); await square(to).click(); };
       const opponent = async san => {
-        position.move(san);
+        if (bot) botPending = san; else position.move(san);
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
       };
       await test({ page, board, square, queue, opponent, position, sent, rejectMoves: () => { reject = true; } });
@@ -92,6 +103,15 @@ try {
     await square('f3').click();
     await page.waitForFunction(() => document.querySelector('[data-square="f3"]')?.getAttribute('aria-label')?.includes('White n'));
     assert.equal(sent.length, 1, 'preserved selection completes the intended move');
+  } });
+  await scenario({ bot: true, test: async ({ page, queue, opponent, sent }) => {
+    await queue('g1','f3'); await queue('b1','c3');
+    await page.getByRole('button',{name:'Cancel all 2 premoves',exact:true}).waitFor();
+    await opponent('e5');
+    await page.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
+    await opponent('Nc6');
+    await page.waitForFunction(()=>!document.querySelector('.premove-cancel'));
+    assert.deepEqual(sent.map(move=>move.from+move.to),['g1f3','b1c3'],'bot Edge replies execute queued moves in order');
   } });
   for (const side of ['w','b']) await scenario({ side, pgn: side === 'w' ? '1. e4' : '', test: async ({ page, board, square, queue, opponent, sent }) => {
     const from = side === 'w' ? 'g1' : 'g8', to = side === 'w' ? 'f3' : 'f6';

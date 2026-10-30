@@ -28,3 +28,5 @@ output lists the required records. ACM validation waits for those records to be
 published. The `domain_cname_records` output gives the CloudFront targets; the
 apex domain requires DNS-provider support for CNAME flattening or an ALIAS/ANAME
 record. No DNS records are managed by this configuration.
+
+For application releases after infrastructure setup, run `npm run deploy -- --profile mikeaa` from the repository root. This publishes the build and a verified `deployment.json` timestamp, then invalidates CloudFront. Terraform uploads alone do not create a deployment record. See the root README for commit versioning and administrator release details.

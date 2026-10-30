@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, relative, isAbsolute } from 'node:path';
+import { createBuildInfo } from './scripts/buildInfo.ts';
+
+const appBuild = createBuildInfo(fileURLToPath(new URL('.', import.meta.url)));
 
 // Keep public artwork at its original URLs while exposing available expressions
 // to the app. Refresh the dev inventory when character images are added or removed.
@@ -40,6 +43,11 @@ if (new Set(boardSoundThemes.map(theme => theme.id)).size !== boardSoundThemes.l
 
 export default defineConfig({
   plugins: [react(), {
+    name: 'app-build-info',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'build-info.json', source: JSON.stringify(appBuild, null, 2) + '\n' });
+    },
+  }, {
     name: 'stockfish-assets',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
@@ -76,6 +84,7 @@ export default defineConfig({
     },
   }],
   define: {
+    __APP_BUILD__: JSON.stringify(appBuild),
     __BOSS_PORTRAITS__: JSON.stringify(bossPortraits),
     __BOARD_SOUND_THEMES__: JSON.stringify(boardSoundThemes),
   },

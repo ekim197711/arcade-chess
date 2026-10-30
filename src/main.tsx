@@ -6,6 +6,9 @@ import "./light.css";
 import "./amiga.css";
 import "./freestyle.css";
 import "./ui-colors.css";
+import { startAnalytics } from "./analytics";
+
+startAnalytics();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -1,0 +1,25 @@
+.online-social { margin: 16px 0; padding: 16px; border: 1px solid var(--border-color, #536bb3); border-radius: 8px; background: var(--surface-secondary, #162555); color: var(--text-primary, #eff5ff); min-width: 0; }
+.online-social h3, .online-social h4 { margin: 0 0 12px; overflow-wrap: anywhere; }
+.online-social button { padding: 9px 12px; border: 1px solid #637ac4; border-radius: 6px; background: #17285f; color: #eff5ff; font: inherit; cursor: pointer; margin: 4px 6px 4px 0; overflow-wrap: anywhere; }
+.online-social button:disabled { opacity: .45; cursor: default; }
+.online-social button[aria-pressed="true"] { border-color: #adffd2; }
+.online-social button:focus-visible, .online-social input:focus-visible, .online-social summary:focus-visible { outline: 2px solid #85e7ff; outline-offset: 3px; }
+.social-mute { display: flex; align-items: center; gap: 8px; line-height: 1.5; font-size: 13px; }
+.social-mute input { width: 18px; height: 18px; flex-shrink: 0; }
+.social-emojis { display: flex; flex-wrap: wrap; margin-top: 10px; }
+.social-emojis button { font-size: 24px; min-width: 44px; min-height: 44px; }
+.social-reactions { display: grid; gap: 6px; font-size: 16px; overflow-wrap: anywhere; }
+.social-bot-reaction { min-height: 38px; }
+.social-bot-emoji { font-size: 28px; vertical-align: middle; }
+.social-friends { display: flex; flex-wrap: wrap; margin: 12px 0; }
+.social-error { color: #ffb3bd; overflow-wrap: anywhere; }
+.social-chat-log { max-height: 240px; overflow-y: auto; padding: 8px; border: 1px solid #637ac4; border-radius: 6px; background: #101b38; color: #eff5ff; }
+.social-chat-log p { margin: 8px 0; padding: 8px; border-radius: 4px; overflow-wrap: anywhere; }
+.social-chat-log .social-message-own { background: #20365c; }
+.social-chat-log time { font-size: 11px; color: #c4d0f5; }
+.social-chat-log span { display: block; white-space: pre-wrap; }
+.social-chat-form { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; margin: 12px 0; }
+.social-chat-form label { flex: 1 1 130px; min-width: 0; font-size: 13px; }
+.social-chat-form input { display: block; box-sizing: border-box; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #637ac4; border-radius: 4px; background: #101b38; color: #eff5ff; font: inherit; }
+.online-social summary { cursor: pointer; font-size: 13px; }
+.online-social details p { font-size: 13px; line-height: 1.5; }

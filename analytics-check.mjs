@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import { mkdir,writeFile,rm } from 'node:fs/promises';
+import { createServer } from 'vite';
+import { chromium } from 'file:///C:/Users/mikem/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs';
+
+await mkdir('.tmp',{recursive:true});
+await writeFile('.tmp/analytics-fixture.html','<style>*{box-sizing:border-box}</style><div id="root"></div><script type="module" src="/./.tmp/analytics-fixture.tsx"></script>');
+await writeFile('.tmp/analytics-empty.html','Storage sync test');
+await writeFile('.tmp/analytics-fixture.tsx',`import React from 'react'; import {createRoot} from 'react-dom/client'; import {CookieNotice} from '../src/CookieNotice'; import {startAnalytics,analyticsPage} from '../src/analytics'; startAnalytics(); startAnalytics(); (window as any).analyticsPage=analyticsPage; createRoot(document.getElementById('root')!).render(<React.StrictMode><CookieNotice/></React.StrictMode>);`);
+const measurementId='G-TEST123456';
+const consentKey='arcade-gambit-analytics-consent-v1';
+const create=dev=>createServer({define:{'import.meta.env.VITE_GA_DEV_MEASUREMENT_ID':JSON.stringify(dev),'import.meta.env.VITE_GA_MEASUREMENT_ID':JSON.stringify('G-PROD123456')},server:{host:'127.0.0.1',port:0,open:false}});
+const server=await create(measurementId); let browser,disabledServer;
+try {
+  await server.listen(); browser=await chromium.launch({channel:'msedge',headless:true});
+  const context=await browser.newContext({viewport:{width:390,height:844}});
+  const page=await context.newPage(); const errors=[];let tagLoads=0;
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.route('https://www.googletagmanager.com/**',async route=>{
+    tagLoads++; assert.equal(new URL(route.request().url()).searchParams.get('id'),measurementId);
+    await route.fulfill({contentType:'application/javascript',body:'window.__tagLoaded = true;'});
+  });
+  await page.route(/https:\/\/[^/]*google-analytics\.com\//,()=>{throw new Error('Test must not send real Analytics traffic');});
+  await page.addInitScript(()=>{
+    localStorage.setItem('arcade-gambit-storage-notice-v1','acknowledged');
+    localStorage.setItem('test-game-save','preserve');localStorage.setItem('test-auth-session','preserve');
+  });
+  const url=server.resolvedUrls.local[0]+'.tmp/analytics-fixture.html';
+  const pages=()=>page.evaluate(()=>Array.from(window.dataLayer??[]).map(x=>Array.from(x)).filter(x=>x[0]==='event'&&x[1]==='page_view'));
+  await page.goto(url);
+  await page.getByRole('button',{name:'Necessary only',exact:true}).waitFor();
+  assert.equal(tagLoads,0,'old notice acknowledgement is never Analytics consent');
+  await page.getByRole('button',{name:'Necessary only',exact:true}).click();
+  assert.equal(await page.evaluate(key=>localStorage.getItem(key),consentKey),'denied');
+  await page.reload();
+  assert.equal(await page.locator('#cookie-notice').count(),0); assert.equal(tagLoads,0);
+  await page.getByRole('button',{name:'Cookies & storage'}).click();
+  await page.getByRole('button',{name:'Allow analytics',exact:true}).click();
+  await page.waitForFunction(()=>window.__tagLoaded);
+  assert.equal(tagLoads,1); assert.equal((await pages()).length,1,'one initial page despite duplicate startup and StrictMode');
+  const commands=await page.evaluate(()=>window.dataLayer.map(x=>Array.from(x)));
+  assert.deepEqual(commands[0],['consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'}]);
+  const config=commands.find(x=>x[0]==='config');
+  assert.equal(config[1],measurementId); assert.equal(config[2].send_page_view,false); assert.equal(config[2].allow_google_signals,false);
+  await page.evaluate(()=>{location.hash='online/private-game-id?email=private@example.com';});
+  await page.waitForFunction(()=>window.dataLayer.filter(x=>x[0]==='event').length===2);
+  assert.match((await pages()).at(-1)[2].page_location,/\/online\/match$/);
+  await page.evaluate(()=>{location.hash='online/another-private-id';});
+  await page.waitForFunction(()=>window.dataLayer.filter(x=>x[0]==='event').length===3);
+  await page.evaluate(()=>window.dispatchEvent(new HashChangeEvent('hashchange')));
+  assert.equal((await pages()).length,3);
+  await page.evaluate(()=>{location.hash='access_token=private-token&refresh_token=private-refresh';});
+  await page.waitForTimeout(100);assert.equal((await pages()).length,3);
+  const serialized=JSON.stringify(await page.evaluate(()=>window.dataLayer.map(x=>Array.from(x))));
+  for(const sensitive of ['private-game-id','private@example.com','private-token','private-refresh','another-private-id'])assert(!serialized.includes(sensitive));
+  await page.evaluate(()=>{document.cookie='_ga=test; path=/';document.cookie='_ga_TEST123456=test; path=/';document.cookie='keep_game=yes; path=/';});
+  await page.getByRole('button',{name:'Cookies & storage'}).click();
+  await page.getByRole('button',{name:'Necessary only',exact:true}).click();
+  assert.equal(await page.evaluate(id=>window['ga-disable-'+id],measurementId),true);
+  const cookies=await context.cookies();assert(!cookies.some(x=>x.name.startsWith('_ga')));assert(cookies.some(x=>x.name==='keep_game'));
+  assert.equal(await page.evaluate(()=>localStorage.getItem('test-game-save')),'preserve');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('test-auth-session')),'preserve');
+  await page.evaluate(()=>{location.hash='settings';});await page.waitForTimeout(100);
+  assert.equal((await pages()).length,3,'withdrawal stops page views');
+  await page.getByRole('button',{name:'Cookies & storage'}).click();
+  await page.getByRole('button',{name:'Allow analytics',exact:true}).click();
+  assert.equal(tagLoads,1,'regrant uses the existing tag');assert.equal((await pages()).length,4);
+  const other=await context.newPage();await other.goto(server.resolvedUrls.local[0]+'.tmp/analytics-empty.html');
+  await other.evaluate(key=>localStorage.setItem(key,'denied'),consentKey);
+  await page.waitForFunction(id=>window['ga-disable-'+id]===true,measurementId);await other.close();
+  await page.reload();assert.equal(tagLoads,1,'denied reload never loads the tag');
+  await page.getByRole('button',{name:'Cookies & storage'}).click();
+  for(const width of [1440,390,320]){
+    await page.setViewportSize({width,height:844});
+    assert(await page.locator('#cookie-notice').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    const box=await page.locator('#cookie-notice').boundingBox();assert(box.x>=0&&box.x+box.width<=width);
+  }
+  await page.screenshot({path:'.tmp/analytics-consent-mobile.png',fullPage:true});
+  assert.deepEqual(errors,[]);
+  disabledServer=await create('');await disabledServer.listen();
+  const disabled=await context.newPage();let accidentalLoads=0;
+  await disabled.route('https://www.googletagmanager.com/**',route=>{accidentalLoads++;return route.abort();});
+  await disabled.goto(disabledServer.resolvedUrls.local[0]+'.tmp/analytics-fixture.html');
+  await disabled.getByRole('button',{name:'Cookies & storage'}).click();
+  assert.equal(await disabled.getByRole('button',{name:'Allow analytics',exact:true}).count(),0);
+  assert.equal(accidentalLoads,0,'localhost never uses production Analytics ID');
+  const privatePage=await context.newPage();const privateErrors=[];
+  privatePage.on('pageerror',error=>privateErrors.push(error.message));
+  await privatePage.route('https://www.googletagmanager.com/**',route=>route.fulfill({contentType:'application/javascript',body:''}));
+  await privatePage.addInitScript(()=>{
+    Object.defineProperty(window,'localStorage',{get(){throw new DOMException('Storage blocked','SecurityError');}});
+    Object.defineProperty(document,'cookie',{get(){throw new DOMException('Cookies blocked','SecurityError');},set(){throw new DOMException('Cookies blocked','SecurityError');}});
+  });
+  await privatePage.goto(url);
+  await privatePage.getByRole('button',{name:'Necessary only',exact:true}).click();
+  await privatePage.getByRole('button',{name:'Cookies & storage'}).click();
+  await privatePage.getByRole('button',{name:'Allow analytics',exact:true}).click();
+  assert.deepEqual(privateErrors,[],'blocked browser storage never breaks the app');
+  console.log('PASS Analytics: no tag before consent/after decline, saved choices, withdrawal/cookie cleanup, regrant, cross-tab updates, sanitized SPA views, token/ID exclusion, deduplication, local/prod isolation and responsive consent UI.');
+}finally{
+  await browser?.close();await server.close();await disabledServer?.close();
+  for(const file of ['analytics-fixture.html','analytics-fixture.tsx','analytics-empty.html'])await rm('.tmp/'+file,{force:true});
+}

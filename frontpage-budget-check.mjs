@@ -18,9 +18,13 @@ try {
     const page = await browser.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const requests = [];
-    let saves = 0, progressWrites = 0;
+    let saves = 0, progressWrites = 0, heartbeats = 0;
     await page.route('https://budget-check.supabase.co/**', async route => {
       const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/app_heartbeat')) {
+        heartbeats++;
+        return route.fulfill({ status: failReads ? 503 : 200, contentType: 'application/json', body: failReads ? '{"message":"Unavailable"}' : '"player"' });
+      }
       requests.push({ path: url.pathname, method: route.request().method(), limit: url.searchParams.get('limit'), offset: url.searchParams.get('offset') });
       if (url.pathname.startsWith('/functions/')) throw new Error('Home must never invoke an Edge Function');
       if (failReads && url.pathname.startsWith('/rest/')) return route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Unavailable"}' });
@@ -62,6 +66,7 @@ try {
       await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(button => button.textContent === 'Refresh saved data' && button.disabled));
       await page.waitForTimeout(150);
       assert.equal(requests.length, 5, 'initial home load is exactly five bounded reads, even with large queues or server errors');
+      assert.equal(heartbeats, 1, 'one separate presence heartbeat also resolves the account role');
       assert.equal(saves, 0, '600 cached games are not uploaded on home');
       assert.equal(progressWrites, 0, 'pending results and guest merges are not replayed on home');
       assert.equal(await card.locator('.history-item').count(), 50, 'only 50 rows are parsed and rendered initially');
@@ -112,5 +117,5 @@ try {
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   }
-  console.log('PASS home request budget: 5 initial reads, zero automatic writes, bounded histories/rows, no idle/focus/reconnect/remount/error retries, explicit paging and five-save batches');
+  console.log('PASS home request budget: 5 initial data reads plus separate presence heartbeat, zero automatic game/progress writes, bounded histories/rows, no idle/focus/reconnect/remount data retries, explicit paging and five-save batches');
 } finally { await browser?.close(); await server.close(); }

@@ -14,6 +14,9 @@ Deno.serve(async req => {
     const { data: auth, error: authError } = await admin.auth.getUser(token);
     if (authError || !auth.user || auth.user.is_anonymous) return respond({ error: 'Sign in to play online' }, 401);
     const user = auth.user;
+    const { data: activeAccount, error: accountError } = await admin.rpc('app_user_active', { p_user_id: user.id });
+    if (accountError) throw accountError;
+    if (!activeAccount) return respond({ error: 'Your account is banned or suspended' }, 403);
     const input = await req.json();
     const action = input.action;
     if (action === 'active') {

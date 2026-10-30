@@ -10,11 +10,13 @@ import { PromotionMenu, type PromotionPiece } from "./PromotionMenu";
 import { premoveBoard, usePremoveQueue } from "./premoves";
 import { GameReview } from "./GameReview";
 import { OnlineResult } from "./OnlineResult";
+import { OnlineSocial } from "./OnlineSocial";
 import { clockRemaining, formatClock, reconnectDeadline, predictOnlineMove, predictionWasSaved, ONLINE_TIME_CONTROLS, type OnlineGame, type OnlineProfile, type OnlinePremove, type OnlineMovePrediction } from "./onlineChess";
 import "./online.css";
 import { invalidateHomeData } from "./homeDataCache";
 
-type Reply = { game?: OnlineGame | null; profile?: OnlineProfile; queued?: boolean; fallback_at?: string; server_now: string; error?: string };
+type Reply = { game?: OnlineGame | null; profile?: OnlineProfile; queued?: boolean; fallback_at?: string; server_now: string; error?: string; edge_required?: boolean;
+  presence?: Pick<OnlineGame,"version"|"white_seen_at"|"black_seen_at"|"white_disconnected_at"|"black_disconnected_at"> & { game_id: string } };
 type Props = {
   userId: string; route: string; navigate: (route: string) => void; theme: PieceStyle; light: string; dark: string;
   appearance: ReactNode; boardWidth?: number; onBoardResize: (width: number | undefined) => void; loadingPieceStyle: boolean;
@@ -54,12 +56,13 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const soundPosition = useRef<OnlineGame | null>(null);
   const inFlight = useRef(false), mounted = useRef(true), offset = useRef(0), queueRef = useRef(false);
   const minutesRef = useRef(minutes); minutesRef.current = minutes;
+  const nextRefreshAt = useRef(0), refreshFailures = useRef(0), manualReconnect = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
       invalidateHomeData(userId);
-      if (queueRef.current) void supabase?.functions.invoke("multiplayer", { body: { action: "cancel", minutes: minutesRef.current } });
+      if (queueRef.current) void supabase?.rpc("online_matchmake", { p_cancel: true, p_minutes: minutesRef.current });
     };
   }, []);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()+offset.current),200); return () => clearInterval(timer); }, []);
@@ -73,10 +76,10 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       if (!current || current.result || reviewing || !tokenRef.current) return;
       // Browser close is best effort. Missing heartbeats enforce the same deadline
       // if the browser is killed or the network disappears without this event.
-      void fetch(`${supabaseConfiguration.url}/functions/v1/multiplayer`, {
+      void fetch(`${supabaseConfiguration.url}/rest/v1/rpc/online_disconnect`, {
         method: "POST", keepalive: true,
         headers: { "Content-Type": "application/json", apikey: supabaseConfiguration.key, Authorization: `Bearer ${tokenRef.current}` },
-        body: JSON.stringify({ action: "disconnect", game_id: current.id }),
+        body: JSON.stringify({ p_game: current.id }),
       }).catch(() => {});
     };
     const offline = () => setError("Connection lost. Reconnect within 20 seconds to avoid forfeiting.");
@@ -85,33 +88,55 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     return () => { active = false; subscription?.unsubscribe(); window.removeEventListener("pagehide", disconnect); window.removeEventListener("offline", offline); };
   }, [reviewing]);
 
-  async function request(action: string, extra: Record<string, unknown> = {}): Promise<void> {
+  async function request(action: string, extra: Record<string, unknown> = {}, background = false): Promise<void> {
     if (!supabase) return;
+    const refresh = action === "state" || action === "join";
+    if (background && refresh && (manualReconnect.current || Date.now() < nextRefreshAt.current)) return;
     const mutation = action !== "state";
     if (inFlight.current) {
       if (!mutation) return;
       await pendingRequest.current;
       if (!mounted.current) return;
-      return request(action, extra);
+      return request(action, extra, background);
     }
     if (action === "move" && !predictionRef.current) return;
     let release!: () => void;
     pendingRequest.current = new Promise<void>(resolve => { release = resolve; });
     inFlight.current = true; if (mutation) setBusy(true);
+    if (refresh) nextRefreshAt.current = Date.now() + 2000;
     let rejected = false;
     try {
-      const { data, error: failure } = await supabase.functions.invoke<Reply>("multiplayer", { body: { action, minutes, game_id: gameId, ...extra } });
+      let response;
+      if (action === "state") {
+        const current = gameRef.current;
+        response = await supabase.rpc("online_state", { p_game: gameId,
+          p_version: predictionRef.current?.status !== "uncertain" && current && current.id === gameId ? current.version : null });
+        if (!response.error && response.data?.edge_required) {
+          response = await supabase.functions.invoke<Reply>("multiplayer", { body: { action: "state", game_id: gameId } });
+        }
+      } else if (action === "join" || action === "cancel") {
+        response = await supabase.rpc("online_matchmake", { p_minutes: minutes, p_cancel: action === "cancel" });
+      } else response = await supabase.functions.invoke<Reply>("multiplayer", { body: { action, minutes, game_id: gameId, ...extra } });
+      const data = response.data as Reply | null, failure = response.error;
       if (failure || !data || data.error) {
-        let message = data?.error;
+        let message = data?.error ?? (failure as { message?: string } | null)?.message;
+        const code = (failure as { code?: string } | null)?.code ?? "";
+        if (refresh && (code.startsWith("22") || ["42501", "PGRST202", "PGRST301", "PGRST302"].includes(code))) manualReconnect.current = true;
         const response = (failure as { context?: Response } | null)?.context;
         if (response instanceof Response) {
           rejected = response.status >= 400 && response.status < 500;
+          if (rejected && refresh) manualReconnect.current = true;
           try { message = (await response.clone().json()).error ?? message; } catch { /* Keep the connection message. */ }
         }
         throw new Error(message ?? "Connection interrupted. Reconnect within 20 seconds; clocks keep running.");
       }
       if (!mounted.current) return;
+      refreshFailures.current = 0; manualReconnect.current = false;
       offset.current = Date.parse(data.server_now)-Date.now(); setNow(Date.parse(data.server_now)); setError("");
+      if (data.presence) {
+        const { game_id, ...presence } = data.presence;
+        setGame(current => current?.id === game_id && current.version === presence.version ? { ...current, ...presence } : current);
+      }
       if (data.profile) setProfile(data.profile);
       if (data.game) {
         const next = data.game;
@@ -135,6 +160,10 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         setFallbackAt(data.fallback_at ? Date.parse(data.fallback_at) : null);
       }
     } catch (failure) {
+      if (refresh) {
+        refreshFailures.current += 1;
+        nextRefreshAt.current = Date.now() + Math.min(10_000, 2000 * 2 ** Math.min(refreshFailures.current - 1, 3));
+      }
       if (mounted.current) {
         const message = failure instanceof Error ? failure.message : "Online play unavailable. Please retry.";
         if (action === "move" && predictionRef.current) {
@@ -149,6 +178,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   useEffect(() => {
     let active = true;
     setGame(null); updatePrediction(null); soundedPrediction.current = null; setSelected(null); setPromotion(null); setPremoves([]); setResignConfirm(false); setLoading(true); setError(""); soundPosition.current = null;
+    nextRefreshAt.current=0; refreshFailures.current=0; manualReconnect.current=false;
     if (gameId) { void request("state"); return; }
     void (async () => {
       const [player, activeGame] = await Promise.all([
@@ -168,8 +198,8 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   }, [gameId, userId]);
   useEffect(() => {
     if (reviewing || (!queued && (!gameId || game?.result))) return;
-    const timer = window.setInterval(() => void request(queued ? "join" : "state"), 2000);
-    const focus = () => void request(queued ? "join" : "state");
+    const timer = window.setInterval(() => void request(queued ? "join" : "state", {}, true), 2000);
+    const focus = () => void request(queued ? "join" : "state", {}, true);
     window.addEventListener("online",focus); window.addEventListener("focus",focus); window.addEventListener("pageshow",focus);
     return () => { clearInterval(timer); window.removeEventListener("online",focus); window.removeEventListener("focus",focus); window.removeEventListener("pageshow",focus); };
   }, [queued, gameId, game?.result, reviewing, minutes]);
@@ -281,6 +311,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         {queued ? <><p role="status">Looking for a human opponent… Bot fallback in {Math.max(0,Math.ceil(((fallbackAt ?? now)-now)/1000))} seconds.</p><button disabled={busy} onClick={() => void request("cancel")}>Cancel search</button></> : <button className="online-primary" disabled={busy || loading || !!error} onClick={() => void request("join")}>Find opponent</button>}
       </div>
       <details className="review-skill-method"><summary>How online Elo works</summary><p>Arcade Gambit uses one overall online rating, initially 1200. Human games use the FIDE expected-score table, a 400-point difference cap and ΔR = K × (score − expected score). A win scores 1, a draw ½, and a loss 0. K is 40 for your first 30 rated games, then 20, or 10 once you have reached 2400. Changes round to the nearest integer, with halves away from zero.</p><p>This is an internal online rating, not an official FIDE rating. We use adult K rules, update after each game rather than monthly, and share a pool across all four clocks. Bot games and games where both sides have not moved are unrated. Games with a gap of at least 600 are also unrated if either rating is above 2600.</p><p><a href="https://handbook.fide.com/chapter/B02RBRegulations2024" target="_blank" rel="noreferrer">FIDE rapid and blitz rating regulations</a></p></details>
+      <OnlineSocial userId={userId} />
       <section className="online-history" aria-labelledby="online-history-title"><h3 id="online-history-title">Online game history</h3><div className="online-times" role="group" aria-label="History filter"><button aria-pressed={historyMode === "mine"} onClick={() => { setHistoryMode("mine"); setHistoryLimit(20); }}>Your games</button><button aria-pressed={historyMode === "community"} onClick={() => { setHistoryMode("community"); setHistoryLimit(20); }}>Community games</button></div>
         {historyLoading ? <p role="status">Loading games…</p> : !history.length ? <p>No completed games yet.</p> : <div className="history-list">{history.map(item => <div className="history-item" key={item.id}><span><strong>{item.white_name} vs. {item.black_name}</strong><small>{item.minutes}+0 · {item.is_bot ? "Bot practice" : item.rated ? "Rated human game" : "Unrated human game"} · {new Date(item.finished_at!).toLocaleString()}</small><small>White {item.white_rating} ({item.white_delta>=0 ? "+" : ""}{item.white_delta}) · Black {item.black_rating} ({item.black_delta>=0 ? "+" : ""}{item.black_delta})</small></span><strong>{item.result}</strong><a href={`#online/review/${item.id}`}>Analyze & replay</a></div>)}</div>}
         {history.length >= historyLimit && <button disabled={historyLoading} onClick={() => setHistoryLimit(limit => limit+20)}>Load older games</button>}
@@ -315,6 +346,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <BoardResizeHandle onResize={onBoardResize} fitToStageHeight={false} />
         </div></div>
       </article><aside className="online-game-info side-panel">
+        <OnlineSocial userId={userId} game={game} />
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
         {error && game && !game.result && <p role="status">Reconnect window: {Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now)-now)/1000))} seconds remaining.</p>}

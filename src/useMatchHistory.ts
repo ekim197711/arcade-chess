@@ -30,6 +30,7 @@ export function useMatchHistory(userId: string | null | undefined, allowAutomati
   const scopeKey = scope ?? "guest";
   const history = cache[scopeKey] ?? readHistory(scope);
   const dirty = useRef(new Map<string, Map<string, ArchivedMatch>>());
+  const forgotten = useRef(new Set<string>());
   const running = useRef(new Set<string>());
   const automaticSync = useRef(allowAutomaticSync); automaticSync.current = allowAutomaticSync;
   const urgent = useRef(new Set<string>());
@@ -37,6 +38,7 @@ export function useMatchHistory(userId: string | null | undefined, allowAutomati
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [historyPending, setHistoryPending] = useState(0);
   const persistPending = (owner: string) => {
+    if (forgotten.current.has(owner)) return;
     const ids = [...(dirty.current.get(owner)?.keys() ?? [])];
     try { localStorage.setItem(`${historyKey(owner)}:pending`, JSON.stringify(ids)); } catch { /* The in-memory queue remains available. */ }
     if (active.current === owner) setHistoryPending(ids.length);
@@ -45,6 +47,7 @@ export function useMatchHistory(userId: string | null | undefined, allowAutomati
   active.current = userId;
 
   const store = useCallback((owner: string | null, matches: ArchivedMatch[]) => {
+    if (owner && forgotten.current.has(owner)) return false;
     const previous = cacheRef.current[owner ?? "guest"];
     if (previous?.length === matches.length && previous.every((match, index) => sameMatch(match, matches[index]))) {
       // Retry storage after an earlier failure before claiming a guest copy.
@@ -172,5 +175,14 @@ export function useMatchHistory(userId: string | null | undefined, allowAutomati
 
   const refreshHistory = useCallback(() => userId ? sync(userId, true, true) : Promise.resolve(), [userId, sync]);
   const loadOlderHistory = useCallback(() => userId ? sync(userId, true, false, nextPage.current.get(userId) ?? 50) : Promise.resolve(), [userId, sync]);
-  return { history, setHistory, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historyError: localError, historyCloudError: cloudError, historySyncing: syncing };
+  const forgetHistory = (owner: string) => {
+    forgotten.current.add(owner);
+    if (active.current === owner) active.current = null;
+    dirty.current.delete(owner);
+    urgent.current.delete(owner);
+    delete cacheRef.current[owner];
+    localStorage.removeItem(historyKey(owner));
+    localStorage.removeItem(`${historyKey(owner)}:pending`);
+  };
+  return { history, setHistory, forgetHistory, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historyError: localError, historyCloudError: cloudError, historySyncing: syncing };
 }
