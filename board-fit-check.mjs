@@ -18,6 +18,7 @@ try {
       await page.addInitScript(({ pgn, savedWidth }) => {
         localStorage.setItem('neon-knights-sound-v1', 'off');
         localStorage.setItem('neon-knights-music-v1', 'off');
+        localStorage.setItem('arcade-gambit-storage-notice-v1', 'acknowledged');
         localStorage.setItem('neon-knights-saved-match-v1', JSON.stringify({ bossIndex: 0, pgn, tauntIndex: 0 }));
         if (savedWidth) localStorage.setItem('arcade-chess-board-size-v1', String(savedWidth));
       }, { pgn: game.pgn(), savedWidth });

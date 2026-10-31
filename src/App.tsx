@@ -1,6 +1,6 @@
 import { CookieNotice } from "./CookieNotice";
 import { Administration } from "./Administration";
-import { EmojiReactionSettings } from "./OnlineSocial";
+import { EmojiReactionSettings, LocalBotSocial } from "./OnlineSocial";
 import { roleLabel, useAdministration } from "./useAdministration";
 import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
 import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor, bossThumbnail } from "./bossArtwork";
@@ -2844,6 +2844,7 @@ function App() {
                           <Bookmark size={15} /> SAVE FOR LATER
                         </button>
                       </div>
+                      <LocalBotSocial userId={user?.id} game={{ id: matchId.current, is_bot: true, pgn, ply_count: moveHistory.length, result: currentResult === "win" ? playerColor === "w" ? "1-0" : "0-1" : currentResult === "loss" ? playerColor === "w" ? "0-1" : "1-0" : currentResult === "draw" ? "1/2-1/2" : null, black_name: boss.name, botColor: boss.chessColor }} />
                       {battleAppearance}
                     </div>
                   </aside>

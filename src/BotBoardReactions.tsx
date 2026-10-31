@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { OnlineGame } from "./onlineChess";
-import { fallbackBotReaction, type BotReaction } from "./fallbackBotReactions";
+import { fallbackBotReaction, type BotGame, type BotReaction } from "./fallbackBotReactions";
 import { EMOJI_REACTIONS } from "./emojiReactions";
 
-export function BotBoardReactions({ game, enabled }: { game: OnlineGame; enabled: boolean }) {
+export function BotBoardReactions({ game, enabled }: { game: BotGame; enabled: boolean }) {
   const previousPly = useRef(game.ply_count);
   const lastReactionAt = useRef(-Infinity);
   const lastResult = useRef<string | null>(null);

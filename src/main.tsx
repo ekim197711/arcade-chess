@@ -6,6 +6,7 @@ import "./light.css";
 import "./amiga.css";
 import "./freestyle.css";
 import "./ui-colors.css";
+import "./fullWidth.css";
 import { startAnalytics } from "./analytics";
 
 startAnalytics();

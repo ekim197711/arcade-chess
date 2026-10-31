@@ -19,6 +19,7 @@ const server = await createServer({ define: {
 let browser;
 try {
   await server.listen();
+  const { EMOJI_REACTIONS } = await server.ssrLoadModule('/src/emojiReactions.ts');
   browser = await chromium.launch({ channel:'msedge', headless:true });
   const page = await browser.newPage();
   let friend = null, messages = [], reactions = [], enabled = true, failure = false, requests = 0;
@@ -41,7 +42,7 @@ try {
   await page.goto(url);
   await page.getByRole('button',{name:'Add friend',exact:true}).click();
   await page.getByText('Friend request sent.',{exact:false}).waitFor();
-  assert.equal(await page.getByRole('textbox',{name:'Message',exact:true}).count(),0);
+  assert.equal(await page.getByRole('textbox',{name:'Message',exact:true}).count(),1,'match chat is available before friendship');
   friend.requested_by = peer;
   await page.reload();
   await page.getByRole('button',{name:'Accept friend request'}).click();
@@ -49,12 +50,14 @@ try {
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await page.getByText('<script>window.injected=true</script>',{exact:true}).waitFor();
   assert.equal(await page.evaluate(() => window.injected),undefined);
+  await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   await page.getByRole('button',{name:'Send thumbs up',exact:true}).click();
   await page.getByText('You: 👍',{exact:true}).waitFor();
   await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).uncheck();
   await page.getByText('Emojis are hidden.',{exact:false}).waitFor();
   assert.equal(await page.getByRole('group',{name:'Send an emoji reaction'}).count(),0);
   await page.reload();
+  await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).isChecked(),false);
   for (const width of [1440,390,320]) {
     await page.setViewportSize({width,height:900});
@@ -93,10 +96,18 @@ try {
   await page.waitForFunction(() => !document.querySelector('input[type=checkbox]').disabled);
   assert.equal(enabled,false);
   await page.goto(url+'?settings&guest');
-  await page.getByText('Sign in to manage emoji reactions',{exact:false}).waitFor();
-  assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).count(),0);
+  await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).waitFor();
+  await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).uncheck();
+  await page.reload();
+  assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).isChecked(),false,'guest preference persists on this device');
   await page.goto(url+'?bot');
   await page.getByRole('heading',{name:'Practice bot reactions'}).waitFor();
+  await page.getByRole('textbox',{name:'Message',exact:true}).fill('Hello');
+  const beforeBotChat = requests;
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByText('Hello! Good luck and have fun.',{exact:true}).waitFor();
+  assert.equal(requests,beforeBotChat,'preset bot chat makes no server calls');
+  await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'Add friend',exact:true}).count(),0);
   assert.equal(await page.getByRole('group',{name:'Send an emoji reaction'}).count(),0,'saved mute hides bot-game reaction buttons');
   await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).check();
@@ -109,13 +120,15 @@ try {
   await page.getByText('Bot emojis are hidden.',{exact:false}).waitFor();
   assert.equal((await page.getByLabel('Bot reaction',{exact:true}).innerText()).trim(),'');
   await page.reload();
+  await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   await page.getByText('Bot emojis are hidden.',{exact:false}).waitFor();
   assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).isChecked(),false);
   await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).check();
   await page.getByText('The practice bot reacts',{exact:false}).waitFor();
   await page.clock.install();
   const reactionButtons = page.getByRole('group',{name:'Send an emoji reaction'}).getByRole('button');
-  assert.equal(await reactionButtons.count(),6);
+  assert.equal(await reactionButtons.count(),EMOJI_REACTIONS.length);
+  assert(EMOJI_REACTIONS.length>=40);
   for (const label of ['thumbs up','surprised','angry','laughing','applause','good game']) {
     await page.getByRole('button',{name:`Send ${label}`,exact:true}).click();
     assert.match(await page.getByLabel('Your reaction',{exact:true}).innerText(),/^You:/);
@@ -153,7 +166,7 @@ try {
   }
   await page.screenshot({path:'.tmp/bot-reaction-mobile.png',fullPage:true});
   assert.deepEqual(errors,[]);
-  console.log('Social UI passed: requests, acceptance, escaped chat, emoji sending/muting, reload persistence, friends lobby, removal, retry, bot board reactions/cooldown/muting/results, desktop and mobile.');
+  console.log('Social UI passed: immediate match chat, requests/acceptance, escaped messages, 48 emojis, tabs, shared/guest settings, preset bot chat, cooldown/muting/results and desktop/mobile layouts.');
 } finally {
   await browser?.close(); await server.close();
   await rm('.tmp/social-fixture.html',{force:true}); await rm('.tmp/social-fixture.tsx',{force:true});

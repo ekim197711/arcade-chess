@@ -319,7 +319,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     </>}
     {game && !reviewing && <>
       <p className="online-game-type">{game.is_bot ? "No human found · Unrated bot practice" : "Human match · Online Elo"} · {game.minutes}+0 · You play {side === "w" ? "White" : "Black"}</p>
-      <div className="online-game-layout"><article className="cabinet online-cabinet" aria-label="Chess game">
+      <div className="online-game-layout"><aside className="online-communication" aria-label="Game chat and emojis"><OnlineSocial userId={userId} game={game} /></aside><article className="cabinet online-cabinet" aria-label="Chess game">
         {([side === "w" ? "b" : "w",side] as const).map((clockSide,index) => <div key={clockSide} className={`online-clock ${displayGame?.turn === clockSide ? "online-clock-active" : ""} ${index === 0 ? "online-clock-opponent" : "online-clock-you"}`}><span>{clockSide === "w" ? game.white_name : game.black_name}<small>{clockSide === "w" ? game.white_rating : game.black_rating} Elo</small></span><time aria-label={`${clockSide === "w" ? "White" : "Black"} clock`}>{formatClock(clockRemaining(displayGame!,clockSide,now))}</time></div>)}
         <div className="board-stage online-board-stage"><div className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
         <div className="board-coordinates board-files-top">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
@@ -346,7 +346,6 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
         <BoardResizeHandle onResize={onBoardResize} fitToStageHeight={false} />
         </div></div>
       </article><aside className="online-game-info side-panel">
-        <OnlineSocial userId={userId} game={game} />
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
         {error && game && !game.result && <p role="status">Reconnect window: {Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now)-now)/1000))} seconds remaining.</p>}

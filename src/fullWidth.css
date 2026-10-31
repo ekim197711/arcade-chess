@@ -1,0 +1,46 @@
+/* Page containers span the viewport. Square boards retain their height limits. */
+.app-shell { --page-gutter: clamp(12px, 1.5vw, 28px); }
+.app-shell > main,
+.app-shell > main.home-main,
+.app-shell > main.online-main,
+.app-shell > main.review-main,
+.app-shell.app-shell-battle > main {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--page-gutter);
+}
+.app-shell > .topbar,
+.app-shell > .site-footer { padding-inline: var(--page-gutter); }
+.app-shell .settings-page,
+.app-shell .administration-page,
+.app-shell .boss-select-page,
+.app-shell .battle-page,
+.app-shell .online-play,
+.app-shell .online-result,
+.app-shell .online-home-card,
+.app-shell main > .game-review,
+.app-shell .arcade-cabinet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+.online-game-layout { grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(230px, 300px); gap: 18px; }
+.online-game-layout > .online-communication { grid-column: 1; }
+.online-game-layout > .online-cabinet { grid-column: 2; }
+.online-game-layout > .online-game-info { grid-column: 3; }
+@media (min-width: 761px) {
+  .app-shell-battle .game-layout { grid-template-columns: clamp(240px, 22vw, 320px) minmax(0, 1fr) clamp(160px, 18vw, 260px); }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .online-game-layout { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
+  .online-game-layout > .online-game-info { grid-column: 1 / -1; }
+  .app-shell-battle .game-layout { grid-template-columns: 220px minmax(0, 1fr) 160px; gap: 8px; }
+}
+@media (max-width: 760px) {
+  .online-game-layout { grid-template-columns: minmax(0, 1fr); }
+  .online-game-layout > .online-cabinet { grid-column: 1; grid-row: 1; }
+  .online-game-layout > .online-communication { grid-column: 1; grid-row: 2; }
+  .online-game-layout > .online-game-info { grid-column: 1; grid-row: 3; }
+}

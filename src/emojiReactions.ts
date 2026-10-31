@@ -1,4 +1,15 @@
 export const EMOJI_REACTIONS = [
   ["👍", "Thumbs up"], ["😮", "Surprised"], ["😠", "Angry"],
   ["😂", "Laughing"], ["👏", "Applause"], ["🤝", "Good game"],
+  ["😊", "Smile"], ["😎", "Cool"], ["🤔", "Thinking"], ["😅", "Nervous laugh"],
+  ["😭", "Crying"], ["😱", "Shocked"], ["🙄", "Eye roll"], ["😴", "Sleepy"],
+  ["🔥", "Fire"], ["🎉", "Celebration"], ["💯", "Hundred"], ["❤️", "Love"],
+  ["💔", "Heartbroken"], ["🤯", "Mind blown"], ["😬", "Oops"], ["🤨", "Skeptical"],
+  ["😉", "Wink"], ["🥳", "Party"], ["🤓", "Nerd"], ["😈", "Mischievous"],
+  ["😇", "Innocent"], ["😤", "Determined"], ["🥲", "Bittersweet"], ["😢", "Sad"],
+  ["🤩", "Star struck"], ["😳", "Embarrassed"], ["😵", "Dizzy"], ["🙃", "Upside down"],
+  ["🫡", "Salute"], ["🤫", "Quiet"], ["🙏", "Thanks"], ["💪", "Strong"],
+  ["✌️", "Peace"], ["🤞", "Fingers crossed"], ["👀", "Watching"], ["🧠", "Brain"],
+  ["⚡", "Lightning"], ["🏆", "Trophy"], ["🎯", "Bullseye"], ["♟️", "Chess pawn"],
+  ["👑", "Crown"], ["💥", "Boom"],
 ] as const;
