@@ -1,5 +1,6 @@
 import { CookieNotice } from "./CookieNotice";
 import { Administration } from "./Administration";
+import { EmojiReactionSettings } from "./OnlineSocial";
 import { roleLabel, useAdministration } from "./useAdministration";
 import { SOUND_THEMES, resolveSoundTheme, boardSoundAsset, soundPreviewAsset, type SoundTheme, type BoardSound } from "./soundThemes";
 import { BOSS_NAMES, resolveBossCharacter, bossPortrait as portraitFor, bossThumbnail } from "./bossArtwork";
@@ -2384,6 +2385,7 @@ function App() {
                 <input id="settings-sfx-volume" className="settings-range" type="range" min="0" max="100" step="1" value={sfxVolume} aria-label="Sound effects volume" onChange={(event) => setSfxVolume(Number(event.currentTarget.value))} />
               </section>
 
+              <div className="settings-card"><EmojiReactionSettings userId={user?.id} /></div>
               <section className="settings-card settings-size-card" aria-label="Board size">
                 <h2>Board size</h2>
                 <p>Adjust the chessboard width during a match.</p>

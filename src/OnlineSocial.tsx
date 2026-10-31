@@ -17,9 +17,14 @@ export function OnlineSocial({ userId, game }: { userId: string; game?: OnlineGa
   return <SocialContent key={`${userId}:${game?.id ?? "lobby"}:${peer}`} userId={userId} gameId={game?.id} peer={peer} name={name} onSelect={setSelected} botGame={game?.is_bot ? game : undefined} />;
 }
 
-function SocialContent({ userId, gameId, peer, name, onSelect, botGame }: {
-  userId: string; gameId?: string; peer: string | null; name?: string; onSelect: (id: string | null) => void;
-  botGame?: OnlineGame;
+export function EmojiReactionSettings({ userId }: { userId?: string }) {
+  return userId ? <SocialContent key={userId} userId={userId} peer={null} preferencesOnly /> :
+    <section aria-label="Emoji reactions"><h2>Emoji reactions</h2><p>Sign in to manage emoji reactions for human and practice bot games.</p></section>;
+}
+
+function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferencesOnly = false }: {
+  userId: string; gameId?: string; peer: string | null; name?: string; onSelect?: (id: string | null) => void;
+  botGame?: OnlineGame; preferencesOnly?: boolean;
 }) {
   const [state, setState] = useState<SocialState | null>(null);
   const [draft, setDraft] = useState("");
@@ -60,8 +65,8 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame }: {
   useEffect(() => {
     active.current = true;
     void request();
-    const poll = botGame ? undefined : window.setInterval(() => { if (polling.current && !document.hidden) void request(); }, 3000);
-    const tick = window.setInterval(() => setNow(Date.now()), 500);
+    const poll = botGame || preferencesOnly ? undefined : window.setInterval(() => { if (polling.current && !document.hidden) void request(); }, 3000);
+    const tick = preferencesOnly ? undefined : window.setInterval(() => setNow(Date.now()), 500);
     return () => { active.current = false; clearInterval(poll); clearInterval(tick); };
   }, []);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [state?.messages.at(-1)?.id]);
@@ -70,18 +75,19 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame }: {
   const pending = !!friend && !friend.accepted;
   const incoming = pending && friend.requested_by !== userId;
   const disabled = busy || !state || inFlight.current;
-  return <section className="online-social" aria-label="Friends and chat">
-    <h3>{botGame ? "Practice bot reactions" : gameId ? `Connect with ${peerName}` : "Friends & chat"}</h3>
+  return <section className={preferencesOnly ? undefined : "online-social"} aria-label={preferencesOnly ? "Emoji reactions" : "Friends and chat"}>
+    {preferencesOnly ? <><h2>Emoji reactions</h2><p>Show and send emoji reactions in human and practice bot games. This preference is saved to your account.</p></> :
+      <h3>{botGame ? "Practice bot reactions" : gameId ? `Connect with ${peerName}` : "Friends & chat"}</h3>}
     {error && <p className="social-error" role="alert">{error} <button disabled={busy} onClick={() => { setError(""); void request(); }}>Retry</button></p>}
     {!state && !error && <p role="status">Loading friends…</p>}
     {state && <>
-      <label className="social-mute"><input type="checkbox" checked={state.emojis_enabled} disabled={disabled}
+      {(gameId || preferencesOnly) && <label className="social-mute"><input type="checkbox" checked={state.emojis_enabled} disabled={disabled}
         onChange={event => {
           const previous = state;
           setState({ ...state, emojis_enabled: event.target.checked, reactions: [] });
           void request("preferences", { p_enabled: event.target.checked }).then(ok => { if (!ok && active.current) setState(previous); });
-        }} /> Emoji reactions enabled</label>
-      {botGame ? <BotBoardReactions game={botGame} enabled={state.emojis_enabled} /> : <>
+        }} /> Emoji reactions enabled</label>}
+      {!preferencesOnly && (botGame ? <BotBoardReactions game={botGame} enabled={state.emojis_enabled} /> : <>
       {gameId && <>
         {state.emojis_enabled ? <>
           <div className="social-emojis" role="group" aria-label="Send an emoji reaction">{EMOJI_REACTIONS.map(([emoji, label]) =>
@@ -95,7 +101,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame }: {
       </>}
       {!gameId && <div className="social-friends">
         {!state.friends.length && <p className="review-note">Meet players in human matches and use Add friend to stay in touch.</p>}
-        {state.friends.map(item => <button key={item.user_id} aria-pressed={peer === item.user_id} onClick={() => onSelect(item.user_id)}>
+        {state.friends.map(item => <button key={item.user_id} aria-pressed={peer === item.user_id} onClick={() => onSelect?.(item.user_id)}>
           {item.name} · {item.accepted ? "Chat" : item.requested_by === userId ? "Request sent" : "Friend request"}
         </button>)}
       </div>}
@@ -121,7 +127,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame }: {
         </form>
         <details><summary>Manage friendship</summary><p>Removing this friend ends chat and clears the conversation for both players.</p><button disabled={disabled} onClick={() => void request("remove")}>Remove friend & clear chat</button></details>
       </> : gameId && !pending && <p className="review-note">Become friends to unlock private chat.</p>}
-      </>}
+      </>)}
     </>}
   </section>;
 }

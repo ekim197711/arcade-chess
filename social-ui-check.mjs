@@ -7,10 +7,10 @@ const uid = '11111111-1111-4111-8111-111111111111', peer = '22222222-2222-4222-8
 await mkdir('.tmp', { recursive: true });
 await writeFile('.tmp/social-fixture.html', '<div id="root"></div><script type="module" src="/./.tmp/social-fixture.tsx"></script>');
 await writeFile('.tmp/social-fixture.tsx', `import React from 'react'; import { createRoot } from 'react-dom/client';
-import { OnlineSocial } from '../src/OnlineSocial';
+import { OnlineSocial, EmojiReactionSettings } from '../src/OnlineSocial';
 const params = new URLSearchParams(location.search);
 const initialGame = params.has('lobby') ? undefined : { id:'33333333-3333-4333-8333-333333333333', white_id:'${uid}', black_id:params.has('bot') ? null : '${peer}', white_name:'Alice', black_name:'Bob', is_bot:params.has('bot'), pgn:'', ply_count:0, result:null };
-function Fixture() { const [game,setGame] = React.useState(initialGame); (window as any).updateBotGame = (patch:any) => setGame(current => ({...current!,...patch})); return <OnlineSocial userId="${uid}" game={game as any} />; }
+function Fixture() { const [game,setGame] = React.useState(initialGame); (window as any).updateBotGame = (patch:any) => setGame(current => ({...current!,...patch})); return params.has('settings') ? <EmojiReactionSettings userId={params.has('guest') ? undefined : '${uid}'} /> : <OnlineSocial userId="${uid}" game={game as any} />; }
 createRoot(document.getElementById('root')!).render(<Fixture />);`);
 const server = await createServer({ define: {
   'import.meta.env.VITE_SUPABASE_DEV_URL': JSON.stringify('https://social-check.supabase.co'),
@@ -21,10 +21,11 @@ try {
   await server.listen();
   browser = await chromium.launch({ channel:'msedge', headless:true });
   const page = await browser.newPage();
-  let friend = null, messages = [], reactions = [], enabled = true, failure = false;
+  let friend = null, messages = [], reactions = [], enabled = true, failure = false, requests = 0;
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://social-check.supabase.co/**', async route => {
+    requests++;
     assert.match(route.request().url(), /\/rpc\/online_social$/);
     const { p_action: action, p_body: body, p_enabled: preference } = route.request().postDataJSON();
     if (failure) { failure = false; return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'Test connection failure'})}); }
@@ -63,6 +64,7 @@ try {
   await page.goto(url+'?lobby');
   await page.getByRole('button',{name:'Bob · Chat'}).click();
   await page.getByRole('textbox',{name:'Message',exact:true}).waitFor();
+  assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).count(),0,'no emoji toggle before a game, including friend chat');
   await page.getByText('Manage friendship',{exact:true}).click();
   await page.getByRole('button',{name:'Remove friend & clear chat'}).click();
   await page.getByText('Meet players in human matches',{exact:false}).waitFor();
@@ -71,7 +73,28 @@ try {
   await page.reload();
   await page.getByRole('alert').waitFor();
   await page.getByRole('button',{name:'Retry',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).waitFor();
+  await page.getByText('Meet players in human matches',{exact:false}).waitFor();
+  assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).count(),0);
+  await page.goto(url+'?settings');
+  const settingsToggle = page.getByRole('checkbox',{name:'Emoji reactions enabled'});
+  await settingsToggle.waitFor();
+  assert.equal(await settingsToggle.isChecked(),false,'Settings reads the same saved preference as games');
+  const initialSettingsRequests = requests;
+  await page.waitForTimeout(3500);
+  assert.equal(requests,initialSettingsRequests,'Settings does not poll social data');
+  await settingsToggle.check();
+  await page.waitForFunction(() => !document.querySelector('input[type=checkbox]').disabled);
+  assert.equal(enabled,true);
+  failure=true;
+  await settingsToggle.uncheck();
+  await page.getByRole('alert').waitFor();
+  assert.equal(await settingsToggle.isChecked(),true,'failed Settings changes restore the saved preference');
+  await settingsToggle.uncheck();
+  await page.waitForFunction(() => !document.querySelector('input[type=checkbox]').disabled);
+  assert.equal(enabled,false);
+  await page.goto(url+'?settings&guest');
+  await page.getByText('Sign in to manage emoji reactions',{exact:false}).waitFor();
+  assert.equal(await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).count(),0);
   await page.goto(url+'?bot');
   await page.getByRole('heading',{name:'Practice bot reactions'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Add friend',exact:true}).count(),0);
