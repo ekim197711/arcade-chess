@@ -32,14 +32,19 @@ export function premoveBoard(game: Chess, moves: readonly PlannedMove[], color: 
   const movedRooks = new Set<Square>();
   for (const row of game.board()) for (const piece of row) if (piece) pieces.set(piece.square, piece);
   const squareAt = (x: number, y: number) => x >= 0 && x < 8 && y >= 0 && y < 8 ? `${String.fromCharCode(97 + x)}${y + 1}` as Square : null;
-  const targets = (from: Square): Square[] => {
-    const piece = pieces.get(from);
-    if (!piece || piece.color !== color) return [];
-    const x = from.charCodeAt(0) - 97, y = Number(from[1]) - 1;
+  const options = (from: Square) => {
     const result: Square[] = [];
+    const castles = new Map<Square, Square>();
+    const piece = pieces.get(from);
+    if (!piece || piece.color !== color) return { targets: result, castles };
+    const x = from.charCodeAt(0) - 97, y = Number(from[1]) - 1;
+    // A friendly piece may be captured before this premove executes, making its
+    // square a legal recapture. Keep blockers along the path, but allow the
+    // occupied destination; the real position decides legality on our turn.
+    const canTarget = (to: Square) => pieces.get(to)?.color !== color || pieces.get(to)?.type !== "k";
     const add = (dx: number, dy: number) => {
       const to = squareAt(x + dx, y + dy);
-      if (to && pieces.get(to)?.color !== color) result.push(to);
+      if (to && canTarget(to)) result.push(to);
     };
     if (piece.type === "p") {
       const direction = color === "w" ? 1 : -1;
@@ -69,27 +74,31 @@ export function premoveBoard(game: Chess, moves: readonly PlannedMove[], color: 
           }
           return true;
         };
-        if (clear(x, kingTarget) && clear(rookX, rookTarget)) result.push(game.mode === "freestyle" ? rookSquare : squareAt(kingTarget, rank)!);
+        if (clear(x, kingTarget) && clear(rookX, rookTarget)) {
+          const to = game.mode === "freestyle" ? rookSquare : squareAt(kingTarget, rank)!;
+          result.push(to);
+          castles.set(to, rookSquare);
+        }
       }
     } else {
       const directions = piece.type === "b" ? [[1,1],[1,-1],[-1,1],[-1,-1]] : piece.type === "r" ? [[1,0],[-1,0],[0,1],[0,-1]] : [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
       for (const [dx, dy] of directions) for (let step = 1; step < 8; step++) {
         const to = squareAt(x + dx * step, y + dy * step);
         if (!to) break;
-        if (pieces.get(to)?.color !== color) result.push(to);
+        if (canTarget(to)) result.push(to);
         if (pieces.has(to)) break;
       }
     }
-    return result;
+    return { targets: result, castles };
   };
   for (const move of moves) {
     const piece = pieces.get(move.from);
-    if (!piece || piece.color !== color || !targets(move.from).includes(move.to)) break;
+    const available = options(move.from);
+    if (!piece || piece.color !== color || !available.targets.includes(move.to)) break;
     const occupant = pieces.get(move.to);
-    const castle = piece.type === "k" && (occupant?.color === color && occupant.type === "r" || game.mode === "standard" && Math.abs(move.to.charCodeAt(0) - move.from.charCodeAt(0)) === 2);
-    if (castle) {
+    const rookSquare = available.castles.get(move.to);
+    if (rookSquare) {
       const rank = move.from[1], kingside = move.to > move.from;
-      const rookSquare = game.mode === "freestyle" ? move.to : `${kingside ? "h" : "a"}${rank}` as Square;
       const rook = pieces.get(rookSquare);
       pieces.delete(move.from); pieces.delete(rookSquare);
       pieces.set(`${kingside ? "g" : "c"}${rank}` as Square, piece);
@@ -106,5 +115,5 @@ export function premoveBoard(game: Chess, moves: readonly PlannedMove[], color: 
     if (piece.type === "k") kingMoved = true;
     if (piece.type === "r") movedRooks.add(move.from);
   }
-  return { get: (square: Square) => pieces.get(square), targets };
+  return { get: (square: Square) => pieces.get(square), targets: (from: Square) => options(from).targets };
 }

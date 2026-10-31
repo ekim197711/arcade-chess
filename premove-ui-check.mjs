@@ -21,6 +21,11 @@ try {
   const freed = premoveBoard(game, [{ from: 'e2', to: 'e4' }, { from: 'f1', to: 'c4' }], 'w');
   assert.equal(freed.get('c4').type, 'b');
   assert.ok(premoveBoard(game, [], 'w').targets('e2').includes('d3'), 'allow a capture that may become possible');
+  assert.ok(premoveBoard(game, [], 'w').targets('g1').includes('e2'), 'allow recapturing a currently friendly piece');
+  assert.ok(!premoveBoard(game, [], 'w').targets('d1').includes('e1'), 'never preview a capture of our king');
+  const kingRecapture = premoveBoard(new Chess('7k/8/8/8/8/8/8/4KR2 b - - 0 1'), [{from:'e1',to:'f1'}], 'w');
+  assert.equal(kingRecapture.get('f1').type,'k','recapturing a rook without castling rights is a king move');
+  assert.equal(kingRecapture.get('g1'),undefined,'recapture must not invent castling');
   for (const variant of ['', ' chess960']) {
     const castle = new Chess('4k3/8/8/8/8/8/8/4K2R w K - 0 1' + variant);
     const preview = premoveBoard(castle, [{ from: 'e1', to: variant ? 'h1' : 'g1' }], 'w');
@@ -95,6 +100,41 @@ try {
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   }
+  for (const bot of [false, true]) {
+    for (const [fen,from,to,reply] of [
+      ['7k/8/4p3/3N4/4P3/8/8/7K b - - 0 1','e4','d5','exd5'],
+      ['7k/4rP2/8/8/2B5/8/8/7K b - - 0 1','c4','f7','Rxf7'],
+      ['7k/8/8/6n1/8/5P2/8/6NK b - - 0 1','g1','f3','Nxf3'],
+      ['7k/3p4/8/4P3/8/8/8/7K b - - 0 1','e5','d6','d5'],
+    ]) await scenario({bot,pgn:`[SetUp "1"]\n[FEN "${fen}"]\n\n*`,test:async({page,queue,opponent,sent,position})=>{
+      await queue(from,to);await queue('h1','g1');
+      await page.getByRole('button',{name:'Cancel all 2 premoves',exact:true}).waitFor();
+      await opponent(reply);
+      await page.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
+      assert.equal(sent.length,1);assert.equal(sent[0].to,to);
+      assert(position.history({verbose:true}).at(-1).captured,'queued capture executes on the real position');
+    }});
+    await scenario({bot,pgn:'[SetUp "1"]\n[FEN "7k/8/4p3/3N4/4P3/8/8/7K b - - 0 1"]\n\n*',test:async({page,queue,opponent,sent})=>{
+      await queue('e4','d5');await queue('h1','g1');
+      await opponent('Kh7');
+      await page.getByText('Premoves canceled: the next move is no longer legal.').waitFor();
+      assert.equal(sent.length,0,'invalid recapture never reaches the server');
+      assert.equal(await page.locator('.premove-cancel').count(),0,'invalid recapture cancels every queued move');
+    }});
+    await scenario({bot,pgn:'[SetUp "1"]\n[FEN "4r2k/8/8/8/4P3/8/8/7K b - - 0 1"]\n\n*',test:async({page,queue,opponent,sent})=>{
+      await queue('e4','e5');await queue('h1','g1');
+      await opponent('Rxe4');
+      await page.getByText('Premoves canceled: the next move is no longer legal.').waitFor();
+      assert.equal(sent.length,0);
+      assert.equal(await page.locator('.premove-cancel').count(),0,'losing the queued piece cancels the entire queue');
+    }});
+  }
+  await scenario({side:'b',pgn:'[SetUp "1"]\n[FEN "7k/8/8/4p3/3n4/4P3/8/7K w - - 0 1"]\n\n*',test:async({page,queue,opponent,sent,position})=>{
+    await queue('e5','d4');await queue('h8','g8');
+    await opponent('exd4');
+    await page.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
+    assert.equal(sent[0].to,'d4');assert.equal(position.history({verbose:true}).at(-1).captured,'p');
+  }});
   for (const bot of [false, true]) await scenario({ bot, test: async ({ page, square, opponent, sent }) => {
     await square('g1').click();
     await opponent('e5');
@@ -309,6 +349,13 @@ try {
       assert.equal(await board.locator('.board-thought-arrow').count(),1);
       await reply('b7b6');
       await page.waitForFunction(() => !document.querySelector('.board-thought-arrow'));
+      await square('d2').click();await square('d4').click();
+      for(const [from,to] of [['e4','d5'],['c3','b1']]){await square(from).click();await square(to).click();}
+      await reply('d7d5');
+      await page.getByRole('button',{name:'Cancel premove',exact:true}).waitFor();
+      await page.waitForFunction(matchId=>JSON.parse(localStorage.getItem('arcade-chess-history-v1')??'[]').find(match=>match.id===matchId)?.pgn.includes('exd5'),matchId);
+      await reply('g7g6');
+      await page.waitForFunction(()=>!document.querySelector('.premove-cancel'));
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   }
