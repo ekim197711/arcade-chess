@@ -1,7 +1,15 @@
 /* Page containers span the viewport. Square boards retain their height limits. */
 .home-play-cards { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; margin: 24px 0; }
-.home-play-cards > .boss-run-card { flex: 1 1 300px; min-width: 0; }
-.app-shell .home-play-cards > .online-home-card { flex: 1 1 300px; width: auto; min-width: 0; margin: 0; }
+.home-play-area { flex: 1 1 600px; min-width: 0; padding: 18px; border: 1px solid #5368bd; border-radius: 12px; background: #0e173a; }
+.home-play-heading h1 { margin: 0; color: #eff5ff; font-size: 26px; }
+.home-play-heading p { margin: 8px 0 18px; color: #c4d0f5; font-size: 13px; }
+.home-play-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; align-items: stretch; }
+.home-play-modes > .boss-run-card { min-width: 0; grid-column: auto; }
+.app-shell .home-play-modes > .online-home-card { width: 100%; min-width: 0; margin: 0; padding: 16px; }
+.home-play-modes .online-home-card h2 { font-size: 18px; }
+.home-play-modes .boss-run-heading h2 { font-size: 18px; }
+.home-play-modes .online-home-card p { font-size: 13px; }
+.boss-run-description { margin: 0; padding: 0 12px 12px; font-size: 11px; line-height: 1.5; }
 .app-shell .home-play-cards > .home-coin-card { flex: 0 1 300px; width: 300px; max-width: 100%; margin: 0 0 0 auto; padding: 12px; }
 .home-coin-card .arcade-cabinet-topline { margin-bottom: 10px; padding-bottom: 8px; }
 .app-shell .home-coin-card .arcade-control-deck { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 12px; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }

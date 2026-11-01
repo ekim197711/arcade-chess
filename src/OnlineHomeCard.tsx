@@ -84,7 +84,7 @@ export function OnlineHomeCard({ userId, navigate, refreshToken = 0 }: { userId:
       {confirmResign && <div className="online-home-confirm"><p>Resign your current game?</p><button disabled={busy} onClick={() => void refresh(true)}>{busy ? "Resigning…" : "Confirm resignation"}</button><button disabled={busy} onClick={() => setConfirmResign(false)}>Keep playing</button></div>}
     </> : <>
       {game?.result && <p role="status">Your previous game ended: {game.result} · {game.reason}. <button onClick={() => navigate(`online/${game.id}`)}>View game summary</button></p>}
-      <p>Find a player near your overall Elo. Choose a 3, 5, 10 or 15 minute clock, build your rating, and replay community games.</p>
+      <p>Choose a 3, 5, 10 or 15 minute game against a player near your overall Elo. If no opponent is available, play an unrated practice bot.</p>
       <button disabled={loading} onClick={() => navigate("online")}>Play against human</button>
     </>}
     {error && <p role="alert">{error} <button disabled={busy || loading} onClick={() => { invalidateHomeData(userId); void refresh(); }}>Retry</button></p>}

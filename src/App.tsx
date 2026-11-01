@@ -2412,6 +2412,9 @@ function App() {
         )}
         {screen === "home" && (
           <div className="home-play-cards">
+            <section className="home-play-area" aria-labelledby="home-play-title">
+              <div className="home-play-heading"><h1 id="home-play-title">Play</h1><p>Choose a mode to start or resume a game.</p></div>
+              <div className="home-play-modes">
             <section className="boss-run-card" aria-labelledby="boss-run-title">
                 <div className="boss-run-heading">
                   <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
@@ -2425,6 +2428,7 @@ function App() {
                         <span>{mode === "standard" ? "Standard" : "Freestyle"}</span>
                         <ArrowRight size={17} aria-hidden="true" />
                       </button>
+                      <p className="boss-run-description">{mode === "standard" ? "Classic chess" : "Chess960"} · {BOSSES.length} challengers</p>
                       {savedMatch && savedMode === mode && (
                         <button
                           className="resume-match-button"
@@ -2439,7 +2443,14 @@ function App() {
                   ))}
                 </div>
               </section>
-            {user && <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} />}
+            {user ? <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} /> :
+              <section className="online-home-card" aria-labelledby="online-home-title">
+                <h2 id="online-home-title">Play against human</h2>
+                <p>Choose a 3, 5, 10 or 15 minute game. If no opponent is available, play an unrated practice bot.</p>
+                <button type="button" onClick={() => { setScreen("online"); setAuthOpen(true); }}>Sign in to play online</button>
+              </section>}
+              </div>
+            </section>
             <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
               <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
               <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
