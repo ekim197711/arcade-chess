@@ -1,4 +1,18 @@
 /* Page containers span the viewport. Square boards retain their height limits. */
+.home-play-cards { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; margin: 24px 0; }
+.home-play-cards > .boss-run-card { flex: 1 1 300px; min-width: 0; }
+.app-shell .home-play-cards > .online-home-card { flex: 1 1 300px; width: auto; min-width: 0; margin: 0; }
+.app-shell .home-play-cards > .home-coin-card { flex: 0 1 300px; width: 300px; max-width: 100%; margin: 0 0 0 auto; padding: 12px; }
+.home-coin-card .arcade-cabinet-topline { margin-bottom: 10px; padding-bottom: 8px; }
+.app-shell .home-coin-card .arcade-control-deck { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 12px; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.home-coin-card .arcade-credit-display { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.app-shell .home-coin-card .arcade-credit-display output { grid-column: 1; grid-row: 2; min-width: 0; padding: 4px; }
+.home-coin-card .arcade-credit-hint { grid-column: 1; grid-row: 3; margin: 0; font-size: 8px; letter-spacing: normal; text-align: left; overflow-wrap: anywhere; }
+.home-coin-card .segmented-credits { width: 48px; height: 42px; }
+.home-coin-card .arcade-coin-control { min-width: 0; gap: 8px; }
+.home-coin-card .arcade-coin-button { width: 100%; }
+.home-coin-card .arcade-coin-note { font-size: 10px; }
+.home-coin-card .coin-insert-stage { border-radius: inherit; }
 .app-shell { --page-gutter: clamp(12px, 1.5vw, 28px); }
 .app-shell > main,
 .app-shell > main.home-main,

@@ -52,7 +52,7 @@ try {
   for (const [variant, random] of [['bounce', .01], ['flip', .5], ['rocket', .99]]) {
     const actual = await insert(variant, random);
     assert.equal(actual.muted, false);
-    if (variant === 'bounce') await page.locator('.arcade-screen').screenshot({ path: '.tmp/coin-insert-desktop.png' });
+    if (variant === 'bounce') await page.locator('.home-coin-card').screenshot({ path: '.tmp/coin-insert-desktop.png' });
     await finish();
   }
   assert.deepEqual(await page.evaluate(() => globalThis.coinCompletions), ['bounce', 'flip', 'rocket']);
@@ -81,7 +81,7 @@ try {
   assert(reduced.rotation.includes('rotate(0)'));
   assert.equal(reduced.burst, '0');
   assert(reduced.width > 100 && reduced.left >= 0 && reduced.right <= 390);
-  await page.locator('.arcade-screen').screenshot({ path: '.tmp/coin-insert-mobile.png' });
+  await page.locator('.home-coin-card').screenshot({ path: '.tmp/coin-insert-mobile.png' });
   await finish();
 
   await insert('bounce', .01);

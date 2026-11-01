@@ -2411,35 +2411,40 @@ function App() {
           </section>
         )}
         {screen === "home" && (
-          <section className="arcade-cabinet" aria-label="Arcade Gambit">
-            <div className="arcade-cabinet-topline">
-              <span className="arcade-cabinet-brand">
-                <Gamepad2 size={17} /> ARCADE GAMBIT
-              </span>
-              <span className="arcade-cabinet-status">
-                <i /> PLAYER ONE — READY
-              </span>
-            </div>
-
-            <div className="arcade-screen-bezel">
-              <div className="arcade-screen">
-                <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
-                <div className="arcade-screen-art" aria-hidden="true">
-                  <span className="arcade-screen-star arcade-star-one">✦</span>
-                  <span className="arcade-screen-star arcade-star-two">✦</span>
-                  <img
-                    className="arcade-screen-piece"
-                    src="/brand/arcade-gambit-knight-solid.png"
-                    alt=""
-                    width={1254}
-                    height={1254}
-                  />
+          <div className="home-play-cards">
+            <section className="boss-run-card" aria-labelledby="boss-run-title">
+                <div className="boss-run-heading">
+                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
+                  <span>1 CREDIT PER RUN</span>
                 </div>
-              </div>
-            </div>
-
-            <div className="arcade-control-deck">
-              <div className="arcade-credit-display">
+                <div className="boss-run-options">
+                  {(["standard", "freestyle"] as const).map((mode) => (
+                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
+                      <button className="boss-run-button" type="button"
+                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
+                        <span>{mode === "standard" ? "Standard" : "Freestyle"}</span>
+                        <ArrowRight size={17} aria-hidden="true" />
+                      </button>
+                      {savedMatch && savedMode === mode && (
+                        <button
+                          className="resume-match-button"
+                          type="button"
+                          onClick={() => resumeSavedMatch(savedMatch)}
+                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
+                        >
+                          RESUME <ArrowRight size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            {user && <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} />}
+            <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
+              <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
+              <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
+              <div className="arcade-control-deck">
+                <div className="arcade-credit-display">
                 <span className="arcade-control-label">CREDITS</span>
                 <output aria-live="polite" aria-label={`${coinCount} credits`}>
                   <SegmentedCredits value={coinCount} />
@@ -2467,44 +2472,11 @@ function App() {
               </button>
               <p className="arcade-coin-note">Coins are free for now</p>
               </div>
-
-              <section className="boss-run-card" aria-labelledby="boss-run-title">
-                <div className="boss-run-heading">
-                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
-                  <span>1 CREDIT PER RUN</span>
-                </div>
-                <div className="boss-run-options">
-                  {(["standard", "freestyle"] as const).map((mode) => (
-                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
-                      <button className="boss-run-button" type="button"
-                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
-                        <span>{mode === "standard" ? "Standard" : "Freestyle"}</span>
-                        <ArrowRight size={17} aria-hidden="true" />
-                      </button>
-                      {savedMatch && savedMode === mode && (
-                        <button
-                          className="resume-match-button"
-                          type="button"
-                          onClick={() => resumeSavedMatch(savedMatch)}
-                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
-                        >
-                          RESUME <ArrowRight size={13} aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-            <div className="arcade-cabinet-base" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-          </section>
+              </div>
+            </section>
+          </div>
         )}
 
-        {screen === "home" && user && <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} />}
         {screen === "home" && (
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
