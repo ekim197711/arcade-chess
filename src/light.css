@@ -1849,7 +1849,7 @@ body,
     position: relative;
     min-height: 275px;
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     gap: 16px;
     padding: 28px clamp(22px, 5vw, 58px);
@@ -2193,7 +2193,7 @@ body,
 
     .arcade-screen {
         min-height: 245px;
-        grid-template-columns: minmax(0, 1fr) 150px;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0;
         padding: 23px 18px;
     }
@@ -2252,13 +2252,10 @@ body,
     }
 
     .arcade-screen-art {
-        position: absolute;
+        position: relative;
         z-index: 1;
-        top: 0;
-        right: -22px;
-        bottom: 0;
-        width: 48%;
-        opacity: 0.42;
+        width: 100%;
+        opacity: 1;
     }
 
     .arcade-screen-prompt {

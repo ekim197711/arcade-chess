@@ -2411,7 +2411,7 @@ function App() {
           </section>
         )}
         {screen === "home" && (
-          <section className="arcade-cabinet" aria-labelledby="hero-title">
+          <section className="arcade-cabinet" aria-label="Arcade Gambit">
             <div className="arcade-cabinet-topline">
               <span className="arcade-cabinet-brand">
                 <Gamepad2 size={17} /> ARCADE GAMBIT
@@ -2424,20 +2424,6 @@ function App() {
             <div className="arcade-screen-bezel">
               <div className="arcade-screen">
                 <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
-                <div className="arcade-screen-copy">
-                  <span className="arcade-screen-kicker">
-                    59 CHALLENGERS · ONE CHAMPION
-                  </span>
-                  <h1 id="hero-title">
-                    MEET YOUR
-                    <br />
-                    <span>MATCH.</span>
-                  </h1>
-                  <p>Choose a challenger. Make your move.</p>
-                  <span className="arcade-screen-prompt">
-                    INSERT COIN TO CONTINUE <b>▶</b>
-                  </span>
-                </div>
                 <div className="arcade-screen-art" aria-hidden="true">
                   <span className="arcade-screen-star arcade-star-one">✦</span>
                   <span className="arcade-screen-star arcade-star-two">✦</span>
