@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { reconnectDeadline, type OnlineGame } from "./onlineChess";
 import "./online.css";
 import { readHomeOnce, invalidateHomeData } from "./homeDataCache";
+import { OnlineQuickStart } from "./OnlineQuickStart";
 
 type HomeGame = Pick<OnlineGame, "id" | "white_id" | "black_id" | "white_name" | "black_name" | "minutes" | "is_bot" | "result" | "reason" | "white_seen_at" | "black_seen_at" | "white_disconnected_at" | "black_disconnected_at">;
 
@@ -84,8 +85,7 @@ export function OnlineHomeCard({ userId, navigate, refreshToken = 0 }: { userId:
       {confirmResign && <div className="online-home-confirm"><p>Resign your current game?</p><button disabled={busy} onClick={() => void refresh(true)}>{busy ? "Resigning…" : "Confirm resignation"}</button><button disabled={busy} onClick={() => setConfirmResign(false)}>Keep playing</button></div>}
     </> : <>
       {game?.result && <p role="status">Your previous game ended: {game.result} · {game.reason}. <button onClick={() => navigate(`online/${game.id}`)}>View game summary</button></p>}
-      <p>Choose a 3, 5, 10 or 15 minute game against a player near your overall Elo. If no opponent is available, play an unrated practice bot.</p>
-      <button disabled={loading} onClick={() => navigate("online")}>Play against human</button>
+      <OnlineQuickStart disabled={loading} onStart={(minutes, mode) => navigate(`online/new/${minutes}/${mode}`)} />
     </>}
     {error && <p role="alert">{error} <button disabled={busy || loading} onClick={() => { invalidateHomeData(userId); void refresh(); }}>Retry</button></p>}
   </section>;

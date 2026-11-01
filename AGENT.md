@@ -22,7 +22,7 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 - `src/bot.ts`: local lightweight minimax/search opponent.
 - `src/bot.worker.ts`: runs bot search off the UI thread; the UI has a legal-move fallback if worker startup fails.
 - `src/OnlinePlay.tsx`, `src/onlineChess.ts`, `src/online.css`: human matchmaking, both clocks, online board, reconnect/resume, and personal/community history.
-- `supabase/multiplayer.sql`, `supabase/functions/multiplayer/`: server-only pairing, legal Standard chess, authoritative clock/result transactions, internal online Elo and practice bot. Apply the SQL after `schema.sql`, then deploy the function in each environment.
+- `supabase/multiplayer.sql`, `supabase/functions/multiplayer/`: server-only pairing, legal Standard and Chess960 chess, authoritative clock/result transactions, internal online Elo and practice bot. Apply the SQL after `schema.sql`, then deploy the function in each environment.
 - `src/styles.css`: base layout and component styling.
 - `src/amiga.css`: Amiga/demoscene graphics and ladder layout/animation.
 - `src/light.css`: layout and component styles for the newer home, ladder, and battle UI; imported before `src/amiga.css`, which applies the dark Amiga palette.
@@ -57,3 +57,9 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 - Fetch history in pages of 50 only on demand, render 50 rows initially, and preserve the durable account-specific pending-save IDs across reloads. Flush at most five history saves or progress events per action. Preserve normal save-on-move behavior outside home. Run `node frontpage-budget-check.mjs` for the healthy, large-cache and failing-server cases.
 
 - Browser rendering budget: home has at most 12 parade actors, using 112x112 thumbnails; cycle the roster at route boundaries rather than mounting all bosses. Small ladder portraits also use thumbnails. Do not decode full-resolution character artwork for tiny UI images. Bubble events from the child dance animation must not trigger React state updates. Run the isolated Firefox responsiveness check for changes to this path.
+
+## Human Freestyle and home quick starts
+
+- Human Standard and Freestyle (Chess960) share time controls and the overall rating pool, but matchmaking must match both the clock and variant. The server selects a legal random setup. Supabase's `multiplayer-freestyle.sql` runs after the existing multiplayer, roles and transport migrations; reapply it after rerunning those older files.
+- `supabase/functions/multiplayer/rules.ts` imports the same `src/chess.ts` implementation as the client, resolved in Deno through the function's `deno.json`. Keep browser and server rules aligned, including king-to-rook Chess960 castling and variant-tagged PGNs.
+- `OnlineQuickStart` is shared by signed-in and guest home cards. Starting a new match is an explicit click; never enqueue a player on home mount. Preserve the active-game Resume/Resign controls.

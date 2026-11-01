@@ -34,8 +34,10 @@ Deno.serve(async req => {
     }
     if (action === 'join' || action === 'cancel') {
       if (![3,5,10,15].includes(input.minutes)) return respond({ error: 'Choose 3, 5, 10 or 15 minutes' }, 400);
+      const mode = input.mode ?? 'standard';
+      if (!['standard','freestyle'].includes(mode)) return respond({ error: 'Choose Standard or Freestyle' }, 400);
       const name = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'Player').slice(0,40);
-      const { data, error } = await admin.rpc('online_join', { p_user: user.id, p_name: name, p_minutes: input.minutes, p_cancel: action === 'cancel' });
+      const { data, error } = await admin.rpc('online_join_variant', { p_user: user.id, p_name: name, p_minutes: input.minutes, p_cancel: action === 'cancel', p_mode: mode });
       if (error) throw error;
       return respond({ ...data, server_now: new Date().toISOString() });
     }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Chess, type Square } from "./chess";
+import { Chess, type Square, type PlayMode } from "./chess";
 import { supabase, supabaseConfiguration } from "./supabase";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
 import { DragSquare } from "./DragSquare";
@@ -31,6 +31,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const [game, setGame] = useState<OnlineGame | null>(null);
   const [profile, setProfile] = useState<OnlineProfile | null>(null);
   const [minutes, setMinutes] = useState(newMatch && ONLINE_TIME_CONTROLS.some(time => time === Number(parts[2])) ? Number(parts[2]) : 5);
+  const [mode, setMode] = useState<PlayMode>(newMatch && parts[3] === "freestyle" ? "freestyle" : "standard");
   const [queued, setQueued] = useState(false);
   const [fallbackAt, setFallbackAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -56,13 +57,14 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const soundPosition = useRef<OnlineGame | null>(null);
   const inFlight = useRef(false), mounted = useRef(true), offset = useRef(0), queueRef = useRef(false);
   const minutesRef = useRef(minutes); minutesRef.current = minutes;
+  const modeRef = useRef(mode); modeRef.current = mode;
   const nextRefreshAt = useRef(0), refreshFailures = useRef(0), manualReconnect = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
       invalidateHomeData(userId);
-      if (queueRef.current) void supabase?.rpc("online_matchmake", { p_cancel: true, p_minutes: minutesRef.current });
+      if (queueRef.current) void supabase?.rpc("online_matchmake", { p_cancel: true, p_minutes: minutesRef.current, ...(modeRef.current === "freestyle" ? { p_mode: modeRef.current } : {}) });
     };
   }, []);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()+offset.current),200); return () => clearInterval(timer); }, []);
@@ -115,7 +117,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
           response = await supabase.functions.invoke<Reply>("multiplayer", { body: { action: "state", game_id: gameId } });
         }
       } else if (action === "join" || action === "cancel") {
-        response = await supabase.rpc("online_matchmake", { p_minutes: minutes, p_cancel: action === "cancel" });
+        response = await supabase.rpc("online_matchmake", { p_minutes: minutes, p_cancel: action === "cancel", ...(mode === "freestyle" ? { p_mode: mode } : {}) });
       } else response = await supabase.functions.invoke<Reply>("multiplayer", { body: { action, minutes, game_id: gameId, ...extra } });
       const data = response.data as Reply | null, failure = response.error;
       if (failure || !data || data.error) {
@@ -202,7 +204,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
     const focus = () => void request(queued ? "join" : "state", {}, true);
     window.addEventListener("online",focus); window.addEventListener("focus",focus); window.addEventListener("pageshow",focus);
     return () => { clearInterval(timer); window.removeEventListener("online",focus); window.removeEventListener("focus",focus); window.removeEventListener("pageshow",focus); };
-  }, [queued, gameId, game?.result, reviewing, minutes]);
+  }, [queued, gameId, game?.result, reviewing, minutes, mode]);
   useEffect(() => {
     if (gameId) return;
     let active = true; setHistoryLoading(true);
@@ -299,16 +301,18 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   }, [game?.fen, game?.result, canMove, premoves, promotion]);
   if (reviewing && game && !game.result) return <section className="game-review"><h2>Game still in progress</h2><p>Analysis becomes available when the game is complete.</p><button onClick={() => navigate(`online/${game.id}`)}>Resume match</button></section>;
   if (reviewing && game) return <GameReview pgn={game.pgn} moveTimesMs={game.move_times_ms} timingSource="server" playerName={side === "w" ? game.white_name : game.black_name} opponent={side === "w" ? game.black_name : game.white_name} opponentElo={side === "w" ? game.black_rating : game.white_rating} opponentKind={game.is_bot ? "bot" : "human"} theme={theme} color={side} light={light} dark={dark} onClose={() => navigate("online")} closeLabel="Back to online play" onMoveSound={(move, position) => onMoveSound(move, position, side)} />;
-  if (game?.result && !reviewing) return <OnlineResult game={game} userId={userId} theme={theme} light={light} dark={dark} onReview={() => navigate(`online/review/${game.id}`)} onPlayAgain={() => navigate(`online/new/${game.minutes}`)} onChooseTime={() => navigate("online")} onHome={() => navigate("home")} />;
+  if (game?.result && !reviewing) return <OnlineResult game={game} userId={userId} theme={theme} light={light} dark={dark} onReview={() => navigate(`online/review/${game.id}`)} onPlayAgain={() => navigate(`online/new/${game.minutes}/${confirmedPosition.mode}`)} onChooseTime={() => navigate("online")} onHome={() => navigate("home")} />;
   return <section className={`online-play ${game && !reviewing ? "online-battle" : "game-review"}`} aria-labelledby="online-title">
     <header><div><h2 id="online-title">Play against human</h2><p className="review-note">{profile ? `${profile.rating} overall Elo · ${profile.rated_games} rated games` : game ? `${side === "w" ? game.white_rating+game.white_delta : game.black_rating+game.black_delta} overall Elo` : "Overall Elo starts at 1200"}</p></div><button onClick={() => navigate("home")}>Back to home</button></header>
     {error && <p className="online-error" role="alert">{error} <button disabled={busy} onClick={() => void request(gameId ? "state" : queued ? "join" : "cancel")}>Reconnect</button></p>}
+    {game && confirmedPosition.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
     {loading && <p role="status">Connecting to the arena…</p>}
     {!gameId && <>
       <div className="online-lobby"><h3>Find your next opponent</h3>
+        <fieldset disabled={queued || busy || loading}><legend>Play style</legend><div className="online-times">{(["standard", "freestyle"] as const).map(style => <button key={style} aria-pressed={mode === style} onClick={() => setMode(style)}>{style === "standard" ? "Standard" : "Freestyle · Chess960"}</button>)}</div></fieldset>
         <fieldset disabled={queued || busy || loading}><legend>Minutes per player · no increment</legend><div className="online-times">{ONLINE_TIME_CONTROLS.map(time => <button key={time} aria-pressed={minutes === time} onClick={() => setMinutes(time)}>{time} min</button>)}</div></fieldset>
-        <p>We match the closest overall Elo among available players using the same clock. If nobody is available after 20 seconds, you’ll play an unrated practice bot.</p><p className="review-note">Completed online games, names and ratings are visible to other signed-in players.</p>
-        {queued ? <><p role="status">Looking for a human opponent… Bot fallback in {Math.max(0,Math.ceil(((fallbackAt ?? now)-now)/1000))} seconds.</p><button disabled={busy} onClick={() => void request("cancel")}>Cancel search</button></> : <button className="online-primary" disabled={busy || loading || !!error} onClick={() => void request("join")}>Find opponent</button>}
+        <p>We match the closest overall Elo among available players using the same clock and play style. If nobody is available after 20 seconds, you’ll play an unrated practice bot.</p><p className="review-note">Completed online games, names and ratings are visible to other signed-in players.</p>
+        {queued ? <><p role="status">Looking for a {mode === "freestyle" ? "Freestyle" : "Standard"} human opponent… Bot fallback in {Math.max(0,Math.ceil(((fallbackAt ?? now)-now)/1000))} seconds.</p><button disabled={busy} onClick={() => void request("cancel")}>Cancel search</button></> : <button className="online-primary" disabled={busy || loading || !!error} onClick={() => void request("join")}>Find opponent</button>}
       </div>
       <details className="review-skill-method"><summary>How online Elo works</summary><p>Arcade Gambit uses one overall online rating, initially 1200. Human games use the FIDE expected-score table, a 400-point difference cap and ΔR = K × (score − expected score). A win scores 1, a draw ½, and a loss 0. K is 40 for your first 30 rated games, then 20, or 10 once you have reached 2400. Changes round to the nearest integer, with halves away from zero.</p><p>This is an internal online rating, not an official FIDE rating. We use adult K rules, update after each game rather than monthly, and share a pool across all four clocks. Bot games and games where both sides have not moved are unrated. Games with a gap of at least 600 are also unrated if either rating is above 2600.</p><p><a href="https://handbook.fide.com/chapter/B02RBRegulations2024" target="_blank" rel="noreferrer">FIDE rapid and blitz rating regulations</a></p></details>
       <OnlineSocial userId={userId} />

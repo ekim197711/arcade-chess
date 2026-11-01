@@ -1,3 +1,4 @@
+import { NotationText } from "./ChessNotation";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Chess, type Move, type Square } from "./chess";
 import type { MoveAnalysis } from "./bot";
@@ -309,8 +310,9 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
         <aside className="review-details">
           <p role="status">{failed ? "Analysis unavailable. Replay is still available." : `Analyzed ${Object.keys(analyses).length} of ${moves.length} moves`}</p>
           <section className="review-suggestion" aria-live="polite">
-            <h3>{move ? `${Math.floor((ply - 1) / 2) + 1}${move.color === "w" ? "." : "..."} ${move.san}` : "Starting position"}</h3>
-            <p>{move ? preview ? "Suggested alternative shown on the board." : `${move.color === "w" ? "White" : "Black"} played ${move.san}.` : moves.length ? "Choose Play or Next to start the replay." : "No moves were played in this game."}</p>
+            <p className="review-note">Click underlined chess notation for an explanation.</p>
+            <h3><NotationText text={move ? `${Math.floor((ply - 1) / 2) + 1}${move.color === "w" ? "." : "..."} ${move.san}` : "Starting position"}/></h3>
+            <p><NotationText text={move ? preview ? "Suggested alternative shown on the board." : `${move.color === "w" ? "White" : "Black"} played ${move.san}.` : moves.length ? "Choose Play or Next to start the replay." : "No moves were played in this game."}/></p>
             {move && <RatingBadge analysis={analysis} />}
             {move && <p className="review-selected-accuracy">Move accuracy: <AccuracyBadge analysis={analysis} failed={failed} /></p>}
             {move && <p className="review-note">Time spent on this move: <strong>{formatMoveTime(timings[ply - 1])}</strong></p>}
@@ -324,10 +326,10 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
             </div>
             {move && !analysis && <p>{failed ? "No suggestion available." : "Analyzing this position..."}</p>}
             {explainOpen && analysis && <div id="review-move-explanation">
-              <p className="review-explanation">{analysis.explanation}</p>
+              <p className="review-explanation"><NotationText text={analysis.explanation}/></p>
               <div className="review-lines">
-                <p><strong>Played line:</strong> {analysis.playedLine.join(" / ")}</p>
-                {!analysis.matches && <p><strong>Better line:</strong> {analysis.suggestedLine.join(" / ")}</p>}
+                <p><strong>Played line:</strong> <NotationText text={analysis.playedLine.join(" / ")}/></p>
+                {!analysis.matches && <p><strong>Better line:</strong> <NotationText text={analysis.suggestedLine.join(" / ")}/></p>}
                 <small>Each line shows the move and the strongest immediate reply found. Deeper tactics may change the assessment.</small>
               </div>
             </div>}

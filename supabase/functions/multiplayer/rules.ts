@@ -1,4 +1,4 @@
-import { Chess, type Color } from 'npm:chess.js@1.4.0';
+import { Chess, type Color } from '../../../src/chess.ts';
 
 export function replay(pgn: string) {
   const game = new Chess();

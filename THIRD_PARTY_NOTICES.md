@@ -16,3 +16,8 @@ Package and corresponding source:
 
 Build instructions are in the upstream README and `build.js`. This application
 does not modify the distributed engine or its neural network.
+
+Gambit opening catalogue (`src/gambits.json`): lichess-org/chess-openings,
+https://github.com/lichess-org/chess-openings . Opening facts are public domain;
+the curated collection is released under CC0-1.0. Imported 2026-11-01 using
+`scripts/import-gambits.mjs`. Original names, ECO codes and PGN lines retained.

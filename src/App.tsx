@@ -14,6 +14,8 @@ import {
   useMemo,
   useRef,
   useState,
+  lazy,
+  Suspense,
   type CSSProperties,
 } from "react";
 import { Chess, freestyleFen, type PlayMode, type Color, type Square } from "./chess";
@@ -54,6 +56,9 @@ import { SegmentedCredits } from "./SegmentedCredits";
 import { GameReview } from "./GameReview";
 import { OnlinePlay } from "./OnlinePlay";
 import { OnlineHomeCard } from "./OnlineHomeCard";
+import { OnlineQuickStart } from "./OnlineQuickStart";
+const GambitTraining = lazy(() => import("./GambitTraining"));
+import { HomeDuelVideo } from "./HomeDuelVideo";
 import { HumanElo } from "./HumanElo";
 import { MatchHistory, MatchResult } from "./MatchHistory";
 import { SignupDisclaimer } from "./SignupDisclaimer";
@@ -765,7 +770,7 @@ function resultFor(
 function readPageRoute() {
   const route = window.location.hash.slice(1);
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|settings|statistics|administration)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15))?$/.test(route)
+  return /^(home|roster|battle|gambits|settings|statistics|administration)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -2313,6 +2318,7 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
+        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} onClose={() => setScreen("home")} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
@@ -2411,45 +2417,6 @@ function App() {
           <div className="home-dashboard">
           <aside className="home-play-cards home-options-panel" aria-label="Play and options">
             <div className="home-options-body">
-            <section className="home-play-area" aria-labelledby="home-play-title">
-              <div className="home-play-heading"><h1 id="home-play-title">Play</h1><p>Choose a mode to start or resume a game.</p></div>
-              <div className="home-play-modes">
-            <section className="boss-run-card" aria-labelledby="boss-run-title">
-                <div className="boss-run-heading">
-                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
-                  <span>1 CREDIT PER RUN</span>
-                </div>
-                <div className="boss-run-options">
-                  {(["standard", "freestyle"] as const).map((mode) => (
-                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
-                      <button className="boss-run-button" type="button"
-                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
-                        <span>{mode === "standard" ? "Standard" : "Freestyle"}</span>
-                        <ArrowRight size={17} aria-hidden="true" />
-                      </button>
-                      <p className="boss-run-description">{mode === "standard" ? "Classic chess" : "Chess960"} · {BOSSES.length} challengers</p>
-                      {savedMatch && savedMode === mode && (
-                        <button
-                          className="resume-match-button"
-                          type="button"
-                          onClick={() => resumeSavedMatch(savedMatch)}
-                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
-                        >
-                          RESUME <ArrowRight size={13} aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            {user ? <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} /> :
-              <section className="online-home-card" aria-labelledby="online-home-title">
-                <h2 id="online-home-title">Play against human</h2>
-                <p>Choose a 3, 5, 10 or 15 minute game. If no opponent is available, play an unrated practice bot.</p>
-                <button type="button" onClick={() => { setScreen("online"); setAuthOpen(true); }}>Sign in to play online</button>
-              </section>}
-              </div>
-            </section>
             <section className="home-options" aria-labelledby="home-options-title">
               <h2 id="home-options-title">Options</h2>
               <nav className="home-options-actions" aria-label="Game options">
@@ -2495,7 +2462,7 @@ function App() {
               </div>
             </section>
           </aside>
-          <div className="home-dashboard-content">
+          <aside className="home-stats-panel" aria-label="Your progress">
         {screen === "home" && (
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
@@ -2560,6 +2527,61 @@ function App() {
             </div>
           </section>
         )}
+            <HomeDuelVideo />
+          </aside>
+          <div className="home-dashboard-content">
+            <section className="home-play-area" aria-labelledby="home-play-title">
+              <div className="home-play-heading"><div><h1 id="home-play-title">Play</h1><p>Choose a mode to start or resume a game.</p></div></div>
+              <div className="home-play-modes">
+            {user ? <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} /> :
+              <section className="online-home-card" aria-labelledby="online-home-title">
+                <h2 id="online-home-title">Play against human</h2>
+                <p>Sign in to play. Choose your game to get started.</p>
+                <OnlineQuickStart onStart={(minutes, mode) => { setScreen(`online/new/${minutes}/${mode}`); setAuthOpen(true); }} />
+              </section>}
+
+            <section className="boss-run-card" aria-labelledby="boss-run-title">
+                <div className="boss-run-heading">
+                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
+                  <span>1 CREDIT PER RUN</span>
+                </div>
+                <div className="boss-run-options">
+                  {(["standard", "freestyle"] as const).map((mode) => {
+                    const clears = ladderClears(progress, mode);
+                    const nextBoss = BOSSES[Math.min(clears, BOSSES.length - 1)]!;
+                    return (
+                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
+                      <button className="boss-run-button" type="button"
+                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
+                        <img className="boss-run-portrait" src={bossThumbnail(nextBoss.character, __BOSS_PORTRAITS__)} width={112} height={112} alt="" decoding="async" />
+                        <span className="boss-run-label"><strong>{mode === "standard" ? "Standard" : "Freestyle"}</strong><span>{clears >= BOSSES.length ? "Ladder conquered! Replay" : "Next boss"}</span><b>{nextBoss.name}</b><small>{nextBoss.elo} Elo</small></span>
+                        <ArrowRight size={17} aria-hidden="true" />
+                      </button>
+                      <p className="boss-run-description">{mode === "standard" ? "Classic chess" : "Chess960"} · {BOSSES.length} challengers</p>
+                      {savedMatch && savedMode === mode && (
+                        <button
+                          className="resume-match-button"
+                          type="button"
+                          onClick={() => resumeSavedMatch(savedMatch)}
+                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
+                        >
+                          RESUME <ArrowRight size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                    );
+                  })}
+                </div>
+              </section>
+              <section className="gambit-academy-card" aria-labelledby="gambit-academy-title">
+                <h2 id="gambit-academy-title">Gambit Academy</h2>
+                <p>Learn gambits with guided boss coaching and Stockfish practice.</p>
+                <button className="resume-match-button" type="button" onClick={() => setScreen("gambits")}>Train gambits <ArrowRight size={16} aria-hidden="true" /></button>
+              </section>
+              </div>
+            </section>
+
+
 
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}

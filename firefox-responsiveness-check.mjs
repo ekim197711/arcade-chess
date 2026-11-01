@@ -51,7 +51,7 @@ try {
   await page.waitForFunction(first => document.querySelector('.dancing-boss')?.getAttribute('aria-label') !== first,first);
   assert.equal(await page.locator('.dancing-boss').count(),12,'cycling does not add animation layers');
   await page.getByRole('button',{name:/^Insert one coin/}).click();
-  await page.getByRole('button',{name:'Standard',exact:true}).click();
+  await page.locator('.boss-run-standard .boss-run-button').click();
   await page.waitForURL('**/#roster');
   await page.locator('.boss-line').last().waitFor();
   assert.equal(await page.locator('.dancing-boss').count(),0);

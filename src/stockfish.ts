@@ -43,12 +43,14 @@ export function beginnerMove(best: string, candidates: Map<string, number>, elo:
   return best;
 }
 
-export function requestStockfishMove(fen: string, pgn: string, elo: number, signal: AbortSignal): Promise<EngineMove | null> {
+export function requestStockfishMove(fen: string, pgn: string, elo: number, signal: AbortSignal, searchMoves?: string[]): Promise<EngineMove | null> {
   const position = new Chess(fen);
   if (position.isGameOver()) return Promise.resolve(null);
   const positionCommand = stockfishPosition(pgn, fen);
   const legalMoves = position.moves({ verbose: true });
   const legal = new Map(legalMoves.map(move => [move.from + move.to + (move.promotion ?? ""), move]));
+  if (searchMoves && (!searchMoves.length || searchMoves.some(move => !legal.has(move)))) return Promise.reject(new Error("Invalid training reply"));
+  const searchSuffix = searchMoves ? ` searchmoves ${searchMoves.join(" ")}` : "";
   return new Promise((resolve, reject) => {
     const worker = new Worker(`${import.meta.env.BASE_URL}stockfish/stockfish-19-lite-single.js`);
     let settled = false;
@@ -100,7 +102,7 @@ export function requestStockfishMove(fen: string, pgn: string, elo: number, sign
           clearTimeout(timer);
           timer = setTimeout(timeout, 20000);
           worker.postMessage(positionCommand);
-          worker.postMessage(strength.beginner ? "go depth 4" : "go movetime 1500");
+          worker.postMessage((strength.beginner ? "go depth 4" : "go movetime 1500") + searchSuffix);
         } else if (stage === "search") {
           const info = line.match(/\bscore (cp|mate) (-?\d+).*\bpv ([a-h][1-8][a-h][1-8][qrbn]?)/);
           if (info && legal.has(info[3])) candidates.set(info[3], info[1] === "mate" ? Math.sign(Number(info[2])) * 100_000 : Number(info[2]));
@@ -108,7 +110,7 @@ export function requestStockfishMove(fen: string, pgn: string, elo: number, sign
           if (best) {
             const uci = strength.beginner ? beginnerMove(best[1], candidates, strength.requestedElo, range!.min) : best[1];
             const move = legal.get(uci);
-            if (!move) { finish(null, new Error("Stockfish returned an invalid move. Please retry.")); return; }
+            if (!move || (searchMoves && !searchMoves.includes(uci))) { finish(null, new Error("Stockfish returned an invalid move. Please retry.")); return; }
             finish({ from: move.from, to: move.to, promotion: move.promotion });
           }
         }

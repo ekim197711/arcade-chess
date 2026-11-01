@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "chess.js": "npm:chess.js@1.4.0",
+    "chessops/chess": "npm:chessops@0.15.1/chess",
+    "chessops/fen": "npm:chessops@0.15.1/fen",
+    "chessops/san": "npm:chessops@0.15.1/san",
+    "chessops/pgn": "npm:chessops@0.15.1/pgn",
+    "chessops/util": "npm:chessops@0.15.1/util",
+    "chessops/types": "npm:chessops@0.15.1/types"
+  }
+}

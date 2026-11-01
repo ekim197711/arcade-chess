@@ -157,3 +157,29 @@ Run `npm run setup` once per checkout to enable `.githooks`; `npm install` also 
 Use `npm run deploy -- --profile mikeaa` to build and publish to the existing production site. Use `--dry-run` to validate the build without publishing, or `--dist path/to/dist` for a prepared artifact. The deployment script verifies the AWS account and artifact, uploads assets before publishing the entry page, records the S3 publication timestamp in `deployment.json`, and invalidates CloudFront metadata. Run this command for application releases even when infrastructure is managed with Terraform. Build/deployment JSON contains public, nonsecret release metadata; the administration screen itself remains administrator-only. Local previews show build details without claiming to be deployed.
 
 Verification: `node versioning-check.mjs` exercises real commits in an isolated temporary repository, including partial commits, retries, manual versions, staging preservation and stale-artifact rejection. `node version-ui-check.mjs` checks administrator visibility, deployment timestamps, stale tabs, request limits and responsive layouts.
+
+### Front-page quick starts and human Freestyle
+
+Home now puts human quick starts in the center, with Boss Run immediately below. Both Standard and Freestyle have 3/5/10/15-minute buttons. Guests retain their chosen clock/style through sign-in. Boss buttons show 112px thumbnails of each ladder's next uncleared opponent; a completed ladder offers its final boss as a replay.
+
+Before releasing this frontend, apply `supabase/multiplayer-freestyle.sql` after `multiplayer.sql`, `roles.sql` and `multiplayer-transport.sql`, then deploy the updated `multiplayer` Edge Function. Its `deno.json` maps the shared `src/chess.ts` dependencies; the server and browser use the same Standard/Chess960 rules. The migration retains legacy Standard RPCs, isolates queues by clock and variant, generates the random starting position on the server, and preserves bot fallback, clocks, permissions and rating handling. Do not rerun the older multiplayer/transport SQL afterward without reapplying this migration.
+
+Checks: `node multiplayer-freestyle-check.mjs`, `node home-quick-start-ui-check.mjs`, `node frontpage-budget-check.mjs`, existing multiplayer/transport checks, `npm run build`, and `npx deno check --config supabase/functions/multiplayer/deno.json supabase/functions/multiplayer/index.ts`.
+
+The home progress column shows a locally served medieval chess comic (`public/animations/comic-duels/strip.html`) with pause, previous/next matchup controls and reduced-motion support. The optional 3D board-brawl video assets and deterministic renderers are retained under `public/animations/medieval-duels` and `scripts/duel-renderers`.
+
+## Gambit Academy
+
+Open **Train gambits** under **Gambit Academy**, directly after **Boss Run** in the home Play card (or visit `#gambits`). The academy bundles 471 gambit families and 1,315 named opening lines from the CC0 Lichess chess-openings catalogue. Search the catalogue, select a scenario, and follow the boss's square-by-square instructions. White and Black training are supported; switch sides explicitly with **Train the other side**. Optional spoken coaching uses the browser's speech synthesis.
+
+Stockfish 19 runs locally in a worker. Guided lessons constrain its search to the scenario reply so it reliably reaches the teaching position; **Play on against Stockfish** removes that constraint. Engine failures expose a retry action without changing the position. Off-line moves are rejected without changing the board and explained as variation mismatches, since an alternative legal move is not necessarily a chess mistake.
+
+Each named line must be cleared before its family is marked mastered. This measures completion of the supplied opening repertoire, not chess strength. Clears are stored locally per account ID (or guest), independently of ladder progress, and are not cloud-synced. Some obscure gambits have only one named line in the source catalogue. The catalogue is comprehensive within that source, not a claim to enumerate every gambit ever invented.
+
+Refresh catalogue data with `node scripts/import-gambits.mjs`; review changes before shipping. Verify with `node gambit-training-check.mjs` and `node gambit-training-ui-check.mjs` (the UI check uses the same local Playwright installation as existing browser checks).
+
+Chess notation in Gambit Academy coaching/history and review explanations is underlined and clickable. Its help explains piece letters, squares, move numbers, captures, castling, promotion, check and checkmate. Help supports keyboard activation, Escape, and a close button.
+
+Before a gambit starts, a briefing introduces its idea, the player's color and role, and the corresponding attacking or defensive plan. **Understood** starts the lesson; Stockfish and the board remain inactive until acknowledgement. Players can swap sides in the briefing, see their role throughout play, and reopen it with **Review gambit idea**. Swapping sides restarts the scenario and presents the briefing again.
+
+After a guided gambit line is completed, the boss explains the material balance, available open or semi-open files, the player's next plan and the opponent's likely plan. The recap distinguishes intended compensation from a proven advantage and explains that continuing against Stockfish uses unrestricted replies. Optional spoken coaching includes this recap; square and move notation in it retains clickable help. Run `node gambit-outcome-check.mjs` for the position-summary checks.

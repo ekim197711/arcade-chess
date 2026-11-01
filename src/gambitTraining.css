@@ -1,0 +1,27 @@
+.gambit-training{max-width:1200px;margin:auto;padding:24px;color:#e9f1ff}.gambit-heading{display:flex;justify-content:space-between;align-items:center;gap:20px}.gambit-training h1{font-size:clamp(24px,4vw,40px);color:#7eeaff}.gambit-training button,.gambit-training input,.gambit-training select{font:inherit}.gambit-training button{cursor:pointer}.gambit-training input[type=search],.gambit-training select{padding:12px;background:#10192d;color:#fff;border:1px solid #486a94;max-width:100%}.gambit-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.gambit-catalog button{display:flex;flex-direction:column;text-align:left;gap:12px;padding:20px;background:linear-gradient(135deg,#142c46,#16152b);border:1px solid #355e82;color:#fff}.gambit-catalog span{font-size:12px;color:#a5d5ee}.gambit-arena{display:grid;grid-template-columns:minmax(0,650px) minmax(260px,1fr);gap:24px;margin-top:20px}.gambit-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;border:4px solid #528dae}.gambit-board .gambit-square{position:relative;aspect-ratio:1;border:0;border-radius:0;padding:0;min-width:0;display:grid;place-items:center;opacity:1}.gambit-square.light{background:#cedbe0}.gambit-square.dark{background:#52798d}.gambit-square.selected{box-shadow:inset 0 0 0 5px #ec46cb}.gambit-square.legal:after{content:"";position:absolute;width:20%;height:20%;border-radius:50%;background:#182f5399;pointer-events:none}.gambit-square img{max-width:100%;max-height:100%;pointer-events:none}.gambit-coach{background:#101c31;border:1px solid #365f87;padding:20px;align-self:start}.gambit-coach>img{width:112px;height:112px;object-fit:contain;float:right}.gambit-speech{clear:both;background:#071120;border-left:3px solid #65e6f7;padding:18px;line-height:1.65}.gambit-coach button,.gambit-heading button,.gambit-training>button{background:#243c61;color:#fff;border:1px solid #527fa4;padding:10px;margin:5px}.gambit-coach label{display:block;margin-top:14px}.gambit-coach select{display:block;width:100%;margin-top:8px}.gambit-note,.gambit-history{font-size:12px;line-height:1.6;color:#a8bdd3;overflow-wrap:anywhere}.gambit-training button:focus-visible{outline:3px solid #fcce49;outline-offset:2px}@media(max-width:760px){.gambit-arena{grid-template-columns:1fr}.gambit-training{padding:12px}.gambit-heading{display:block}}
+
+/* External coordinate axes follow the selected player's orientation. */
+.gambit-board-frame { display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: auto 24px; }
+.gambit-rank-axis { display: grid; grid-template-rows: repeat(8, 1fr); padding-block: 4px; }
+.gambit-file-axis { grid-column: 2; display: grid; grid-template-columns: repeat(8, 1fr); padding-inline: 4px; }
+.gambit-rank-axis span, .gambit-file-axis span { display: grid; place-items: center; color: #bad0e5; font-size: 12px; }
+.gambit-square.hint-from::before, .gambit-square.hint-to::before { content: ""; position: absolute; inset: 3px; border: 4px solid; pointer-events: none; z-index: 1; }
+.gambit-square.hint-from::before { border-color: #00eeff; background: #00eeff25; }
+.gambit-square.hint-to::before { border-color: #ffcf40; background: #ffcf4040; border-style: dashed; }
+.gambit-move-key { text-align: center; font-weight: bold; }
+.gambit-from-key { color: #00eeff; border-bottom: 3px solid; }
+.gambit-to-key { color: #ffcf40; border-bottom: 3px dashed; }
+
+.gambit-briefing { max-width: 780px; margin: 24px auto; padding: clamp(20px,4vw,36px); border: 1px solid #508ba7; border-radius: 12px; background: linear-gradient(135deg,#142c46,#11172b); line-height: 1.7; }
+.gambit-briefing > img { float: right; margin: 0 0 16px 16px; object-fit: contain; }
+.gambit-briefing h2 { color: #7eeaff; line-height: 1.3; }
+.gambit-briefing h3 { clear: both; color: #ffcf40; }
+.gambit-briefing-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.gambit-briefing-actions > button { padding: 12px 20px; border: 1px solid #528fa4; border-radius: 6px; color: #fff; background: #243c61; }
+.gambit-briefing-actions > button:first-child { color: #071120; background: #7eeaff; font-weight: bold; }
+.gambit-role { padding: 12px; border-left: 3px solid #ffcf40; background: #071120; font-size: 13px; line-height: 1.6; }
+
+.gambit-outcome { margin-top: 20px; padding: 18px; border: 1px solid #6b9c7d; border-radius: 8px; background: #0b242b; line-height: 1.65; }
+.gambit-outcome h3 { margin-top: 0; color: #a7efaf; }
+.gambit-outcome h4 { margin: 18px 0 6px; color: #7eeaff; }
+.gambit-outcome p { margin: 6px 0 12px; font-size: 14px; }
