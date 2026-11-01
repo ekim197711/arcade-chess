@@ -12,13 +12,14 @@ import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./
 import type { PieceColor } from "./MedievalPiece";
 import "./review.css";
 import { BoardAnnotations } from "./BoardAnnotations";
+import { BoardResizeHandle } from "./BoardResizeHandle";
 
 const MOVE_SPEEDS = [0.5, 1, 1.5, 2, 3, 5, 10];
 const SPECIAL_MOVE_WAITS = [0.5, 1, 1.5, 2, 2.5, 3];
 const REVIEW_PREFERENCES_KEY = "arcade-chess-review-preferences-v1";
-type ReviewPreferences = { moveSeconds: number; specialMoveSeconds: number; theme: PieceStyle; showCoordinates: boolean; eventMode: "pause" | "stop" | "continue" };
+type ReviewPreferences = { moveSeconds: number; specialMoveSeconds: number; theme: PieceStyle; showCoordinates: boolean; eventMode: "pause" | "stop" | "continue"; boardWidth: number | null };
 function readReviewPreferences(fallbackTheme: PieceStyle): ReviewPreferences {
-  const defaults: ReviewPreferences = { moveSeconds: 2, specialMoveSeconds: 1.5, theme: fallbackTheme, showCoordinates: true, eventMode: "pause" };
+  const defaults: ReviewPreferences = { moveSeconds: 2, specialMoveSeconds: 1.5, theme: fallbackTheme, showCoordinates: true, eventMode: "pause", boardWidth: null };
   try {
     const saved = JSON.parse(localStorage.getItem(REVIEW_PREFERENCES_KEY) ?? "null");
     if (!saved || typeof saved !== "object") return defaults;
@@ -28,6 +29,7 @@ function readReviewPreferences(fallbackTheme: PieceStyle): ReviewPreferences {
       theme: PIECE_CHOICES.some((choice) => choice.id === saved.theme) ? saved.theme : defaults.theme,
       showCoordinates: typeof saved.showCoordinates === "boolean" ? saved.showCoordinates : defaults.showCoordinates,
       eventMode: ["pause", "stop", "continue"].includes(saved.eventMode) ? saved.eventMode : defaults.eventMode,
+      boardWidth: typeof saved.boardWidth === "number" && Number.isFinite(saved.boardWidth) && saved.boardWidth >= 240 && saved.boardWidth <= 1200 ? saved.boardWidth : null,
     };
   } catch { return defaults; }
 }
@@ -51,7 +53,21 @@ type Props = {
 
 export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", closeLabel = "Back to home", playerName, theme, color, light, dark, onClose, onMoveSound, moveTimesMs, timingSource = "device" }: Props) {
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
-  const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme } = preferences;
+  const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme, boardWidth } = preferences;
+  const boardFrame = useRef<HTMLDivElement>(null);
+  const [boardPixels, setBoardPixels] = useState(520);
+  useEffect(() => {
+    const frame = boardFrame.current;
+    if (!frame) return;
+    const measure = () => setBoardPixels(Math.round(frame.getBoundingClientRect().width));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+  function resizeReviewBoard(width: number | undefined) {
+    setPreferences(current => ({ ...current, boardWidth: width === undefined ? null : Math.round(Math.max(240, Math.min(1200, width))) }));
+  }
   const [savingFailed, setSavingFailed] = useState(false);
   const [themeLoading, setThemeLoading] = useState(false);
   const [themeError, setThemeError] = useState("");
@@ -252,7 +268,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
               <span>Black · {color === "b" ? playerName : opponent}</span>
             </div>
           </section>}
-          <div className={`review-board-frame${showCoordinates ? " review-board-with-coordinates" : ""}`}>
+          <div ref={boardFrame} className={`review-board-frame${showCoordinates ? " review-board-with-coordinates" : ""}`} style={{ "--review-board-width": boardWidth === null ? undefined : `${boardWidth}px` } as CSSProperties}>
           {showCoordinates && <div className="review-axis review-rank-axis" aria-label="Board ranks">{Array.from({ length: 8 }, (_, index) => <span key={index}>{color === "w" ? 8 - index : index + 1}</span>)}</div>}
           <div className="review-board chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties} aria-label={preview ? "Best move line chessboard" : "Replay chessboard"}>
             <BoardAnnotations color={color} positionKey={positionFen} />
@@ -268,6 +284,13 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
             {arrow && <svg className="review-best-arrow" viewBox="0 0 8 8" role="img" aria-label={`Best move: ${arrow.san}, ${arrow.from} to ${arrow.to}`} data-from={arrow.from} data-to={arrow.to}><path d={arrow.path} /></svg>}
           </div>
           {showCoordinates && <div className="review-axis review-file-axis" aria-label="Board files">{Array.from({ length: 8 }, (_, index) => <span key={index}>{String.fromCharCode(97 + (color === "w" ? index : 7 - index))}</span>)}</div>}
+          <BoardResizeHandle onResize={resizeReviewBoard} fitToStageHeight={false} />
+          </div>
+          <div className="review-board-size">
+            <label htmlFor="review-board-size">Board size <output>{boardWidth === null ? "Auto" : `${boardWidth}px`}</output></label>
+            <input id="review-board-size" aria-label="Review board size" type="range" min="240" max="1200" step="10" value={boardWidth ?? Math.max(240, Math.min(1200, boardPixels))} onChange={event => resizeReviewBoard(Number(event.target.value))} />
+            <button type="button" onClick={() => resizeReviewBoard(undefined)}>Auto-fit board</button>
+            <small>Drag the corner or use the slider. Saved on this device; fits the available space.</small>
           </div>
           {!preview && <>
           <div className="review-controls">
