@@ -32,7 +32,9 @@ try{
  assert.equal(await width(),260);
  assert.equal(await page.getByRole('slider',{name:'Replay position',exact:true}).inputValue(),'1','resizing preserves the selected move');
  await handle.press('Shift+ArrowRight');assert.equal(await width(),310);
+ await handle.scrollIntoViewIfNeeded();
  const grip=await handle.boundingBox();await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);await page.mouse.down();await page.mouse.move(grip.x+grip.width/2+40,grip.y+grip.height/2,{steps:5});await page.mouse.up();
+ await page.waitForFunction(()=>document.querySelector('.review-board-frame').getBoundingClientRect().width>310);
  const dragged=await width();assert(dragged>310,'dragging enlarges the board');assert.equal((await saved()).boardWidth,dragged);
  await page.reload();await slider.waitFor();assert.equal(await width(),dragged,'reload restores the saved width');
  let preferences=await saved();assert.equal(preferences.moveSeconds,10);assert.equal(preferences.specialMoveSeconds,2);assert.equal(preferences.showCoordinates,true);assert.equal(preferences.eventMode,'continue');
