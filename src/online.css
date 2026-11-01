@@ -57,12 +57,43 @@
 .online-home-confirm { margin-top: 16px; padding: 14px; border: 1px solid #ffb3bd; border-radius: 6px; }
 .online-home-confirm p { flex-basis: 100%; margin: 0; }
 .online-home-countdown strong { color: #ffe59a; font-variant-numeric: tabular-nums; }
-.online-result { max-width: 1120px; }
-.online-result-kicker { color: #91e9ff; font-size: 12px; letter-spacing: .08em; }
-.online-result h1 { margin: 14px 0; color: #adffd2; font-size: clamp(36px, 7vw, 64px); }
+.game-review.online-result { max-width: 1120px; max-height: none; overflow: visible; margin: 0; padding: clamp(12px, 1.5vw, 20px); }
+.online-result-kicker { margin: 0; color: #91e9ff; font-size: 10px; letter-spacing: .08em; }
+.online-result h1 { margin: 4px 0; color: #adffd2; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
 .online-result[data-outcome="loss"] h1 { color: #ffb3bd; }
 .online-result[data-outcome="draw"] h1 { color: #91e9ff; }
-.online-result-winner { color: #eff5ff; font-size: 20px; }
-.online-result .result-stats dd { overflow-wrap: anywhere; }
-.online-result-actions { justify-content: flex-start; margin-top: 24px; }
+.online-result-winner { margin: 4px 0; color: #eff5ff; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.online-result .result-reason { margin: 4px 0 12px; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.online-result .online-result-summary { display: block; }
+.online-result .online-result-actions { position: sticky; top: 8px; z-index: 8; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px; padding: 4px; border: 1px solid #536bb3; border-radius: 8px; background: #0c163b; }
+.online-result .online-result-actions button { min-height: 44px; padding: 6px 8px; margin: 0; font-size: 13px; line-height: 1.25; }
+.online-result .online-result-actions .online-result-play-again { background: #174331; border-color: #adffd2; color: #adffd2; }
+.online-result-overview { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.online-result-statistics { min-width: 0; }
+.online-result .result-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.online-result .result-stats > div { min-width: 0; padding: 10px; }
+.online-result .result-stats dt { font-size: 11px; line-height: 1.2; }
+.online-result .result-stats dd { margin: 4px 0 0; font-size: 18px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.online-result-rating { margin: 8px 0 0; font-size: 12px; }
+.online-result .review-accuracy { min-width: 0; margin: 0; padding: 10px; }
+.online-result .review-accuracy h2 { margin: 0; font-size: 16px; line-height: 1.25; }
+.online-result .review-accuracy-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.online-result .review-accuracy-scores > div { gap: 4px; padding: 8px; }
+.online-result .review-accuracy-scores span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.online-result .review-accuracy-scores span, .online-result .review-accuracy-scores small { font-size: 11px; line-height: 1.25; }
+.online-result .review-accuracy-scores strong { font-size: 24px; line-height: 1.1; }
+.online-result .review-accuracy .review-note { margin: 6px 0 0; font-size: 11px; line-height: 1.3; }
+.online-result .final-position { margin: 16px 0; padding-top: 12px; }
+.online-result .final-position h2 { margin: 0; font-size: 16px; }
+.online-result .final-position-frame { width: min(100%, 400px); margin-top: 10px; }
+.online-result-social { margin-top: 16px; }
+.online-result-social > summary { padding: 12px 0; cursor: pointer; color: #91e9ff; }
+@media(max-width:760px) {
+  .online-result .online-result-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .online-result .online-result-actions button { font-size: 12px; }
+  .online-result-overview { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .online-result .result-stats { gap: 6px; }
+  .online-result .result-stats > div { padding: 8px; }
+  .online-result .result-stats dd { font-size: 15px; }
+}
 @media(max-width:760px) { .online-game-layout { grid-template-columns: minmax(0,1fr); } .online-home-card { padding: 18px; } .online-lobby { padding: 14px; } }
