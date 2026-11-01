@@ -9,11 +9,8 @@
 .app-shell .home-dashboard .home-options-panel > .home-coin-card { flex: 0 0 auto; }
 .home-options h2 { margin: 0 0 12px; font-size: 18px; color: #eff5ff; }
 .home-options-actions { display: grid; gap: 8px; }
-.home-options-actions > button, .home-options-panel .admin-home-link, .home-audio-options > button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid #637ac4; border-radius: 7px; color: #eff5ff; background: #17285f; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
-.home-options-actions > button:focus-visible, .home-audio-options > button:focus-visible { outline: 2px solid #85e7ff; outline-offset: 2px; }
-.home-audio-options { display: grid; gap: 8px; margin-top: 12px; }
-.home-audio-options > button span { margin-left: auto; color: #c4d0f5; }
-.home-audio-options > button[aria-pressed="true"] { border-color: #adffd2; }
+.home-options-actions > button, .home-options-panel .admin-home-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid #637ac4; border-radius: 7px; color: #eff5ff; background: #17285f; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.home-options-actions > button:focus-visible { outline: 2px solid #85e7ff; outline-offset: 2px; }
 @media (max-width: 1000px) {
   .home-dashboard { grid-template-columns: minmax(0, 1fr); }
   .home-dashboard > .home-options-panel { grid-column: 1; grid-row: 1; position: static; max-height: none; }

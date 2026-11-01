@@ -2454,15 +2454,10 @@ function App() {
               <h2 id="home-options-title">Options</h2>
               <nav className="home-options-actions" aria-label="Game options">
                 <button type="button" onClick={() => setScreen("settings")}>Game settings <Settings size={16} aria-hidden="true" /></button>
-                <button type="button" onClick={() => setAuthOpen(true)}>{user ? "Account" : "Sign in"} <LogIn size={16} aria-hidden="true" /></button>
                 <button type="button" onClick={() => document.getElementById("history-title")?.scrollIntoView({ block: "start" })}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
                 <button type="button" onClick={() => setHelpOpen(true)}>How to play <Gamepad2 size={16} aria-hidden="true" /></button>
                 {administrationRole === "administrator" && <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>}
               </nav>
-              <div className="home-audio-options">
-                <button type="button" aria-label="Music" aria-pressed={musicEnabled} onClick={toggleMusic}><Music2 size={16} aria-hidden="true" /> Music <span>{musicEnabled ? "On" : "Off"}</span></button>
-                <button type="button" aria-label="Sound effects" aria-pressed={soundEnabled} onClick={() => setSoundEnabled(value => !value)}><Volume2 size={16} aria-hidden="true" /> Sound effects <span>{soundEnabled ? "On" : "Off"}</span></button>
-              </div>
             </section>
             </div>
             <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
