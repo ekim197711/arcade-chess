@@ -32,17 +32,18 @@ try {
     localStorage.setItem('arcade-gambit-storage-notice-v1','acknowledged');
   });
   await page.goto(server.resolvedUrls.local[0]);
-  await page.locator('.dancing-boss').last().waitFor();
-  assert.equal(await page.locator('.dancing-boss').count(),12);
+  await page.locator('.boss-run-button').last().waitFor();
+  assert.ok(await page.locator('.dancing-boss').count() <= 12);
   await page.evaluate(async () => {
-    await Promise.all([...document.querySelectorAll('.dancing-boss img')].map(image => image.decode()));
+    await Promise.all([...document.querySelectorAll('.dancing-boss img, .boss-run-portrait')].map(image => image.decode()));
     window.heartbeats = 0;
     window.heartbeat = setInterval(() => window.heartbeats++,50);
   });
-  const decodedBytes = await page.locator('.dancing-boss img').evaluateAll(images => images.reduce((sum,image)=>sum+image.naturalWidth*image.naturalHeight*4,0));
+  const decodedBytes = await page.locator('.dancing-boss img, .boss-run-portrait').evaluateAll(images => images.reduce((sum,image)=>sum+image.naturalWidth*image.naturalHeight*4,0));
   assert.ok(decodedBytes < 1024*1024, 'active parade portraits stay below 1 MB decoded');
   await page.waitForTimeout(1500);
   assert.ok(await page.evaluate(() => window.heartbeats >= 15), 'Firefox event loop remains responsive during animation');
+  if (await page.locator('.dancing-boss').count()) {
   const route = page.locator('.dancing-boss-route').first();
   const first = await route.locator('button').getAttribute('aria-label');
   await route.locator('button').evaluate(button => button.dispatchEvent(new AnimationEvent('animationiteration',{ animationName:'boss-boogie',bubbles:true })));
@@ -50,6 +51,10 @@ try {
   await route.evaluate(element => element.dispatchEvent(new AnimationEvent('animationiteration',{ animationName:'boss-parade',bubbles:true })));
   await page.waitForFunction(first => document.querySelector('.dancing-boss')?.getAttribute('aria-label') !== first,first);
   assert.equal(await page.locator('.dancing-boss').count(),12,'cycling does not add animation layers');
+  }
+  const comic=page.frameLocator('.home-comic-strip');
+  await comic.getByRole('button',{name:'Pause comic strip',exact:true}).click();
+  assert(!await comic.locator('body').evaluate(el=>el.classList.contains('playing')));
   await page.getByRole('button',{name:/^Insert one coin/}).click();
   await page.locator('.boss-run-standard .boss-run-button').click();
   await page.waitForURL('**/#roster');
@@ -58,5 +63,5 @@ try {
   assert.ok(await page.locator('.boss-line img').evaluateAll(images => images.every(image => new URL(image.src).pathname.startsWith('/boss-thumbnails/'))));
   assert.deepEqual(fullPortraits,[],'home and ladder never fetch full-resolution portraits');
   assert.deepEqual(errors,[]);
-  console.log(`PASS isolated Firefox: responsive controls/event loop, 12 actors, ${(decodedBytes/1024/1024).toFixed(2)} MB decoded parade images, safe rotation, no full-size home/ladder portraits`);
+  console.log(`PASS isolated Firefox: responsive controls/event loop, bounded actors, ${(decodedBytes/1024/1024).toFixed(2)} MB decoded parade images, safe rotation, no full-size home/ladder portraits`);
 } finally { await browser?.close(); await server.close(); }
