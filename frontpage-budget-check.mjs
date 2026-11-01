@@ -18,12 +18,17 @@ try {
     const page = await browser.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const requests = [];
-    let saves = 0, progressWrites = 0, heartbeats = 0;
+    let saves = 0, progressWrites = 0, heartbeats = 0, settingsPreferenceReads = 0;
     await page.route('https://budget-check.supabase.co/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith('/app_heartbeat')) {
         heartbeats++;
         return route.fulfill({ status: failReads ? 503 : 200, contentType: 'application/json', body: failReads ? '{"message":"Unavailable"}' : '"player"' });
+      }
+      if (url.pathname.endsWith('/online_social')) {
+        assert.equal(route.request().postDataJSON().p_action,'state','Settings reads its preference without writing');
+        settingsPreferenceReads++;
+        return route.fulfill({contentType:'application/json',body:JSON.stringify({friends:[],messages:[],reactions:[],emojis_enabled:true,peer_emojis_enabled:true})});
       }
       requests.push({ path: url.pathname, method: route.request().method(), limit: url.searchParams.get('limit'), offset: url.searchParams.get('offset') });
       if (url.pathname.startsWith('/functions/')) throw new Error('Home must never invoke an Edge Function');
@@ -67,6 +72,7 @@ try {
       await page.waitForTimeout(150);
       assert.equal(requests.length, 5, 'initial home load is exactly five bounded reads, even with large queues or server errors');
       assert.equal(heartbeats, 1, 'one separate presence heartbeat also resolves the account role');
+      assert.equal(settingsPreferenceReads,0,'home never loads social preferences');
       assert.equal(saves, 0, '600 cached games are not uploaded on home');
       assert.equal(progressWrites, 0, 'pending results and guest merges are not replayed on home');
       assert.equal(await card.locator('.history-item').count(), 50, 'only 50 rows are parsed and rendered initially');
@@ -75,12 +81,15 @@ try {
       await page.evaluate(() => { for (let i = 0; i < 100; i++) { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('online')); } });
       await page.waitForTimeout(200);
       assert.equal(requests.length, baseline, 'ten minutes, 100 focus events and 100 reconnect events produce no requests');
+      const settingsPreference = page.waitForResponse(response=>response.url().endsWith('/rpc/online_social'));
       await page.evaluate(() => { location.hash = 'settings'; });
       await page.waitForURL('**/#settings');
+      await settingsPreference;
       await page.evaluate(() => { location.hash = 'home'; });
       await refresh.waitFor();
       await page.waitForTimeout(200);
       assert.equal(requests.length, baseline, 'card remounts reuse cached success or failure without requests');
+      assert.equal(settingsPreferenceReads,1,'only the explicit Settings visit loads an emoji preference');
       if (!failReads) {
         await card.getByRole('button', { name: 'Show more saved games', exact: true }).click();
         assert.equal(await card.locator('.history-item').count(), 100);

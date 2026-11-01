@@ -2313,9 +2313,6 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
-        {screen === "home" && administrationRole === "administrator" && (
-          <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>
-        )}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
@@ -2411,7 +2408,9 @@ function App() {
           </section>
         )}
         {screen === "home" && (
-          <div className="home-play-cards">
+          <div className="home-dashboard">
+          <aside className="home-play-cards home-options-panel" aria-label="Play and options">
+            <div className="home-options-body">
             <section className="home-play-area" aria-labelledby="home-play-title">
               <div className="home-play-heading"><h1 id="home-play-title">Play</h1><p>Choose a mode to start or resume a game.</p></div>
               <div className="home-play-modes">
@@ -2451,6 +2450,21 @@ function App() {
               </section>}
               </div>
             </section>
+            <section className="home-options" aria-labelledby="home-options-title">
+              <h2 id="home-options-title">Options</h2>
+              <nav className="home-options-actions" aria-label="Game options">
+                <button type="button" onClick={() => setScreen("settings")}>Game settings <Settings size={16} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setAuthOpen(true)}>{user ? "Account" : "Sign in"} <LogIn size={16} aria-hidden="true" /></button>
+                <button type="button" onClick={() => document.getElementById("history-title")?.scrollIntoView({ block: "start" })}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setHelpOpen(true)}>How to play <Gamepad2 size={16} aria-hidden="true" /></button>
+                {administrationRole === "administrator" && <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>}
+              </nav>
+              <div className="home-audio-options">
+                <button type="button" aria-label="Music" aria-pressed={musicEnabled} onClick={toggleMusic}><Music2 size={16} aria-hidden="true" /> Music <span>{musicEnabled ? "On" : "Off"}</span></button>
+                <button type="button" aria-label="Sound effects" aria-pressed={soundEnabled} onClick={() => setSoundEnabled(value => !value)}><Volume2 size={16} aria-hidden="true" /> Sound effects <span>{soundEnabled ? "On" : "Off"}</span></button>
+              </div>
+            </section>
+            </div>
             <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
               <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
               <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
@@ -2485,9 +2499,8 @@ function App() {
               </div>
               </div>
             </section>
-          </div>
-        )}
-
+          </aside>
+          <div className="home-dashboard-content">
         {screen === "home" && (
           <section className="hud-row" aria-label="Player stats">
             <div className="hud-player">
@@ -2558,6 +2571,14 @@ function App() {
         {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {screen === "home" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
         {screen === "home" && user && historyPending > 0 && <p className="review-note">{historyPending} local saves awaiting cloud verification. Refresh saved data syncs up to 5 at a time.</p>}
+          </div>
+          </div>
+        )}
+
+        {screen !== "home" && <>
+        {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
+        {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
+        </>}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
           <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
