@@ -43,7 +43,7 @@ export function beginnerMove(best: string, candidates: Map<string, number>, elo:
   return best;
 }
 
-export function requestStockfishMove(fen: string, pgn: string, elo: number, signal: AbortSignal, searchMoves?: string[]): Promise<EngineMove | null> {
+export function requestStockfishMove(fen: string, pgn: string, elo: number, signal: AbortSignal, searchMoves?: string[], options: { fullStrength?: boolean } = {}): Promise<EngineMove | null> {
   const position = new Chess(fen);
   if (position.isGameOver()) return Promise.resolve(null);
   const positionCommand = stockfishPosition(pgn, fen);
@@ -91,7 +91,7 @@ export function requestStockfishMove(fen: string, pgn: string, elo: number, sign
             worker.postMessage("ucinewgame");
             worker.postMessage("setoption name Hash value 16");
             worker.postMessage(`setoption name UCI_Chess960 value ${position.mode === "freestyle"}`);
-            worker.postMessage("setoption name UCI_LimitStrength value true");
+            worker.postMessage(`setoption name UCI_LimitStrength value ${options.fullStrength ? "false" : "true"}`);
             worker.postMessage(`setoption name UCI_Elo value ${strength.engineElo}`);
             worker.postMessage(`setoption name MultiPV value ${strength.beginner ? legalMoves.length : 1}`);
             stage = "ready";

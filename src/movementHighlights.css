@@ -2,13 +2,15 @@
 .app-shell .chessboard .square:is(.square-last, .review-highlight, .square-selected, .square-premove-from, .square-premove-to, .square-target) {
  box-shadow: none;
 }
+/* Fixed paired fills keep the destination lighter on either board square color. */
 .app-shell .chessboard .square:is(.square-last, .review-highlight) {
- background: color-mix(in srgb, var(--board-move-tint) 52%, var(--board-square-light, #d8bd91));
+ background: var(--board-move-from-fill);
 }
-.app-shell .chessboard .square.square-dark:is(.square-last, .review-highlight) {
- background: color-mix(in srgb, var(--board-move-tint) 52%, var(--board-square-dark, #352317));
+.app-shell .chessboard .square.square-last-to {
+ background: var(--board-move-to-fill);
 }
 .app-shell .chessboard .square:is(.square-light, .square-dark):is(.square-premove-from, .square-premove-to) { background: var(--board-premove-fill); }
+.app-shell .chessboard .square:is(.square-light, .square-dark).square-premove-to { background: color-mix(in srgb, var(--board-premove-fill) 82%, white); }
 .app-shell .chessboard .square:is(.square-light, .square-dark).square-target { background: var(--board-target-fill); }
 .app-shell .chessboard .square:is(.square-light, .square-dark).square-premove-target { background: var(--board-premove-fill); }
 .app-shell .chessboard .square:is(.square-light, .square-dark).square-selected { background: var(--board-selection-fill); }

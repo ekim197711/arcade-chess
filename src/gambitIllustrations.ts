@@ -22,5 +22,39 @@ export function gambitIllustrations(lesson:Lesson):GambitIllustration[] {
   const action=follow.san.startsWith("O-O")?"shelters the king and brings a rook closer to the centre":`brings the ${names[follow.piece]} from ${follow.from} to ${follow.to}`;
   diagrams.push({title:"3. Put the activity to work",move:follow,text:`One possible follow-up is ${follow.san}: ${action}. Look for moves that develop pieces or create useful threats. This is an illustration of the plan, not a forced continuation; your opponent's reply will matter.`});
  }
- return diagrams;
+ // Continue the same position, using the scenario line before illustrative replies.
+ if(follow)position.move(follow.san);
+ let nextPly=lesson.acceptancePly+(follow?1:0);
+ while(diagrams.length<6&&!position.isGameOver()){
+  const bookMove=lesson.line[nextPly];
+  const move=bookMove??illustrativeReply(position);
+  if(!move)break;
+  const played=position.move(move.san);
+  const color=played.color==="w"?"White":"Black";
+  const isOffering=played.color===lesson.offering;
+  const action=played.san.startsWith("O-O")?"castles, moving the king toward safety and connecting the rooks":played.captured?`captures the ${names[played.captured]} on ${played.to} with the ${names[played.piece]}`:played.piece==="p"?`moves the pawn from ${played.from} to ${played.to}, changing the pawn structure`:`moves the ${names[played.piece]} from ${played.from} to ${played.to}`;
+  const focus=isOffering?"Compare your remaining material with your piece activity. Look for development and useful pressure before committing to another attack.":"The defender also gets time to improve the position. Check what this reply changes before continuing your own plan.";
+  diagrams.push({title:`${diagrams.length+1}. ${isOffering?"Continue the gambit plan":"Consider the defender's reply"}`,move:played,text:`${bookMove?"In this scenario":"In this illustrative continuation"}, ${color} plays ${played.san} and ${action}.${played.san.endsWith("#")?" This gives checkmate.":played.san.endsWith("+")?" This gives check: the opponent must answer it.":""} ${focus}${!bookMove?" This is one legal example, not a forced or engine-verified line.":""}`});
+  nextPly++;
+ }
+ // If the example ends early (for instance in mate), show more of its setup.
+ let contextPly=lesson.acceptancePly-3;
+ while(diagrams.length<6&&contextPly>=0){
+  const move=lesson.line[contextPly--];
+  diagrams.unshift({title:"Prepare the position",move,text:`${move.color==="w"?"White":"Black"} plays ${move.san}, moving the ${names[move.piece]} from ${move.from} to ${move.to}. This is the position leading into the offer; follow how both sides arrange their pieces before the capture.`});
+ }
+ return diagrams.map((stage,index)=>({...stage,title:`${index+1}. ${stage.title.replace(/^\d+\. /,"")}`}));
+}
+
+/** Prefer development and central play while avoiding immediate material loss. */
+function illustrativeReply(position:Chess):Move|undefined {
+ const value={p:100,n:320,b:330,r:500,q:900,k:20000};
+ const score=(move:Move)=>{
+  const next=new Chess(move.after);
+  const home=move.color==="w"?"1":"8";
+  const central=7-Math.abs(3.5-(move.to.charCodeAt(0)-97))-Math.abs(3.5-(Number(move.to[1])-1));
+  const risk=Math.max(0,...next.moves({verbose:true}).map(reply=>reply.captured?value[reply.captured]:0));
+  return (next.isCheckmate()?100000:0)+(move.captured?value[move.captured]:0)-risk+central*3+((move.piece==="n"||move.piece==="b")&&move.from[1]===home?35:0)+(move.san.startsWith("O-O")?45:0)-(move.piece==="k"&&!move.san.startsWith("O-O")?25:0);
+ };
+ return position.moves({verbose:true}).map(move=>({move,score:score(move)})).sort((a,b)=>b.score-a.score)[0]?.move;
 }

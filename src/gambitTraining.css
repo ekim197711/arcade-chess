@@ -28,7 +28,8 @@
 
 .gambit-board.chessboard { border-radius: 0; padding: 0; gap: 0; max-width: none; }
 .gambit-board .gambit-square { box-shadow: none; }
-.gambit-board .gambit-square.last-move { background: var(--board-move-fill); }
+.gambit-board .gambit-square.last-move { background: var(--board-move-from-fill); }
+.gambit-board .gambit-square.last-move-to { background: var(--board-move-to-fill); }
 .gambit-board .gambit-square.legal { background: var(--board-target-fill); }
 .gambit-board .gambit-square.selected { background: var(--board-selection-fill); }
 .gambit-board .gambit-square.hint-from { background: var(--board-guide-from-fill); }
@@ -124,3 +125,33 @@
 .gambit-suggestion p { margin: 8px 0; color: var(--text-secondary); line-height: 1.6; }
 .gambit-suggestion > button { flex: none; padding: 14px 20px; border: 1px solid var(--accent-info); border-radius: 6px; color: var(--text-on-accent); background: var(--accent-info); font-weight: bold; }
 @media(max-width:680px) { .gambit-suggestion { flex-direction: column; align-items: stretch; gap: 16px; padding: 20px; } }
+/* Keep explanation boards close to the title and controls within easy reach. */
+.gambit-training-explaining { max-width: 1480px; padding-top: 12px; }
+.gambit-training-explaining .gambit-heading { margin-bottom: 16px; }
+.gambit-training-explaining .gambit-heading h1 { margin: 4px 0 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.2; }
+.gambit-briefing-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; align-items: start; gap: 20px; }
+.gambit-briefing-layout .gambit-briefing { min-width: 0; max-width: none; margin: 0; padding: 20px; }
+.gambit-briefing-layout .gambit-briefing > img { width: 72px; height: 72px; margin-bottom: 8px; }
+.gambit-briefing-layout .gambit-briefing h2 { margin: 4px 0 12px; font-size: 22px; }
+.gambit-briefing-layout .gambit-big-idea { margin: 12px 0 18px; }
+.gambit-briefing-layout .gambit-big-idea h3 { margin: 0 0 6px; }
+.gambit-briefing-layout .gambit-big-idea p { margin: 0; }
+.gambit-briefing-panel { position: sticky; top: 16px; padding: 20px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-card); line-height: 1.6; }
+.gambit-briefing-panel h3 { margin: 0 0 12px; font-size: 17px; color: var(--accent-warning); }
+.gambit-briefing-panel p { font-size: 13px; color: var(--text-secondary); }
+.gambit-briefing-panel .gambit-briefing-actions { display: grid; gap: 10px; margin-top: 18px; }
+.gambit-briefing-panel button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px; }
+.gambit-briefing-panel button svg { flex-shrink: 0; }
+.gambit-briefing-panel .gambit-play-button { background: #287a48; border-color: #369b5e; color: #fff; font-weight: 700; }
+.gambit-briefing-panel .gambit-play-button:hover { background: #21663c; }
+@media (max-width: 1050px) {
+ .gambit-briefing-layout { grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; }
+ .gambit-briefing-layout .gambit-idea-stages { gap: 10px; }
+ .gambit-briefing-layout .gambit-idea-stage { padding: 10px; }
+}
+@media (max-width: 760px) {
+ .gambit-briefing-layout { grid-template-columns: minmax(0, 1fr); }
+ .gambit-briefing-panel { position: static; grid-row: 1; padding: 16px; }
+ .gambit-briefing-panel .gambit-briefing-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .gambit-briefing-layout .gambit-briefing { padding: 16px; }
+}

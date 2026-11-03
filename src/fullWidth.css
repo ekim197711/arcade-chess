@@ -151,3 +151,21 @@
 .home-play-modes > .gambit-academy-card { min-width: 0; padding: 18px; border: 1px solid #375e88; border-radius: 12px; background: linear-gradient(135deg, #112339, #17172f); }
 .gambit-academy-card h2 { margin: 0 0 10px; color: #7eeaff; font-size: 18px; }
 .gambit-academy-card p { color: #b4c8de; font-size: 13px; line-height: 1.5; }
+/* Ladder list and controls share the space below a compact title. */
+.app-shell .boss-select-page { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px 24px; align-items: start; padding: 18px; }
+.boss-select-page > .roster-heading { grid-column: 1 / -1; margin: 0; }
+.boss-select-page .roster-heading .section-kicker { margin-bottom: 6px; }
+.boss-select-page > .boss-select-list { grid-column: 1; grid-row: 2; min-width: 0; max-height: calc(100dvh - 220px); scroll-padding-top: 0; }
+.roster-options-panel { grid-column: 2; grid-row: 2; position: sticky; top: 16px; min-width: 0; padding: 18px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--surface-card); color: var(--text-secondary); overflow-wrap: anywhere; }
+.roster-options-panel > p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; }
+.roster-options-panel .play-mode-picker { margin-top: 18px; font-size: 12px; }
+.roster-options-panel .play-mode-picker select { min-width: 0; }
+.roster-options-panel .roster-fight-dock { position: static; display: grid; gap: 14px; margin-top: 20px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--border-default); background: none; box-shadow: none; backdrop-filter: none; }
+.roster-options-panel .fight-button { width: 100%; margin: 0; }
+@media (max-width: 760px) {
+ .app-shell .boss-select-page { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 14px; }
+ .roster-options-panel { grid-column: 1; grid-row: 2; position: static; padding: 14px; }
+ .boss-select-page > .boss-select-list { grid-column: 1; grid-row: 3; max-height: 65dvh; }
+}
+.app-shell > main:has(.boss-select-page) { padding-top: 12px; }
+.flow-stage:has(> .boss-select-page) { padding-top: 0; padding-bottom: 20px; }

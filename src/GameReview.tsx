@@ -277,7 +277,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
               const file = String.fromCharCode(97 + (color === "w" ? columnIndex : 7 - columnIndex));
               const rank = color === "w" ? 8 - rowIndex : rowIndex + 1;
               const square = `${file}${rank}`;
-              return <div key={square} data-square={square} className={`square square-${(rowIndex + columnIndex) % 2 ? "dark" : "light"}${last && (last.from === square || last.to === square) ? " review-highlight" : ""}`} aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}`}>
+              return <div key={square} data-square={square} className={`square square-${(rowIndex + columnIndex) % 2 ? "dark" : "light"}${last && (last.from === square || last.to === square) ? " review-highlight" : ""}${last?.from === square ? " square-last-from" : ""}${last?.to === square ? " square-last-to" : ""}`} aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}`}>
                 {piece && <span className="chess-piece"><PieceArtwork type={piece.type} color={piece.color} theme={reviewTheme} fitToSquare /></span>}
                 {!preview && piece && move?.to === square && <span className={`review-piece-rating rating-${boardRating.key}`} role="img" aria-label={boardRating.label} title={boardRating.label}>{boardRating.icon}</span>}
               </div>;

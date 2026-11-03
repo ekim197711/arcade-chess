@@ -34,11 +34,13 @@
     --shadow-dialog: 0 16px 70px #000b;
     --board-move-tint: #ffbd4a;
     --board-move-fill: #d6b56d;
+    --board-move-from-fill: var(--board-move-fill);
+    --board-move-to-fill: color-mix(in srgb, var(--board-move-from-fill) 82%, white);
     --board-selection-fill: #72d9dd;
     --board-target-fill: #92b9a0;
     --board-premove-fill: #ceaa67;
-    --board-guide-fill: #b89aef;
-    --board-guide-from-fill: color-mix(in srgb, var(--board-guide-fill) 78%, white);
+    --board-guide-from-fill: #b89aef;
+    --board-guide-fill: color-mix(in srgb, var(--board-guide-from-fill) 82%, white);
     --text-guide-destination: #d6c1ff;
     --text-guide-origin: color-mix(in srgb, var(--text-guide-destination) 78%, white);
     --training-board-light: #cedbe0;

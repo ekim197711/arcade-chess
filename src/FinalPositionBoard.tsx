@@ -28,7 +28,7 @@ export function FinalPositionBoard({ pgn, color, theme, light, dark }: {
           const lastMove = square === last?.from || square === last?.to;
           const mated = checkmate && piece?.type === "k" && piece.color === game.turn();
           return <div key={square} data-square={square}
-            className={`square square-${(row + column) % 2 ? "dark" : "light"}${lastMove ? " review-highlight" : ""}${mated ? " final-position-checkmate" : ""}`}
+            className={`square square-${(row + column) % 2 ? "dark" : "light"}${lastMove ? " review-highlight" : ""}${last?.from === square ? " square-last-from" : ""}${last?.to === square ? " square-last-to" : ""}${mated ? " final-position-checkmate" : ""}`}
             aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}${mated ? " checkmated king" : ""}`}>
             {piece && <span className={`chess-piece ${piece.color === "w" ? "white-piece-glyph" : "black-piece-glyph"}`}><PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare /></span>}
           </div>;

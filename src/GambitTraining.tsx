@@ -1,3 +1,4 @@
+import { ArrowLeft, LayoutGrid, Play, Repeat2 } from "lucide-react";
 import { suggestGambit } from "./gambitSuggestion";
 import { GambitMoveDiagram } from "./GambitMoveDiagram";
 import { gambitIllustrations } from "./gambitIllustrations";
@@ -46,6 +47,8 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
  const [retry,setRetry]=useState(0);
  const [practice,setPractice]=useState(false);
  const [voice,setVoice]=useState(false);
+ const [practiceHint,setPracticeHint]=useState<{fen:string;move?:Move;error?:string}|null>(null);
+ const [hintRetry,setHintRetry]=useState(0);
  const game=useMemo(()=>{const g=new Chess(); if(pgn)g.loadPgn(pgn); return g;},[pgn]);
  const lesson=useMemo(()=>selected?acceptingGambitLine(selected.name,selected.scenarios[0].pgn,selected.scenarios[scenario].pgn):null,[selected,scenario]);
  const line=lesson?.line ?? [];
@@ -59,7 +62,23 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
  const boss=selected?BOSS_CHARACTERS[selected.boss]:null;
  const outcome=useMemo(()=>selected&&done?gambitOutcome(selected.name,selected.scenarios[0].pgn,lesson!.pgn,side):null,[selected,done,lesson,side]);
  const event=useMemo(()=>lesson?gambitStatus(game.history({verbose:true}),lesson,side):null,[game,lesson,side]);
- const message=feedback|| (done&&!practice?"Scenario cleared! Try every listed variation to master this gambit, or continue against Stockfish.":game.turn()!==side?"Watch my reply. I am following this scenario so you can learn its move order.":instruction(line[ply]));
+ const currentHint=practiceHint?.fen===game.fen()?practiceHint:undefined;
+ const suggestedMove = practice ? currentHint?.move : line[ply];
+ useEffect(()=>{
+  if(!practice||briefingOpen||!selected||game.turn()!==side||game.isGameOver())return;
+  const abort=new AbortController();
+  const fen=game.fen();
+  setPracticeHint(null);
+  requestStockfishMove(fen,pgn,3190,abort.signal,undefined,{fullStrength:true}).then(move=>{
+   if(abort.signal.aborted||!move)return;
+   const position=new Chess(fen);
+   setPracticeHint({fen,move:position.move(move)});
+  }).catch((cause:unknown)=>{
+   if(!abort.signal.aborted)setPracticeHint({fen,error:cause instanceof Error?cause.message:"Move guidance is unavailable."});
+  });
+  return()=>abort.abort();
+ },[practice,briefingOpen,selected,game,side,pgn,hintRetry]);
+ const message=feedback|| (done&&!practice?"Scenario cleared! Try every listed variation to master this gambit, or continue against Stockfish.":game.turn()!==side?(practice?"Watch Stockfish's reply, then look for your next move.":"Watch my reply. I am following this scenario so you can learn its move order."):practice?(suggestedMove?`Stockfish recommends ${suggestedMove.san}. ${instruction(suggestedMove)}`:currentHint?.error?"Move guidance is unavailable. Retry to show the recommended move.":"Finding the best continuation for this position..."):instruction(suggestedMove));
  useEffect(()=>{if(briefingOpen||!selected||!done||practice||completed.includes(scenarioKey))return; const next=[...completed,scenarioKey];setCompleted(next);try{localStorage.setItem(key,JSON.stringify(next));setSaveError(false);}catch{setSaveError(true);}},[briefingOpen,selected,done,practice,scenarioKey,completed,key]);
  useEffect(()=>{if(!voice||!selected||briefingOpen||!("speechSynthesis" in window))return; window.speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance((event ? `${event.label} ${event.detail} ` : "") + (done&&!practice&&outcome ? `${message} ${outcome.material} ${outcome.benefit} ${outcome.next} ${outcome.opponent} ${outcome.transition}` : message));window.speechSynthesis.speak(speech);return()=>window.speechSynthesis.cancel();},[voice,message,selected,briefingOpen,done,practice,outcome,event?.phase,event?.label,event?.detail]);
  useEffect(()=>{
@@ -87,7 +106,7 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
  function play(to:Square,promotion?:string,origin:Square|null=from) {
   if(briefingOpen||!origin||busy||error||game.turn()!==side||(!practice&&done))return;
   const next=new Chess();if(pgn)next.loadPgn(pgn);
-  let move:Move;try{move=next.move({from:origin,to,...(promotion?{promotion}:{})});}catch{setFeedback(`That move is illegal in this position. ${instruction(line[ply])}`);setFrom(null);return;}
+  let move:Move;try{move=next.move({from:origin,to,...(promotion?{promotion}:{})});}catch{setFeedback(`That move is illegal in this position. ${instruction(suggestedMove)}`);setFrom(null);return;}
   const expected=line[ply];
   if(!practice&&expected&&(move.from!==expected.from||move.to!==expected.to||move.promotion!==expected.promotion)) {
    setFeedback(`${move.san} is legal, but leaves the move order of this scenario. This is a variation mismatch, not necessarily a bad chess move. ${instruction(expected)} Your position has been restored; try again.`);setFrom(null);return;
@@ -97,25 +116,25 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
  const [promotionTarget,setPromotionTarget]=useState<Square|null>(null);
  const files=side==="w"?"abcdefgh":"hgfedcba";
  const ranks=side==="w"?[8,7,6,5,4,3,2,1]:[1,2,3,4,5,6,7,8];
- const guidedMove = !briefingOpen && !practice && !done && game.turn() === side ? line[ply] : undefined;
+ const guidedMove = !briefingOpen && (practice || !done) && !game.isGameOver() && game.turn() === side ? suggestedMove : undefined;
  const lastMove=game.history({verbose:true}).at(-1);
  const filtered=catalog.filter(g=>g.name.toLowerCase().includes(query.toLowerCase()));
- return <section className={`gambit-training ${selected&&!briefingOpen?"gambit-training-playing":""}`}>
-  <div className="gambit-heading"><div><small>THE GAMBIT ACADEMY</small><h1>{selected?.name ?? "Gambit Academy"}</h1>{!selected&&<p>{catalog.length} named gambits · {catalog.reduce((n,g)=>n+g.scenarios.length,0)} opening scenarios · Stockfish sparring</p>}</div>{(!selected||briefingOpen)&&<button onClick={onClose}>Back to arcade</button>}</div>
+ return <section className={`gambit-training ${selected ? briefingOpen ? "gambit-training-explaining" : "gambit-training-playing" : ""}`}>
+  <div className="gambit-heading"><div><small>THE GAMBIT ACADEMY</small><h1>{selected?.name ?? "Gambit Academy"}</h1>{!selected&&<p>{catalog.length} named gambits · {catalog.reduce((n,g)=>n+g.scenarios.length,0)} opening scenarios · Stockfish sparring</p>}</div>{!selected&&<button onClick={onClose}>Back to arcade</button>}</div>
   {saveError&&<p role="alert">Progress could not be saved to this browser. Keep this page open to retain this session's clears.</p>}
   {!selected?<><p>Choose a boss and follow the guided moves. Clear every listed scenario to master its opening lines. Mastery is local to this browser and profile.</p><section className="gambit-suggestion" aria-labelledby="gambit-suggestion-title"><div><small id="gambit-suggestion-title">Suggested for you</small>{suggestion?<><h2>{suggestion.gambit.name}</h2><p>{suggestion.reason}</p><span className="gambit-note">Easiest unplayed introduction</span></>:<><h2>You have tried every gambit!</h2><p>Choose any gambit below to keep practicing.</p></>}</div>{suggestion&&<button onClick={()=>start(suggestion.gambit,suggestion.scenarioIndex)}>Try this gambit</button>}</section><label>Find a gambit <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="King's, Evans, Smith-Morra…"/></label><p>{filtered.length} gambits found</p><div className="gambit-catalog">{filtered.map(g=>{const count=g.scenarios.filter((_,i)=>cleared(g,i)).length;return <button key={g.id} onClick={()=>start(g,g.scenarios.findIndex((_,i)=>!cleared(g,i))<0?0:g.scenarios.findIndex((_,i)=>!cleared(g,i)))}><strong>{g.name}</strong><span>Keeper: {g.name.replace(/^.*?: /,"")} Sentinel</span><span>{count===g.scenarios.length?"MASTERED":g.scenarios.length > 1 ? `${count} / ${g.scenarios.length} scenarios` : "Start training"}</span></button>;})}</div></>:<>
-  {briefingOpen&&<button onClick={()=>{setSelected(null);setPgn("");setFrom(null);setPromotionTarget(null);}}>All gambits</button>}
-  {briefingOpen&&briefing ? <section className="gambit-briefing" aria-labelledby="gambit-briefing-title">
+  {briefingOpen&&briefing ? <div className="gambit-briefing-layout"><section className="gambit-briefing" aria-labelledby="gambit-briefing-title">
     {boss&&<img src={bossThumbnail(boss.folder,__BOSS_PORTRAITS__)} alt="" width={112} height={112}/>}
     <small>BEFORE WE PLAY</small><h2 id="gambit-briefing-title">The idea behind {selected.name}</h2>
     <section className="gambit-big-idea"><h3>The key idea</h3><p><NotationText text={briefing.idea}/></p></section>
     <div className="gambit-idea-stages">{illustrations.map(stage=><section className="gambit-idea-stage" key={stage.title}><h3>{stage.title}</h3><GambitMoveDiagram move={stage.move} side={side} theme={theme}/><p><NotationText text={stage.text}/></p></section>)}</div>
     <section className="gambit-plan-comparison"><div><h3>What the gambit player wants</h3><p><NotationText text={briefing.attack}/></p></div><div><h3>What the defender should watch for</h3><p><NotationText text={briefing.defense}/></p></div></section>
+  </section><aside className="gambit-briefing-panel" aria-label="Explanation controls">
     <h3>Your role: {role} ({side==="w"?"White":"Black"})</h3>
     <p>{role==="Gambit player"?"You are playing the side offering the gambit. Stockfish will play its opponent.":"You are defending against the gambit. Stockfish will play the side offering it."}</p>
     <p>You can swap sides to {role==="Gambit player"?"try defending against the gambit instead":"try offering the gambit yourself"}. Swapping sides starts this scenario again.</p>
-    <div className="gambit-briefing-actions"><button onClick={beginTraining}>Understood</button><button onClick={()=>start(selected,scenario,side==="w"?"b":"w")}>{role==="Gambit player"?"Swap sides to defend":"Swap sides to play the gambit"}</button></div>
-  </section> : <>
+    <div className="gambit-briefing-actions"><button className="gambit-play-button" onClick={beginTraining}><Play size={18} aria-hidden="true"/>Play</button><button onClick={()=>start(selected,scenario,side==="w"?"b":"w")}><Repeat2 size={18} aria-hidden="true"/>{role==="Gambit player"?"Swap sides to defend":"Swap sides to play the gambit"}</button><button onClick={()=>{setSelected(null);setPgn("");setFrom(null);setPromotionTarget(null);}}><LayoutGrid size={18} aria-hidden="true"/>All gambits</button><button onClick={onClose}><ArrowLeft size={18} aria-hidden="true"/>Back to arcade</button></div>
+  </aside></div> : <>
 
   <div className="gambit-arena">
     <aside className="gambit-controls gambit-side-panel" aria-label="Gambit controls">
@@ -123,7 +142,7 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
       <div className="gambit-navigation"><button onClick={()=>{setSelected(null);setPgn("");setFrom(null);setPromotionTarget(null);}}>All gambits</button><button onClick={onClose}>Back to arcade</button></div>
       <p className="gambit-role"><strong>Your role: {role} ({side==="w"?"White":"Black"})</strong><br/>Swap sides to {role==="Gambit player"?"practice defending against this gambit":"offer the gambit yourself"}.</p>
       {guidedMove&&<p className="gambit-move-key"><span className="gambit-from-key">From <NotationToken token={guidedMove.from}/></span><span aria-hidden="true"> &rarr; </span><span className="gambit-to-key">To <NotationToken token={guidedMove.to}/></span></p>}
-      <p>{practice?"Free play against Stockfish":`Guided move ${Math.min(ply,line.length)} / ${line.length}`}</p>
+      <p>{practice?"Play against Stockfish with move guidance":`Guided move ${Math.min(ply,line.length)} / ${line.length}`}</p>
       {selected.scenarios.length > 1 && <label>Scenario<select value={scenario} onChange={e=>start(selected,Number(e.target.value),side)}>{selected.scenarios.map((item,index)=><option key={item.pgn} value={index}>{cleared(selected,index)?"[cleared] ":""}{index+1}. {item.name}</option>)}</select></label>}
       <p>{selected.scenarios.length > 1 && `${selected.scenarios.filter((_,index)=>cleared(selected,index)).length} / ${selected.scenarios.length} cleared`}{selected.scenarios.every((_,index)=>cleared(selected,index)) ? " MASTERED" : ""}</p>
       <div className="gambit-actions"><button onClick={()=>start(selected,scenario,side)}>Restart scenario</button><button onClick={()=>start(selected,scenario,side==="w"?"b":"w")}>Train the other side</button><button onClick={()=>{setBriefingOpen(true);setBusy(false);setFrom(null);}}>Review gambit idea</button></div>
@@ -132,13 +151,14 @@ export default function GambitTraining({accountId,theme,onClose}: {accountId:str
       <h3>Moves played</h3><p className="gambit-history"><NotationText text={game.history().join(" ")||"Starting position"}/></p>
       {briefing&&<section className="gambit-key-ideas" aria-label="Key gambit ideas"><h3>Key ideas</h3><p><NotationText text={briefing.idea}/></p><h4>Your plan</h4><p><NotationText text={role==="Gambit player"?briefing.attack:briefing.defense}/></p><h4>Watch for</h4><p><NotationText text={role==="Gambit player"?briefing.defense:briefing.attack}/></p></section>}
     </aside>
-    <div className="gambit-board-column"><div className="gambit-board-frame"><div className="gambit-rank-axis" aria-hidden="true">{ranks.map(rank=><span key={rank}>{rank}</span>)}</div><div className="gambit-board chessboard" role="group" aria-label={`${side==="w"?"White":"Black"} training board`}>{ranks.flatMap(rank=>[...files].map(file=>{const square=`${file}${rank}` as Square;const piece=game.get(square);const legal=from&&game.moves({square:from,verbose:true}).some(m=>m.to===square);return <DragSquare key={square} square={square} canDrag={!busy&&!error&&game.turn()===side&&(practice||!done)&&piece?.color===side&&!promotionTarget} positionKey={game.fen()} artwork={piece&&<PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare/>} onPickUp={()=>setFrom(square)} onMovePiece={(origin,target)=>{const moving=game.get(origin);if(moving?.type==="p"&&/[18]$/.test(target)){setFrom(origin);setPromotionTarget(target);}else play(target,undefined,origin);}} className={`gambit-square ${(file.charCodeAt(0)+rank)%2?"light":"dark"} ${from===square?"selected":""} ${lastMove?.from===square||lastMove?.to===square?"last-move":""} ${legal?"legal":""} ${guidedMove?.from===square?"hint-from":""} ${guidedMove?.to===square?"hint-to":""}`} aria-label={`${square}${piece?` ${piece.color==="w"?"white":"black"} ${piece.type}`:" empty"}`} disabled={busy||!!error||(!practice&&done)||game.turn()!==side} onClick={()=>{if(piece?.color===side){setFrom(square);return;}if(from){if(game.get(from)?.type==="p"&&(rank===1||rank===8)){setPromotionTarget(square);}else play(square);}}}>{piece&&<span className="chess-piece"><PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare/></span>}</DragSquare>;}))}</div><div className="gambit-file-axis" aria-hidden="true">{[...files].map(file=><span key={file}>{file}</span>)}</div></div></div>
+    <div className="gambit-board-column"><div className="gambit-board-frame"><div className="gambit-rank-axis" aria-hidden="true">{ranks.map(rank=><span key={rank}>{rank}</span>)}</div><div className="gambit-board chessboard" role="group" aria-label={`${side==="w"?"White":"Black"} training board`}>{ranks.flatMap(rank=>[...files].map(file=>{const square=`${file}${rank}` as Square;const piece=game.get(square);const legal=from&&game.moves({square:from,verbose:true}).some(m=>m.to===square);return <DragSquare key={square} square={square} canDrag={!busy&&!error&&game.turn()===side&&(practice||!done)&&piece?.color===side&&!promotionTarget} positionKey={game.fen()} artwork={piece&&<PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare/>} onPickUp={()=>setFrom(square)} onMovePiece={(origin,target)=>{const moving=game.get(origin);if(moving?.type==="p"&&/[18]$/.test(target)){setFrom(origin);setPromotionTarget(target);}else play(target,undefined,origin);}} className={`gambit-square ${(file.charCodeAt(0)+rank)%2?"light":"dark"} ${from===square?"selected":""} ${lastMove?.from===square?"last-move last-move-from":""} ${lastMove?.to===square?"last-move last-move-to":""} ${legal?"legal":""} ${guidedMove?.from===square?"hint-from":""} ${guidedMove?.to===square?"hint-to":""}`} aria-label={`${square}${piece?` ${piece.color==="w"?"white":"black"} ${piece.type}`:" empty"}`} disabled={busy||!!error||(!practice&&done)||game.turn()!==side} onClick={()=>{if(piece?.color===side){setFrom(square);return;}if(from){if(game.get(from)?.type==="p"&&(rank===1||rank===8)){setPromotionTarget(square);}else play(square);}}}>{piece&&<span className="chess-piece"><PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare/></span>}</DragSquare>;}))}</div><div className="gambit-file-axis" aria-hidden="true">{[...files].map(file=><span key={file}>{file}</span>)}</div></div></div>
     <aside className="gambit-coach gambit-side-panel" aria-label="Boss coaching">
       {boss&&<img src={bossThumbnail(boss.folder,__BOSS_PORTRAITS__)} alt={`${selected.name} boss`} />}
       <h2>Your gambit coach</h2><p className="gambit-note">{selected.name} Sentinel</p>
       <label><input type="checkbox" checked={voice} onChange={e=>setVoice(e.target.checked)}/> Speak coaching aloud</label>
       {event&&<div className={`gambit-event gambit-event-${event.phase}`} role="status" aria-live="polite" aria-atomic="true"><strong>{event.label}</strong><p><NotationText text={event.detail}/></p></div>}
       <p className="gambit-speech" aria-live="polite">{game.isGameOver()?`Game over: ${game.isCheckmate()?"checkmate":"draw"}. Restart to try again.`:<NotationText text={message}/>}</p>
+      {practice&&currentHint?.error&&<div role="alert"><p>{currentHint.error}</p><button onClick={()=>setHintRetry(value=>value+1)}>Retry move guidance</button></div>}
       {busy&&<p role="status">Stockfish is thinking...</p>}{error&&<div role="alert"><p>{error}</p><button onClick={()=>setRetry(value=>value+1)}>Retry Stockfish</button></div>}
       {done&&!practice&&outcome&&<section className="gambit-outcome" aria-labelledby="gambit-outcome-title"><h3 id="gambit-outcome-title">Gambit played. What comes next?</h3><h4>The position you reached</h4><p><NotationText text={outcome.material}/></p><h4>Why try this gambit?</h4><p><NotationText text={outcome.benefit}/></p><h4>Your next plan</h4><p><NotationText text={outcome.next}/></p><h4>What to expect from your opponent</h4><p><NotationText text={outcome.opponent}/></p><p>{outcome.transition}</p></section>}
     </aside>

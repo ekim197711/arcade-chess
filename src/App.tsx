@@ -2616,8 +2616,13 @@ function App() {
                   <div>
                     <div className="section-kicker">CHOOSE AN OPPONENT</div>
                     <h1 id="boss-select-title">
-                      {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
                     </h1>
+                      {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
+
+                  </div>
+                </div>
+
+                <aside className="roster-options-panel" aria-label="Ladder options">
                     <p>Beat each challenger to unlock the next in this ladder. Standard and Freestyle progress independently.</p>
                     <p>Ratings are strength targets. Beginner bosses below 1320 Elo use approximate difficulty.</p>
                     {debugMode && <p role="status">DEBUG MODE · All bosses unlocked · Test matches</p>}
@@ -2632,15 +2637,6 @@ function App() {
                         : "The traditional starting position and standard chess rules."}</p>
                       {savedMatch && <small>Resume keeps the saved position. Earlier unfinished games remain available in Historic games.</small>}
                     </div>
-                  </div>
-                </div>
-
-                <div
-                  className="boss-select-list"
-                  ref={rosterListRef}
-                  role="group"
-                  aria-label={`${playMode === "freestyle" ? "Freestyle" : "Standard"} ladder. Select an unlocked row to start a match.`}
-                >
                   <div className="roster-fight-dock">
                     <div className="roster-fight-target">
                       <span>
@@ -2669,6 +2665,14 @@ function App() {
                       </span>
                       <ArrowRight size={15} />
                     </button>
+                </aside>
+
+                <div
+                  className="boss-select-list"
+                  ref={rosterListRef}
+                  role="group"
+                  aria-label={`${playMode === "freestyle" ? "Freestyle" : "Standard"} ladder. Select an unlocked row to start a match.`}
+                >
                   </div>
                   {BOSSES.map((entry, index) => {
                     const locked = !debugMode && index > clearedBosses;
@@ -2906,7 +2910,7 @@ function App() {
                                   return (
                                     <DragSquare
                                       key={square}
-                                      className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premoves.some(move => move.from === square) ? "square-premove-from" : ""} ${premoves.some(move => move.to === square) ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
+                                      className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${viewedLastMove?.from === square ? "square-last-from" : ""} ${viewedLastMove?.to === square ? "square-last-to" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premoves.some(move => move.from === square) ? "square-premove-from" : ""} ${premoves.some(move => move.to === square) ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
                                       aria-label={`${square}, ${pieceName}${isLegal ? `, ${queuingPremove ? "premove" : "legal"} destination` : ""}${premoves.some(move => move.from === square) ? ", premove origin" : ""}${premoves.some(move => move.to === square) ? ", premove target" : ""}${isSelected ? ", selected" : ""}`}
                                       aria-pressed={isSelected}
                                       onClick={(event) => handleSquareClick(square, event.detail === 0 ? undefined : { x: event.clientX, y: event.clientY })}
