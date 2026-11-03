@@ -2616,8 +2616,8 @@ function App() {
                   <div>
                     <div className="section-kicker">CHOOSE AN OPPONENT</div>
                     <h1 id="boss-select-title">
-                    </h1>
                       {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
+                    </h1>
 
                   </div>
                 </div>
@@ -2665,6 +2665,7 @@ function App() {
                       </span>
                       <ArrowRight size={15} />
                     </button>
+                  </div>
                 </aside>
 
                 <div
@@ -2673,7 +2674,6 @@ function App() {
                   role="group"
                   aria-label={`${playMode === "freestyle" ? "Freestyle" : "Standard"} ladder. Select an unlocked row to start a match.`}
                 >
-                  </div>
                   {BOSSES.map((entry, index) => {
                     const locked = !debugMode && index > clearedBosses;
                     const cleared = index < clearedBosses;
