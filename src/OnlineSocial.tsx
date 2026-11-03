@@ -139,7 +139,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
         {friend?.accepted && <details><summary>Manage friendship</summary><p>Removing this friend ends private lobby chat and clears that conversation for both players. Match chat stays with its game.</p><button disabled={disabled} onClick={() => void request("remove")}>Remove friend & clear chat</button></details>}
       </> : null}
     </>);
-  return <section className={preferencesOnly ? undefined : "online-social"} aria-label={preferencesOnly ? "Emoji reactions" : "Friends and chat"}>
+  return <section className={preferencesOnly ? "emoji-reaction-settings" : "online-social"} aria-label={preferencesOnly ? "Emoji reactions" : "Friends and chat"}>
     {preferencesOnly ? <><h2>Emoji reactions</h2><p>Show and send emoji reactions during games. This preference is saved {userId === "guest" ? "on this device" : "to your account"}.</p></> :
       <h3>{botGame ? "Practice bot reactions" : gameId ? `Connect with ${peerName}` : "Friends & chat"}</h3>}
     {error && <p className="social-error" role="alert">{error} <button disabled={busy} onClick={() => { setError(""); void request(); }}>Retry</button></p>}

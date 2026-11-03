@@ -1,27 +1,126 @@
-.gambit-training{max-width:1200px;margin:auto;padding:24px;color:#e9f1ff}.gambit-heading{display:flex;justify-content:space-between;align-items:center;gap:20px}.gambit-training h1{font-size:clamp(24px,4vw,40px);color:#7eeaff}.gambit-training button,.gambit-training input,.gambit-training select{font:inherit}.gambit-training button{cursor:pointer}.gambit-training input[type=search],.gambit-training select{padding:12px;background:#10192d;color:#fff;border:1px solid #486a94;max-width:100%}.gambit-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.gambit-catalog button{display:flex;flex-direction:column;text-align:left;gap:12px;padding:20px;background:linear-gradient(135deg,#142c46,#16152b);border:1px solid #355e82;color:#fff}.gambit-catalog span{font-size:12px;color:#a5d5ee}.gambit-arena{display:grid;grid-template-columns:minmax(0,650px) minmax(260px,1fr);gap:24px;margin-top:20px}.gambit-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;border:4px solid #528dae}.gambit-board .gambit-square{position:relative;aspect-ratio:1;border:0;border-radius:0;padding:0;min-width:0;display:grid;place-items:center;opacity:1}.gambit-square.light{background:#cedbe0}.gambit-square.dark{background:#52798d}.gambit-square.selected{box-shadow:inset 0 0 0 5px #ec46cb}.gambit-square.legal:after{content:"";position:absolute;width:20%;height:20%;border-radius:50%;background:#182f5399;pointer-events:none}.gambit-square img{max-width:100%;max-height:100%;pointer-events:none}.gambit-coach{background:#101c31;border:1px solid #365f87;padding:20px;align-self:start}.gambit-coach>img{width:112px;height:112px;object-fit:contain;float:right}.gambit-speech{clear:both;background:#071120;border-left:3px solid #65e6f7;padding:18px;line-height:1.65}.gambit-coach button,.gambit-heading button,.gambit-training>button{background:#243c61;color:#fff;border:1px solid #527fa4;padding:10px;margin:5px}.gambit-coach label{display:block;margin-top:14px}.gambit-coach select{display:block;width:100%;margin-top:8px}.gambit-note,.gambit-history{font-size:12px;line-height:1.6;color:#a8bdd3;overflow-wrap:anywhere}.gambit-training button:focus-visible{outline:3px solid #fcce49;outline-offset:2px}@media(max-width:760px){.gambit-arena{grid-template-columns:1fr}.gambit-training{padding:12px}.gambit-heading{display:block}}
+.gambit-training{max-width:1200px;margin:auto;padding:24px;color:var(--text-primary)}.gambit-heading{display:flex;justify-content:space-between;align-items:center;gap:20px}.gambit-training h1{font-size:clamp(24px,4vw,40px);color:var(--accent-info)}.gambit-training button,.gambit-training input,.gambit-training select{font:inherit}.gambit-training button{cursor:pointer}.gambit-training input[type=search],.gambit-training select{padding:12px;background:var(--surface-inset);color:var(--text-on-control);border:1px solid var(--border-control);max-width:100%}.gambit-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.gambit-catalog button{display:flex;flex-direction:column;text-align:left;gap:12px;padding:20px;background:linear-gradient(135deg,var(--surface-card),var(--surface-raised));border:1px solid var(--border-default);color:var(--text-on-control)}.gambit-catalog span{font-size:12px;color:var(--text-secondary)}.gambit-arena{display:grid;grid-template-columns:minmax(0,650px) minmax(260px,1fr);gap:24px;margin-top:20px}.gambit-board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;border:4px solid var(--border-board)}.gambit-board .gambit-square{position:relative;aspect-ratio:1;border:0;border-radius:0;padding:0;min-width:0;display:grid;place-items:center;opacity:1}.gambit-square.light{background:var(--training-board-light)}.gambit-square.dark{background:var(--training-board-dark)}.gambit-square img{max-width:100%;max-height:100%;pointer-events:none}.gambit-coach{background:var(--surface-card);border:1px solid var(--border-default);padding:20px;align-self:start}.gambit-coach>img{width:112px;height:112px;object-fit:contain;float:right}.gambit-speech{clear:both;background:var(--surface-inset);border-left:3px solid var(--accent-info);padding:18px;line-height:1.65}.gambit-coach button,.gambit-heading button,.gambit-training>button{background:var(--surface-control);color:var(--text-on-control);border:1px solid var(--border-control);padding:10px;margin:5px}.gambit-coach label{display:block;margin-top:14px}.gambit-coach select{display:block;width:100%;margin-top:8px}.gambit-note,.gambit-history{font-size:12px;line-height:1.6;color:var(--text-muted);overflow-wrap:anywhere}.gambit-training button:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}@media(max-width:760px){.gambit-arena{grid-template-columns:1fr}.gambit-training{padding:12px}.gambit-heading{display:block}}
 
 /* External coordinate axes follow the selected player's orientation. */
 .gambit-board-frame { display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: auto 24px; }
 .gambit-rank-axis { display: grid; grid-template-rows: repeat(8, 1fr); padding-block: 4px; }
 .gambit-file-axis { grid-column: 2; display: grid; grid-template-columns: repeat(8, 1fr); padding-inline: 4px; }
-.gambit-rank-axis span, .gambit-file-axis span { display: grid; place-items: center; color: #bad0e5; font-size: 12px; }
-.gambit-square.hint-from::before, .gambit-square.hint-to::before { content: ""; position: absolute; inset: 3px; border: 4px solid; pointer-events: none; z-index: 1; }
-.gambit-square.hint-from::before { border-color: #00eeff; background: #00eeff25; }
-.gambit-square.hint-to::before { border-color: #ffcf40; background: #ffcf4040; border-style: dashed; }
+.gambit-rank-axis span, .gambit-file-axis span { display: grid; place-items: center; color: var(--text-muted); font-size: 12px; }
+
+
+
 .gambit-move-key { text-align: center; font-weight: bold; }
-.gambit-from-key { color: #00eeff; border-bottom: 3px solid; }
-.gambit-to-key { color: #ffcf40; border-bottom: 3px dashed; }
+.gambit-from-key { color: var(--text-guide-origin); border-bottom: 3px solid; }
+.gambit-to-key { color: var(--text-guide-destination); border-bottom: 3px solid; }
 
-.gambit-briefing { max-width: 780px; margin: 24px auto; padding: clamp(20px,4vw,36px); border: 1px solid #508ba7; border-radius: 12px; background: linear-gradient(135deg,#142c46,#11172b); line-height: 1.7; }
+.gambit-briefing { max-width: 780px; margin: 24px auto; padding: clamp(20px,4vw,36px); border: 1px solid var(--border-default); border-radius: 12px; background: linear-gradient(135deg,var(--surface-card),var(--surface-raised)); line-height: 1.7; }
 .gambit-briefing > img { float: right; margin: 0 0 16px 16px; object-fit: contain; }
-.gambit-briefing h2 { color: #7eeaff; line-height: 1.3; }
-.gambit-briefing h3 { clear: both; color: #ffcf40; }
+.gambit-briefing h2 { color: var(--accent-info); line-height: 1.3; }
+.gambit-briefing h3 { clear: both; color: var(--accent-warning); }
 .gambit-briefing-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-.gambit-briefing-actions > button { padding: 12px 20px; border: 1px solid #528fa4; border-radius: 6px; color: #fff; background: #243c61; }
-.gambit-briefing-actions > button:first-child { color: #071120; background: #7eeaff; font-weight: bold; }
-.gambit-role { padding: 12px; border-left: 3px solid #ffcf40; background: #071120; font-size: 13px; line-height: 1.6; }
+.gambit-briefing-actions > button { padding: 12px 20px; border: 1px solid var(--border-control); border-radius: 6px; color: var(--text-on-control); background: var(--surface-control); }
+.gambit-briefing-actions > button:first-child { color: var(--text-on-accent); background: var(--accent-info); font-weight: bold; }
+.gambit-role { padding: 12px; border-left: 3px solid var(--accent-warning); background: var(--surface-inset); font-size: 13px; line-height: 1.6; }
 
-.gambit-outcome { margin-top: 20px; padding: 18px; border: 1px solid #6b9c7d; border-radius: 8px; background: #0b242b; line-height: 1.65; }
-.gambit-outcome h3 { margin-top: 0; color: #a7efaf; }
-.gambit-outcome h4 { margin: 18px 0 6px; color: #7eeaff; }
+.gambit-outcome { margin-top: 20px; padding: 18px; border: 1px solid var(--accent-success); border-radius: 8px; background: var(--surface-success); line-height: 1.65; }
+.gambit-outcome h3 { margin-top: 0; color: var(--accent-success); }
+.gambit-outcome h4 { margin: 18px 0 6px; color: var(--accent-info); }
 .gambit-outcome p { margin: 6px 0 12px; font-size: 14px; }
+
+.gambit-board.chessboard { border-radius: 0; padding: 0; gap: 0; max-width: none; }
+.gambit-board .gambit-square { box-shadow: none; }
+.gambit-board .gambit-square.last-move { background: var(--board-move-fill); }
+.gambit-board .gambit-square.legal { background: var(--board-target-fill); }
+.gambit-board .gambit-square.selected { background: var(--board-selection-fill); }
+.gambit-board .gambit-square.hint-from { background: var(--board-guide-from-fill); }
+.gambit-board .gambit-square.hint-to { background: var(--board-guide-fill); }
+.gambit-board .gambit-square::before, .gambit-board .gambit-square::after { display: none; }
+
+.gambit-event { margin: 18px 0; padding: 16px 20px; border-radius: 8px; background: var(--surface-info); color: var(--text-primary); }
+.gambit-event strong { font-size: 20px; color: var(--accent-info); }
+.gambit-event p { margin: 8px 0 0; line-height: 1.6; }
+.gambit-event-accepted { background: var(--surface-success); }
+.gambit-event-accepted strong { color: var(--accent-success); }
+.gambit-event-declined { background: var(--surface-warning); }
+.gambit-event-declined strong { color: var(--accent-warning); }
+.gambit-training .gambit-move-key button.chess-notation-token { color: inherit; }
+
+/* Playing layout: controls | square board | coach. Text never sets the board size. */
+.gambit-training-playing { width: 100%; max-width: none; margin: 0; padding: 12px 0 20px; --gambit-stage-size: max(320px, calc(100dvh - 230px)); }
+.gambit-training-playing .gambit-heading { margin-bottom: 14px; }
+.gambit-training-playing .gambit-heading h1 { margin: 6px 0 0; font-size: clamp(22px, 2.2vw, 34px); line-height: 1.2; overflow-wrap: anywhere; }
+.gambit-training-playing .gambit-arena { display: grid; grid-template-columns: minmax(190px, 1fr) minmax(0, 3.2fr) minmax(220px, 1fr); gap: 16px; margin-top: 0; align-items: start; }
+.gambit-board-column { min-width: 0; display: flex; justify-content: center; }
+.gambit-training-playing .gambit-board-frame { width: min(100%, calc(var(--gambit-stage-size) + 24px)); flex: none; }
+.gambit-side-panel { min-width: 0; max-height: calc(var(--gambit-stage-size) + 24px); overflow-y: auto; scrollbar-width: thin; padding: 16px; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: 8px; overflow-wrap: anywhere; }
+.gambit-side-panel h2 { margin: 0 0 12px; font-size: 18px; }
+.gambit-side-panel h3 { font-size: 15px; }
+.gambit-side-panel > p { font-size: 13px; line-height: 1.6; }
+.gambit-side-panel .gambit-role { margin: 14px 0; }
+.gambit-side-panel button { padding: 10px; margin: 0; background: var(--surface-control); color: var(--text-on-control); border: 1px solid var(--border-control); border-radius: 5px; }
+.gambit-side-panel .chess-notation-token { margin: 0; padding: 0 2px; background: transparent; border-radius: 0; }
+.gambit-controls label { display: block; font-size: 13px; }
+.gambit-controls select { width: 100%; margin-top: 8px; min-width: 0; }
+.gambit-actions, .gambit-navigation, .gambit-promotion { display: grid; gap: 8px; margin: 12px 0; }
+.gambit-side-panel.gambit-coach > img { width: 80px; height: 80px; float: none; display: block; margin: 0 0 12px; }
+.gambit-side-panel .gambit-speech { padding: 12px; line-height: 1.65; }
+.gambit-side-panel .gambit-event { padding: 12px; }
+.gambit-side-panel .gambit-event strong { font-size: 17px; }
+.gambit-side-panel .gambit-outcome { padding: 12px; }
+@media (max-width: 1050px) {
+ .gambit-training-playing .gambit-arena { grid-template-columns: minmax(0, 1fr) minmax(230px, .5fr); }
+ .gambit-board-column { grid-column: 1; grid-row: 1; }
+ .gambit-controls { grid-column: 2; grid-row: 1; }
+ .gambit-side-panel.gambit-coach { grid-column: 1 / -1; max-height: none; }
+}
+@media (max-width: 680px) {
+ .gambit-training-playing { padding-top: 8px; }
+ .gambit-training-playing .gambit-arena { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+ .gambit-board-column { grid-column: 1; grid-row: 1; }
+ .gambit-controls { grid-column: 1; grid-row: 2; }
+ .gambit-side-panel.gambit-coach { grid-column: 1; grid-row: 3; }
+ .gambit-side-panel { max-height: none; }
+ .gambit-actions, .gambit-navigation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Pre-game explanation: each idea is paired with an actual legal position. */
+.gambit-briefing { max-width: 1160px; }
+.gambit-big-idea { clear: both; margin: 22px 0; }
+.gambit-idea-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.gambit-idea-stage { min-width: 0; padding: 16px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-inset); }
+.gambit-idea-stage h3 { margin: 0 0 14px; color: var(--text-primary); font-size: 17px; line-height: 1.4; }
+.gambit-idea-stage > p { margin: 14px 0 0; font-size: 14px; line-height: 1.65; }
+.gambit-move-diagram { margin: 0; }
+.gambit-mini-frame { display: grid; grid-template-columns: 16px minmax(0, 1fr); grid-template-rows: auto 18px; }
+.gambit-mini-ranks { display: grid; grid-template-rows: repeat(8, 1fr); }
+.gambit-mini-files { grid-column: 2; display: grid; grid-template-columns: repeat(8, 1fr); }
+.gambit-mini-ranks span, .gambit-mini-files span { display: grid; place-items: center; font-size: 10px; line-height: 1; color: var(--text-muted); }
+.gambit-mini-board { position: relative; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; isolation: isolate; }
+.gambit-mini-square { position: relative; display: block; aspect-ratio: 1; min-width: 0; }
+.gambit-mini-square.light { background: var(--training-board-light); }
+.gambit-mini-square.dark { background: var(--training-board-dark); }
+.gambit-mini-square.diagram-from { background: var(--board-guide-from-fill); }
+.gambit-mini-square.diagram-to { background: var(--board-guide-fill); }
+.gambit-mini-square img { pointer-events: none; }
+.gambit-diagram-arrow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.gambit-diagram-arrow > path { fill: none; stroke: var(--accent-info); stroke-width: .17; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.gambit-diagram-arrow marker path { fill: var(--accent-info); }
+.gambit-move-diagram figcaption { margin-top: 8px; font-size: 13px; text-align: center; color: var(--text-secondary); }
+.gambit-plan-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }
+.gambit-plan-comparison > div { padding: 16px; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: 8px; }
+.gambit-plan-comparison h3 { margin-top: 0; font-size: 17px; }
+.gambit-key-ideas { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border-default); }
+.gambit-key-ideas h3, .gambit-key-ideas h4 { color: var(--accent-info); }
+.gambit-key-ideas h4 { margin-bottom: 8px; font-size: 13px; }
+.gambit-key-ideas p { font-size: 13px; line-height: 1.65; }
+@media (max-width: 760px) {
+ .gambit-idea-stages { grid-template-columns: minmax(0, 1fr); }
+ .gambit-move-diagram { width: min(100%, 320px); margin-inline: auto; }
+ .gambit-plan-comparison { grid-template-columns: minmax(0, 1fr); }
+}
+
+.gambit-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; margin: 24px 0; border: 1px solid var(--accent-info); border-radius: 10px; background: linear-gradient(135deg,var(--surface-card),var(--surface-raised)); }
+.gambit-suggestion small { color: var(--accent-info); font-weight: bold; }
+.gambit-suggestion h2 { margin: 10px 0; color: var(--text-primary); font-size: 24px; }
+.gambit-suggestion p { margin: 8px 0; color: var(--text-secondary); line-height: 1.6; }
+.gambit-suggestion > button { flex: none; padding: 14px 20px; border: 1px solid var(--accent-info); border-radius: 6px; color: var(--text-on-accent); background: var(--accent-info); font-weight: bold; }
+@media(max-width:680px) { .gambit-suggestion { flex-direction: column; align-items: stretch; gap: 16px; padding: 20px; } }

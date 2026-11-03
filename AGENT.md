@@ -28,6 +28,10 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 - `src/light.css`: layout and component styles for the newer home, ladder, and battle UI; imported before `src/amiga.css`, which applies the dark Amiga palette.
 - `supabase/schema.sql`: row-level security, atomic/idempotent progress RPCs, and progression migration.
 
+## UI palette
+
+- Use the semantic text, surface, border, control and status variables in `src/ui-colors.css` for new UI styles. Keep foreground/background pairs together; avoid hardcoded component text colors. Theme overrides belong on `.app-shell`. Chessboard palettes remain independently selectable. Verify settings text contrast with `node settings-palette-check.mjs`.
+
 ## Important behavior and data rules
 
 - Boss ratings are **progression labels, not calibrated Elo strengths**. The current local bot is a prototype, not a production-strength engine. Do not claim that a 100 or 3000 label corresponds to a real rating; Stockfish WebAssembly would be needed for dependable strength calibration.

@@ -1,5 +1,6 @@
-/* Shared UI colors. Future themes can override these tokens on .app-shell
-   alongside --panel, --panel-2 and --line, keeping text and surfaces paired. */
+/* Shared semantic palette. Change colors here, or override these tokens on
+   .app-shell for a theme. Keep foreground/background pairs together.
+   Existing cabinet themes supply --bg, --panel, --panel-2, --line and --cyan. */
 :root {
     --text-primary: #f4f5f7;
     --text-secondary: #d5d8df;
@@ -10,11 +11,39 @@
     --focus-ring: var(--text-primary);
 }
 
-.app-shell {
-    --surface-control: var(--panel-2);
-    --surface-control-hover: var(--panel);
-    --surface-dialog: var(--panel);
-    --border-control: var(--line);
+:root, .app-shell {
+    --surface-page: var(--bg, #050608);
+    --surface-card: var(--panel, #101d55);
+    --surface-raised: var(--panel-2, #182b72);
+    --surface-inset: #071120;
+    --surface-control: var(--surface-raised);
+    --surface-control-hover: var(--surface-card);
+    --surface-dialog: var(--surface-card);
+    --border-default: var(--line, #4c63bf);
+    --border-control: var(--border-default);
+    --accent-info: var(--cyan, #7eeaff);
+    --accent-success: #b8f89b;
+    --accent-warning: #ffda88;
+    --accent-error: #ffb3bd;
+    --text-on-accent: #071120;
+    --surface-info: #173848;
+    --surface-success: #173d30;
+    --surface-warning: #42341b;
+    --surface-message-own: #20365c;
+    --surface-scrim: #03081466;
+    --shadow-dialog: 0 16px 70px #000b;
+    --board-move-tint: #ffbd4a;
+    --board-move-fill: #d6b56d;
+    --board-selection-fill: #72d9dd;
+    --board-target-fill: #92b9a0;
+    --board-premove-fill: #ceaa67;
+    --board-guide-fill: #b89aef;
+    --board-guide-from-fill: color-mix(in srgb, var(--board-guide-fill) 78%, white);
+    --text-guide-destination: #d6c1ff;
+    --text-guide-origin: color-mix(in srgb, var(--text-guide-destination) 78%, white);
+    --training-board-light: #cedbe0;
+    --training-board-dark: #52798d;
+    --border-board: #528dae;
 }
 
 .topbar .nav-link {
@@ -100,3 +129,16 @@
     outline: 2px solid var(--focus-ring);
     outline-offset: 3px;
 }
+
+/* Descendant sections (including emoji preferences) inherit the same palette. */
+.app-shell .settings-page { color: var(--text-primary); }
+.app-shell .settings-card { color: var(--text-primary); background: var(--surface-card); border-color: var(--border-default); }
+.app-shell .settings-page :is(h1, h2, h3, label) { color: var(--text-primary); }
+.app-shell .settings-page p { color: var(--text-secondary); }
+.app-shell .settings-page .review-note { color: var(--text-muted); }
+.app-shell .settings-page .social-error { color: var(--accent-error); }
+.app-shell .settings-page select { color: var(--text-on-control); background: var(--surface-control); border-color: var(--border-control); }
+.app-shell .settings-page input[type="checkbox"] { accent-color: var(--accent-info); }
+.app-shell .settings-page :is(button, input, select):focus-visible { outline-color: var(--focus-ring); }
+
+.app-shell { color: var(--text-primary); }

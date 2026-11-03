@@ -2318,7 +2318,7 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
-        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} onClose={() => setScreen("home")} /></Suspense>}
+        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" onClose={() => setScreen("home")} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (

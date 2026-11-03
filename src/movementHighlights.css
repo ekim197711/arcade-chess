@@ -1,0 +1,16 @@
+﻿/* Movement feedback fills each square; focus rings remain available to keyboard users. */
+.app-shell .chessboard .square:is(.square-last, .review-highlight, .square-selected, .square-premove-from, .square-premove-to, .square-target) {
+ box-shadow: none;
+}
+.app-shell .chessboard .square:is(.square-last, .review-highlight) {
+ background: color-mix(in srgb, var(--board-move-tint) 52%, var(--board-square-light, #d8bd91));
+}
+.app-shell .chessboard .square.square-dark:is(.square-last, .review-highlight) {
+ background: color-mix(in srgb, var(--board-move-tint) 52%, var(--board-square-dark, #352317));
+}
+.app-shell .chessboard .square:is(.square-light, .square-dark):is(.square-premove-from, .square-premove-to) { background: var(--board-premove-fill); }
+.app-shell .chessboard .square:is(.square-light, .square-dark).square-target { background: var(--board-target-fill); }
+.app-shell .chessboard .square:is(.square-light, .square-dark).square-premove-target { background: var(--board-premove-fill); }
+.app-shell .chessboard .square:is(.square-light, .square-dark).square-selected { background: var(--board-selection-fill); }
+.app-shell .chessboard .square.square-target::before,
+.app-shell .chessboard .square.square-target .move-dot { display: none; box-shadow: none; }
