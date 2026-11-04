@@ -24,6 +24,7 @@ create table if not exists public.online_social_messages (
 create index if not exists online_social_conversation on public.online_social_messages(sender_id, recipient_id, id desc);
 create index if not exists online_social_reactions on public.online_social_messages(game_id, id desc) where kind = 'emoji';
 create index if not exists online_social_match_chat on public.online_social_messages(game_id, id desc) where kind = 'chat';
+create index if not exists online_social_match_timeline on public.online_social_messages(game_id, id desc);
 alter table public.online_friendships enable row level security;
 alter table public.online_social_preferences enable row level security;
 alter table public.online_social_messages enable row level security;
@@ -82,7 +83,7 @@ begin
     if p_body is null or char_length(trim(p_body)) not between 1 and 500 then raise exception 'Messages must contain 1 to 500 characters'; end if;
     if p_action = 'emoji' then
       if g.id is null then raise exception 'Reactions require a shared human match'; end if;
-      if p_body not in ('👍','😮','😠','😂','👏','🤝','😊','😎','🤔','😅','😭','😱','🙄','😴','🔥','🎉','💯','❤️','💔','🤯','😬','🤨','😉','🥳','🤓','😈','😇','😤','🥲','😢','🤩','😳','😵','🙃','🫡','🤫','🙏','💪','✌️','🤞','👀','🧠','⚡','🏆','🎯','♟️','👑','💥') then raise exception 'Choose an available emoji'; end if;
+      if p_body not in ('👍','😮','😠','😂','👏','🤝','😊','😎','🤔','😅','😭','😱','🙄','😴','🔥','🎉','💯','❤️','💔','🤯','😬','🤨','😉','🥳','🤓','😈','😇','😤','🥲','😢','🤩','😳','😵','🙃','🫡','🤫','🙏','💪','✌️','🤞','👀','🧠','⚡','🏆','🎯','♟️','👑','💥','♔','♕','♖','♗','♘','♙','♚','♛','♜','♝','♞','🛡️','⚔️','🧩') then raise exception 'Choose an available emoji'; end if;
       if exists(select 1 from public.online_social_preferences where user_id in (me, peer) and not emojis_enabled) then
         raise exception 'Emoji reactions are turned off';
       end if;
@@ -107,8 +108,8 @@ begin
     select * into f from public.online_friendships where player_a = a and player_b = b;
     if f.accepted or g.id is not null then
       select coalesce(jsonb_agg(row_to_json(t) order by t.id), '[]') into messages from (
-        select id, sender_id, body, created_at from public.online_social_messages
-        where kind = 'chat' and ((sender_id = me and recipient_id = peer) or (sender_id = peer and recipient_id = me))
+        select id, sender_id, kind, body, created_at from public.online_social_messages
+        where (kind = 'chat' or (kind = 'emoji' and enabled and p_game is not null)) and ((sender_id = me and recipient_id = peer) or (sender_id = peer and recipient_id = me))
           and (game_id = p_game or (game_id is null and p_game is null))
         order by id desc limit 50
       ) t;

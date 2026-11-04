@@ -18,6 +18,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
   const draw = game.result === "1/2-1/2";
   const won = game.result === (side === "w" ? "1-0" : "0-1");
   const winner = game.result === "1-0" ? game.white_name : game.black_name;
+  const reason = game.reason === "Time expired" ? "Due to out of time" : game.reason === "Checkmate" ? "Check mate" : game.reason;
   const delta = side === "w" ? game.white_delta : game.black_delta;
   const [socialOpen, setSocialOpen] = useState(false);
   return <section className="game-review online-result" data-outcome={draw ? "draw" : participant && !won ? "loss" : "win"} aria-labelledby="online-result-title">
@@ -29,7 +30,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
     <p className="online-result-kicker">MATCH COMPLETE · {game.is_bot ? "BOT PRACTICE" : "HUMAN MATCH"} · {game.minutes}+0</p>
     <h1 id="online-result-title">{draw ? "Draw" : participant ? won ? "Victory" : "Defeat" : `${winner} wins`}</h1>
     <p className="online-result-winner">{draw ? `${game.white_name} and ${game.black_name} drew.` : `${winner} won ${game.result === "1-0" ? "as White" : "as Black"}.`}</p>
-    <p className="result-reason">{game.result} · {game.reason}</p>
+    <p className="result-reason">{game.result} · {reason}</p>
     </header>
     <div className="online-result-overview">
     <section className="online-result-statistics" aria-label="Match statistics">

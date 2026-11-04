@@ -10,7 +10,9 @@ type AnalyticsWindow = Window & {
 };
 const browser = window as unknown as AnalyticsWindow;
 const local = isLocalHostname(location.hostname);
-const configuredId = (local ? import.meta.env.VITE_GA_DEV_MEASUREMENT_ID : import.meta.env.VITE_GA_MEASUREMENT_ID)?.trim() ?? "";
+const configuredId = (local
+  ? import.meta.env.VITE_GA_DEV_MEASUREMENT_ID
+  : import.meta.env.VITE_GA_MEASUREMENT_ID ?? "G-P42HWXY446")?.trim() ?? "";
 const measurementId = /^G-[A-Z0-9]{4,30}$/.test(configuredId) ? configuredId : "";
 export const analyticsConfigured = !!measurementId;
 let consent = readConsent();

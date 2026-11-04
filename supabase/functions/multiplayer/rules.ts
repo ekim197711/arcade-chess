@@ -8,10 +8,8 @@ export function replay(pgn: string) {
 
 export function outcome(game: Chess): { result: string | null; reason: string } {
   if (game.isCheckmate()) return { result: game.turn() === 'w' ? '0-1' : '1-0', reason: 'Checkmate' };
-  if (game.isStalemate()) return { result: '1/2-1/2', reason: 'Stalemate' };
-  if (game.isInsufficientMaterial()) return { result: '1/2-1/2', reason: 'Insufficient material' };
-  if (game.isThreefoldRepetition()) return { result: '1/2-1/2', reason: 'Threefold repetition' };
-  if (game.isDraw()) return { result: '1/2-1/2', reason: 'Fifty-move rule' };
+  const reason = game.drawReason();
+  if (reason) return { result: '1/2-1/2', reason };
   return { result: null, reason: '' };
 }
 

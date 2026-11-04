@@ -34,9 +34,9 @@ try {
     if (action === 'accept') friend.accepted = true;
     if (action === 'remove') { friend = null; messages = []; }
     if (action === 'preferences') { enabled = preference; reactions = []; }
-    if (action === 'chat') messages.push({id:messages.length+1,sender_id:uid,body,created_at:new Date().toISOString()});
-    if (action === 'emoji') reactions = [{id:1,sender_id:uid,body,created_at:new Date().toISOString()}];
-    return route.fulfill({contentType:'application/json',body:JSON.stringify({friends:friend ? [friend] : [],messages,reactions:enabled ? reactions : [],emojis_enabled:enabled,peer_emojis_enabled:true})});
+    if (action === 'chat') messages.push({id:messages.length+1,sender_id:uid,kind:'chat',body,created_at:new Date().toISOString()});
+    if (action === 'emoji') {const message={id:messages.length+1,sender_id:uid,kind:'emoji',body,created_at:new Date().toISOString()};reactions=[message];messages.push(message);}
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({friends:friend ? [friend] : [],messages:messages.filter(item=>enabled||item.kind!=='emoji'),reactions:enabled ? reactions : [],emojis_enabled:enabled,peer_emojis_enabled:true})});
   });
   const url = server.resolvedUrls.local[0]+'.tmp/social-fixture.html';
   await page.goto(url);
@@ -53,6 +53,12 @@ try {
   await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   await page.getByRole('button',{name:'Send thumbs up',exact:true}).click();
   await page.getByText('You: 👍',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Send white knight',exact:true}).click();
+  await page.getByRole('tab',{name:'Chat',exact:true}).click();await page.getByRole('log').getByRole('img',{name:'White knight',exact:true}).waitFor();
+  await page.getByText('Add emoji',{exact:true}).click();await page.getByRole('button',{name:'Insert black queen',exact:true}).click();assert(await page.getByRole('textbox',{name:'Message',exact:true}).inputValue());
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByRole('log').getByRole('img',{name:'Black queen',exact:true}).waitFor();
+  await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).uncheck();
   await page.getByText('Emojis are hidden.',{exact:false}).waitFor();
   assert.equal(await page.getByRole('group',{name:'Send an emoji reaction'}).count(),0);
@@ -129,7 +135,7 @@ try {
   const reactionButtons = page.getByRole('group',{name:'Send an emoji reaction'}).getByRole('button');
   assert.equal(await reactionButtons.count(),EMOJI_REACTIONS.length);
   assert(EMOJI_REACTIONS.length>=40);
-  for (const label of ['thumbs up','surprised','angry','laughing','applause','good game']) {
+  for (const label of ['thumbs up','surprised','angry','laughing','applause','good game','white knight']) {
     await page.getByRole('button',{name:`Send ${label}`,exact:true}).click();
     assert.match(await page.getByLabel('Your reaction',{exact:true}).innerText(),/^You:/);
     assert.equal(await reactionButtons.first().isDisabled(),true);
@@ -140,6 +146,7 @@ try {
   await page.getByRole('button',{name:'Send good game',exact:true}).click();
   await page.clock.fastForward(6100);
   assert.equal((await page.getByLabel('Your reaction',{exact:true}).innerText()).trim(),'','same-emoji repeat refreshes and expires');
+  await page.getByRole('tab',{name:'Chat',exact:true}).click();assert.equal(await page.getByRole('log').getByRole('img',{name:'White knight',exact:true}).count(),1,'bot-game emoji stays in chat after popup expiry');await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   assert.equal(await reactionButtons.first().isDisabled(),false);
   await page.getByRole('button',{name:'Send thumbs up',exact:true}).click();
   await page.getByRole('checkbox',{name:'Emoji reactions enabled'}).uncheck();
@@ -151,6 +158,7 @@ try {
   await page.getByLabel('Bot reaction',{exact:true}).getByText('You captured my pawn!',{exact:false}).waitFor();
   await page.clock.fastForward(6500);
   assert.equal((await page.getByLabel('Bot reaction',{exact:true}).innerText()).trim(),'','bot reactions expire');
+  await page.getByRole('tab',{name:'Chat',exact:true}).click();await page.getByRole('log').getByText('You captured my pawn!',{exact:false}).waitFor();assert(await page.getByRole('log').evaluate(el=>el.scrollTop+el.clientHeight>=el.scrollHeight-1),'opening Chat reveals the newest reactions');await page.addStyleTag({url:server.resolvedUrls.local[0]+'src/ui-colors.css?direct'});await page.getByRole('log').screenshot({path:'.tmp/chat-emoji-history.png'});await page.getByRole('tab',{name:'Emojis',exact:true}).click();
   await page.clock.fastForward(2000);
   await page.evaluate(() => window.updateBotGame({pgn:'1. e4 d5 2. exd5 Qxd5',ply_count:4}));
   await page.getByLabel('Bot reaction',{exact:true}).getByText('I captured your pawn.',{exact:false}).waitFor();
@@ -166,7 +174,7 @@ try {
   }
   await page.screenshot({path:'.tmp/bot-reaction-mobile.png',fullPage:true});
   assert.deepEqual(errors,[]);
-  console.log('Social UI passed: immediate match chat, requests/acceptance, escaped messages, 48 emojis, tabs, shared/guest settings, preset bot chat, cooldown/muting/results and desktop/mobile layouts.');
+  console.log('Social UI passed: immediate match chat, requests/acceptance, escaped messages, 62 emojis with persistent chat history, tabs, shared/guest settings, preset bot chat, cooldown/muting/results and desktop/mobile layouts.');
 } finally {
   await browser?.close(); await server.close();
   await rm('.tmp/social-fixture.html',{force:true}); await rm('.tmp/social-fixture.tsx',{force:true});

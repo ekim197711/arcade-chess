@@ -65,12 +65,17 @@ try {
     try {
       await page.goto(server.resolvedUrls.local[0]);
       await page.clock.runFor(1000);
-      const card = page.getByRole('region', { name: 'Historic games' });
+      await page.getByRole('button', { name: 'Game history', exact: true }).waitFor();
+      await page.waitForTimeout(150);
+      assert.equal(await page.locator('.history-page').count(), 0, 'history rows are absent from home');
+      assert.equal(requests.length, 4, 'home uses four bounded reads with online history deferred');
+      await page.getByRole('button', { name: 'Game history', exact: true }).click();
+      const card = page.getByRole('region', { name: 'Your games' });
       const refresh = card.getByRole('button', { name: 'Refresh saved data', exact: true });
       await refresh.waitFor();
       await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(button => button.textContent === 'Refresh saved data' && button.disabled));
       await page.waitForTimeout(150);
-      assert.equal(requests.length, 5, 'initial home load is exactly five bounded reads, even with large queues or server errors');
+      assert.equal(requests.length, 5, 'home plus explicit history visit uses five bounded reads');
       assert.equal(heartbeats, 1, 'one separate presence heartbeat also resolves the account role');
       assert.equal(settingsPreferenceReads,0,'home never loads social preferences');
       assert.equal(saves, 0, '600 cached games are not uploaded on home');
@@ -85,7 +90,7 @@ try {
       await page.evaluate(() => { location.hash = 'settings'; });
       await page.waitForURL('**/#settings');
       await settingsPreference;
-      await page.evaluate(() => { location.hash = 'home'; });
+      await page.evaluate(() => { location.hash = 'history'; });
       await refresh.waitFor();
       await page.waitForTimeout(200);
       assert.equal(requests.length, baseline, 'card remounts reuse cached success or failure without requests');
@@ -126,5 +131,5 @@ try {
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   }
-  console.log('PASS home request budget: 5 initial data reads plus separate presence heartbeat, zero automatic game/progress writes, bounded histories/rows, no idle/focus/reconnect/remount data retries, explicit paging and five-save batches');
+  console.log('PASS home request budget: 4 home reads plus 1 on-demand history read and separate presence heartbeat, zero automatic game/progress writes, bounded histories/rows, no idle/focus/reconnect/remount data retries, explicit paging and five-save batches');
 } finally { await browser?.close(); await server.close(); }

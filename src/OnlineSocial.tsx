@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { ChatEmojiPicker, EmojiChatBody } from "./ChatEmoji";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "./supabase";
 import type { OnlineGame } from "./onlineChess";
 import { BotBoardReactions } from "./BotBoardReactions";
 import { EMOJI_REACTIONS } from "./emojiReactions";
 import { CommunicationTabs } from "./CommunicationTabs";
-import { BotChat } from "./BotChat";
+import { BotChat, type BotChatMessage, type BotChatInput } from "./BotChat";
 import type { BotGame } from "./fallbackBotReactions";
 import "./onlineSocial.css";
 
 type Friend = { user_id: string; name: string; accepted: boolean; requested_by: string };
-type Message = { id: number; sender_id: string; body: string; created_at: string };
+type Message = { kind?:"chat"|"emoji"; id: number; sender_id: string; body: string; created_at: string };
 type SocialState = { friends: Friend[]; messages: Message[]; reactions: Message[]; emojis_enabled: boolean; peer_emojis_enabled: boolean };
 
 export function OnlineSocial({ userId, game }: { userId: string; game?: OnlineGame }) {
@@ -34,6 +35,8 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
 }) {
   const [state, setState] = useState<SocialState | null>(null);
   const [draft, setDraft] = useState("");
+  const [botMessages,setBotMessages]=useState<BotChatMessage[]>([]);
+  const appendBotMessages=useCallback((entries:BotChatInput[])=>setBotMessages(previous=>[...previous,...entries.map(entry=>({...entry,id:crypto.randomUUID()}))].slice(-50)),[]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -84,7 +87,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
     const tick = preferencesOnly ? undefined : window.setInterval(() => setNow(Date.now()), 500);
     return () => { active.current = false; clearInterval(poll); clearInterval(tick); };
   }, []);
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [state?.messages.at(-1)?.id]);
+  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [state?.messages.at(-1)?.id,state?.emojis_enabled]);
   const friend = state?.friends.find(item => item.user_id === peer);
   const peerName = name ?? friend?.name ?? "Player";
   const pending = !!friend && !friend.accepted;
@@ -97,7 +100,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
           setState({ ...state, emojis_enabled: event.target.checked, reactions: [] });
           void request("preferences", { p_enabled: event.target.checked }).then(ok => { if (!ok && active.current) setState(previous); });
         }} /> Emoji reactions enabled</label>}
-      {!preferencesOnly && (botGame ? <BotBoardReactions game={botGame} enabled={state.emojis_enabled} /> : <>
+      {!preferencesOnly && (botGame ? <BotBoardReactions game={botGame} enabled={state.emojis_enabled} onReaction={(sender,body)=>appendBotMessages([{author:sender==="you"?"You":botGame.black_name,body,kind:"emoji"}])} /> : <>
         {state.emojis_enabled ? <>
           <div className="social-emojis" role="group" aria-label="Send an emoji reaction">{EMOJI_REACTIONS.map(([emoji, label]) =>
             <button key={emoji} title={label} aria-label={`Send ${label.toLowerCase()}`} disabled={disabled || !state.peer_emojis_enabled || now - sentAt < 2000}
@@ -108,7 +111,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
         </> : <p className="review-note">Emojis are hidden. Your preference is saved to your account.</p>}
       </>)}
     </>;
-  const chatPanel = state && (botGame ? <BotChat name={botGame.black_name} /> : <>
+  const chatPanel = state && (botGame ? <BotChat name={botGame.black_name} messages={botMessages} onMessages={appendBotMessages} emojisEnabled={state.emojis_enabled} /> : <>
       {gameId && !friend && <button disabled={disabled} onClick={() => void request("request")}>Add friend</button>}
       {!gameId && <div className="social-friends">
         {!state.friends.length && <p className="review-note">Meet players in human matches and use Add friend to stay in touch.</p>}
@@ -124,9 +127,9 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
       {gameId || friend?.accepted ? <>
         <h4>Chat with {peerName}</h4>
         <div className="social-chat-log" role="log" aria-label={`Chat with ${peerName}`} ref={log}>
-          {!state.messages.length && <p>Say hello to {peerName}!</p>}
-          {state.messages.map(item => <p key={item.id} className={item.sender_id === userId ? "social-message-own" : ""}>
-            <strong>{item.sender_id === userId ? "You" : peerName}</strong> <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time><span>{item.body}</span>
+          {!state.messages.some(item=>item.kind!=="emoji"||state.emojis_enabled) && <p>Say hello to {peerName}!</p>}
+          {state.messages.filter(item=>item.kind!=="emoji"||state.emojis_enabled).map(item => <p key={item.id} className={item.sender_id === userId ? "social-message-own" : ""}>
+            <strong>{item.sender_id === userId ? "You" : peerName}</strong> <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time><EmojiChatBody body={item.body}/>
           </p>)}
         </div>
         <form className="social-chat-form" onSubmit={event => {
@@ -135,6 +138,7 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
         }}>
           <label>Message<input value={draft} onChange={event => setDraft(event.target.value)} maxLength={500} disabled={busy} placeholder="Say hello…" autoComplete="off" /></label>
           <button disabled={disabled || !draft.trim()}>Send</button>
+          {state.emojis_enabled&&<ChatEmojiPicker disabled={busy} draftLength={draft.length} onPick={emoji=>setDraft(value=>value+emoji)}/>}
         </form>
         {friend?.accepted && <details><summary>Manage friendship</summary><p>Removing this friend ends private lobby chat and clears that conversation for both players. Match chat stays with its game.</p><button disabled={disabled} onClick={() => void request("remove")}>Remove friend & clear chat</button></details>}
       </> : null}

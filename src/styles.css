@@ -516,10 +516,6 @@ main {
     letter-spacing: 0.07em;
     cursor: pointer;
 }
-.resume-match-button:hover {
-    color: var(--bg);
-    background: var(--mint);
-}
 .hud-label {
     color: #7f8497;
     font-size: 8px;

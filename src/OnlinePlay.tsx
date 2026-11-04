@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { Chess, type Square, type PlayMode } from "./chess";
 import { supabase, supabaseConfiguration } from "./supabase";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
-import { DragSquare } from "./DragSquare";
+import { BoardSquare, BoardPanel, PremoveControl } from "./BoardShared";
 import { BoardResizeHandle } from "./BoardResizeHandle";
 import { BoardAnnotations } from "./BoardAnnotations";
 import type { BoardSound } from "./soundThemes";
@@ -24,6 +24,7 @@ type Props = {
   onMoveSound: (move: ReturnType<Chess["move"]>, position: Chess, side: "w" | "b") => void;
 };
 export function OnlinePlay({ userId, route, navigate, theme, light, dark, appearance, boardWidth, onBoardResize, loadingPieceStyle, onSound, onMoveSound }: Props) {
+  const boardFrameRef = useRef<HTMLDivElement>(null);
   const parts = route.split("/");
   const reviewing = parts[1] === "review";
   const newMatch = parts[1] === "new";
@@ -232,7 +233,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   useEffect(() => {
     setSelected(square => square && plannedBoard.get(square)?.color === side ? square : null);
   }, [plannedBoard, side]);
-  const legal = selected ? queuingPremove ? plannedBoard.targets(selected) : position.moves({ square: selected, verbose: true }).map(move => move.to) : [];
+  const legal = useMemo(() => selected ? queuingPremove ? plannedBoard.targets(selected) : position.moves({ square: selected, verbose: true }).map(move => move.to) : [], [selected, queuingPremove, plannedBoard, position]);
   const lastMove = moveHistory.at(-1);
   const opponentSide = side === "w" ? "b" : "w";
   const opponentDeadline = game ? reconnectDeadline(game, opponentSide) : null;
@@ -299,11 +300,32 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       setNotice("Premoves canceled: the next move is no longer legal.");
     }
   }, [game?.fen, game?.result, canMove, premoves, promotion]);
+  useEffect(() => {
+    const frame = boardFrameRef.current;
+    if (!frame) return;
+    const cabinet = frame.closest(".online-cabinet")!;
+    const clock = cabinet.querySelector<HTMLElement>(".online-clock-you")!;
+    const fitBoard = () => {
+      // Keep both clocks and the board frame inside the visible page.
+      const board = frame.querySelector<HTMLElement>(".online-board")!;
+      const frameChrome = frame.offsetWidth - board.offsetWidth;
+      const verticalChrome = frame.offsetHeight - board.offsetHeight;
+      const width = window.innerHeight - frame.getBoundingClientRect().top - clock.offsetHeight - 34 - verticalChrome + frameChrome;
+      frame.style.setProperty("--online-auto-width", `${Math.max(180, Math.floor(width))}px`);
+    };
+    fitBoard();
+    const observer = new ResizeObserver(fitBoard);
+    observer.observe(cabinet);
+    const topbar = document.querySelector(".topbar");
+    if (topbar) observer.observe(topbar);
+    window.addEventListener("resize", fitBoard);
+    return () => { observer.disconnect(); window.removeEventListener("resize", fitBoard); };
+  }, [game?.id, game?.result, reviewing]);
   if (reviewing && game && !game.result) return <section className="game-review"><h2>Game still in progress</h2><p>Analysis becomes available when the game is complete.</p><button onClick={() => navigate(`online/${game.id}`)}>Resume match</button></section>;
   if (reviewing && game) return <GameReview pgn={game.pgn} moveTimesMs={game.move_times_ms} timingSource="server" playerName={side === "w" ? game.white_name : game.black_name} opponent={side === "w" ? game.black_name : game.white_name} opponentElo={side === "w" ? game.black_rating : game.white_rating} opponentKind={game.is_bot ? "bot" : "human"} theme={theme} color={side} light={light} dark={dark} onClose={() => navigate("online")} closeLabel="Back to online play" onMoveSound={(move, position) => onMoveSound(move, position, side)} />;
   if (game?.result && !reviewing) return <OnlineResult game={game} userId={userId} theme={theme} light={light} dark={dark} onReview={() => navigate(`online/review/${game.id}`)} onPlayAgain={() => navigate(`online/new/${game.minutes}/${confirmedPosition.mode}`)} onChooseTime={() => navigate("online")} onHome={() => navigate("home")} />;
-  return <section className={`online-play ${game && !reviewing ? "online-battle" : "game-review"}`} aria-labelledby="online-title">
-    <header><div><h2 id="online-title">Play against human</h2><p className="review-note">{profile ? `${profile.rating} overall Elo · ${profile.rated_games} rated games` : game ? `${side === "w" ? game.white_rating+game.white_delta : game.black_rating+game.black_delta} overall Elo` : "Overall Elo starts at 1200"}</p></div><button onClick={() => navigate("home")}>Back to home</button></header>
+  return <section className={`online-play ${game && !reviewing ? "online-battle" : "game-review"}`} aria-label={game ? "Chess match" : undefined} aria-labelledby={game ? undefined : "online-title"}>
+    {!game && <header><div><h2 id="online-title">Play against human</h2><p className="review-note">{profile ? `${profile.rating} overall Elo · ${profile.rated_games} rated games` : "Overall Elo starts at 1200"}</p></div></header>}
     {error && <p className="online-error" role="alert">{error} <button disabled={busy} onClick={() => void request(gameId ? "state" : queued ? "join" : "cancel")}>Reconnect</button></p>}
     {game && confirmedPosition.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
     {loading && <p role="status">Connecting to the arena…</p>}
@@ -322,10 +344,9 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       </section>
     </>}
     {game && !reviewing && <>
-      <p className="online-game-type">{game.is_bot ? "No human found · Unrated bot practice" : "Human match · Online Elo"} · {game.minutes}+0 · You play {side === "w" ? "White" : "Black"}</p>
       <div className="online-game-layout"><aside className="online-communication" aria-label="Game chat and emojis"><OnlineSocial userId={userId} game={game} /></aside><article className="cabinet online-cabinet" aria-label="Chess game">
         {([side === "w" ? "b" : "w",side] as const).map((clockSide,index) => <div key={clockSide} className={`online-clock ${displayGame?.turn === clockSide ? "online-clock-active" : ""} ${index === 0 ? "online-clock-opponent" : "online-clock-you"}`}><span>{clockSide === "w" ? game.white_name : game.black_name}<small>{clockSide === "w" ? game.white_rating : game.black_rating} Elo</small></span><time aria-label={`${clockSide === "w" ? "White" : "Black"} clock`}>{formatClock(clockRemaining(displayGame!,clockSide,now))}</time></div>)}
-        <div className="board-stage online-board-stage"><div className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
+        <div className="board-stage online-board-stage"><div ref={boardFrameRef} className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
         <div className="board-coordinates board-files-top">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
         <div className="board-wrap"><div className="board-coordinates board-ranks">{Array.from({length:8},(_,index) => <span key={index}>{side === "w" ? 8-index : 1+index}</span>)}</div>
         <div className="online-board chessboard" role="group" aria-label="Online chessboard" onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelected(null); setPromotion(null); } }}>
@@ -333,28 +354,28 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
           {Array.from({length:64},(_,index) => {
             const file=side === "w" ? index%8 : 7-index%8; const rank=side === "w" ? 8-Math.floor(index/8) : 1+Math.floor(index/8);
             const square=`${String.fromCharCode(97+file)}${rank}` as Square; const piece=plannedBoard.get(square); const target=legal.includes(square);
-            return <DragSquare key={square} square={square} positionKey={`${game.id}:${piece?.color}:${piece?.type}`} canDrag={canInteract && !promotion && piece?.color === side}
-              artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare />}
+            return <BoardSquare piece={piece} theme={theme} key={square} square={square} positionKey={`${game.id}:${piece?.color}:${piece?.type}`} canDrag={canInteract && !promotion && piece?.color === side}
+
               onPickUp={() => { onSound("select"); setSelected(square); }}
               onMovePiece={(from, to, anchor) => { makeMove(from, to, anchor.x, anchor.y); }}
               className={`square square-${(file+rank)%2 === 0 ? "light" : "dark"}${square === selected ? " square-selected" : ""}${lastMove?.from === square || lastMove?.to === square ? " square-last" : ""}${lastMove?.from === square ? " square-last-from" : ""}${lastMove?.to === square ? " square-last-to" : ""}${target ? " square-target" : ""}${target && queuingPremove ? " square-premove-target" : ""}${premoves.some(move => move.from === square) ? " square-premove-from" : ""}${premoves.some(move => move.to === square) ? " square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
               aria-label={`${square}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type}` : ""}${target ? queuingPremove ? " premove destination" : " legal destination" : ""}${premoves.some(move => move.from === square) ? " premove origin" : ""}${premoves.some(move => move.to === square) ? " premove target" : ""}`}
               aria-pressed={square === selected} disabled={!canInteract} onClick={event => moveTo(square,event.clientX,event.clientY)}>
-              {piece && <span className={`chess-piece ${piece.color === "w" ? "white-piece-glyph" : "black-piece-glyph"}`}><PieceArtwork type={piece.type} color={piece.color} theme={theme} fitToSquare /></span>}
+
               {target && <span className={`move-dot ${piece ? "move-capture" : ""}`} />}
-            </DragSquare>;
+            </BoardSquare>;
           })}
         </div></div>
         <div className="board-coordinates board-files-bottom">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
         {loadingPieceStyle && <div className="piece-style-loading" role="status"><span className="piece-style-spinner" aria-hidden="true" /><span>Please wait</span></div>}
         <BoardResizeHandle onResize={onBoardResize} fitToStageHeight={false} />
         </div></div>
-      </article><aside className="online-game-info side-panel">
+      </article><BoardPanel className="online-game-info side-panel">
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
         {error && game && !game.result && <p role="status">Reconnect window: {Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now)-now)/1000))} seconds remaining.</p>}
         {!game.result && <p className="review-note">Moves save automatically. After closing the browser or disconnecting, return within 20 seconds or forfeit. Your clock keeps running. During your opponent’s turn, select or drag a piece to queue moves. Keep selecting pieces to add more premoves; right-click or press Escape to cancel all. Right-drag between squares to draw translucent arrows; click to clear them.</p>}
-        {premoves.length > 0 && <button className="premove-cancel" onClick={() => { setPremoves([]); setSelected(null); setPromotion(null); }} aria-label={premoves.length === 1 ? "Cancel premove" : `Cancel all ${premoves.length} premoves`}>{premoves.length} PREMOVE{premoves.length === 1 ? "" : "S"}: {premoves.map(move => `${move.from}\u2192${move.to}`).join(" / ")} - CANCEL</button>}
+        <PremoveControl moves={premoves} onCancel={()=>{setPremoves([]);setSelected(null);setPromotion(null);}}/>
         {notice && <p role="status">{notice}</p>}
           {!game.is_bot && !game.draw_offer && <button disabled={busy} onClick={() => void request("offer_draw")}>Offer draw</button>}
           {game.draw_offer && game.draw_offer !== userId && <><p>Opponent offered a draw.</p><button disabled={busy} onClick={() => void request("accept_draw")}>Accept draw</button><button disabled={busy} onClick={() => void request("decline_draw")}>Decline draw</button></>}
@@ -371,7 +392,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
           </div>)}
         </div>
         <details className="online-appearance"><summary>Board, pieces &amp; sound</summary>{appearance}</details>
-      </aside></div>
+      </BoardPanel></div>
       {promotion && canMove && <PromotionMenu position={promotion} color={side} theme={theme} onCancel={() => { setPromotion(null); setPremoves([]); }} onChoose={(piece: PromotionPiece) => { makeMove(promotion.from,promotion.to,promotion.x,promotion.y,piece,promotion.queued); setPromotion(null); }} />}
     </>}
   </section>;

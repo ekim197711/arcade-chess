@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { MedievalPieceType, PieceColor } from "./MedievalPiece";
 
 export const PIECE_CHOICES = [
@@ -58,7 +59,7 @@ export function loadPieceStyle(theme: PieceStyle): Promise<void> {
   return loading;
 }
 
-export function PieceArtwork({
+export const PieceArtwork = memo(function PieceArtwork({
   type,
   color,
   theme,
@@ -89,4 +90,4 @@ export function PieceArtwork({
       draggable={false}
     />
   );
-}
+});

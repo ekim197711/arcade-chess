@@ -10,7 +10,7 @@ export function acceptingGambitLine(name:string,basePgn:string,sourcePgn:string)
  const positionKey=(fen:string)=>fen.split(' ').slice(0,4).join(' ');
  let boundary=sourceMoves.findIndex(move=>positionKey(move.after)===positionKey(base.fen()))+1;
  if(!boundary) boundary=sourceMoves.length;
- const game=new Chess();for(const move of sourceMoves.slice(0,boundary))game.move(move.san);
+ const game=new Chess(sourceMoves[0]?.before);for(const move of sourceMoves.slice(0,boundary))game.move(move.san);
  let adapted=false, accepted=false, acceptancePly=0;
  const captures=()=>game.turn()!==offering?game.moves({verbose:true}).filter(move=>!!move.captured):[];
  let candidates=captures();

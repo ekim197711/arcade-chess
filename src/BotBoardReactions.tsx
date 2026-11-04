@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { fallbackBotReaction, type BotGame, type BotReaction } from "./fallbackBotReactions";
 import { EMOJI_REACTIONS } from "./emojiReactions";
 
-export function BotBoardReactions({ game, enabled }: { game: BotGame; enabled: boolean }) {
+export function BotBoardReactions({ game, enabled, onReaction }: { game: BotGame; enabled:boolean; onReaction?:(sender:"you"|"bot",body:string)=>void }) {
+  const notify=useRef(onReaction);notify.current=onReaction;
   const previousPly = useRef(game.ply_count);
   const lastReactionAt = useRef(-Infinity);
   const lastResult = useRef<string | null>(null);
@@ -26,6 +27,7 @@ export function BotBoardReactions({ game, enabled }: { game: BotGame; enabled: b
     if (next.terminal) lastResult.current = game.result;
     lastReactionAt.current = Date.now();
     setReaction(next);
+    notify.current?.("bot",`${next.emoji} ${next.message}`);
   }, [game.pgn, game.ply_count, game.result, enabled]);
   useEffect(() => {
     if (!reaction) return;
@@ -39,6 +41,7 @@ export function BotBoardReactions({ game, enabled }: { game: BotGame; enabled: b
           onClick={() => {
             if (coolingDown) return;
             setCoolingDown(true); setUserReaction({ emoji });
+            notify.current?.("you",emoji);
           }}>{emoji}</button>)}</div>
       <div className="social-reactions" role="status" aria-live="polite" aria-label="Your reaction">
         {userReaction && <span>You: {userReaction.emoji}</span>}

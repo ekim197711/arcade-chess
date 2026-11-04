@@ -16,7 +16,7 @@ try{
  await page.getByRole('heading',{name:"The idea behind King's Gambit",exact:true}).waitFor();
  assert.equal(await page.locator('.gambit-square').count(),0);
  assert.match(await page.locator('.gambit-briefing').innerText(),/White offers the f4 pawn/);
- assert.equal(await page.locator('.gambit-idea-stage').count(),6);assert.equal(await page.locator('.gambit-mini-square').count(),384);
+ assert.equal(await page.locator('.gambit-idea-stage').count(),9);assert.equal(await page.locator('.gambit-mini-square').count(),576);
  assert.deepEqual(await page.locator('.gambit-diagram-arrow').evaluateAll(arrows=>arrows.slice(0,3).map(el=>[el.dataset.from,el.dataset.to])),[['f2','f4'],['e5','f4'],['g1','f3']]);
  await page.getByRole('button',{name:'Swap sides to defend',exact:true}).focus();
  await page.setViewportSize({width:390,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:'.tmp/gambit-illustrated-briefing-mobile.png',fullPage:true});await page.setViewportSize({width:1280,height:1000});
@@ -39,6 +39,10 @@ try{
 
  assert.equal(await square('e2').evaluate(el=>el.classList.contains('hint-from')),true);
  assert.equal(await square('e4').evaluate(el=>el.classList.contains('hint-to')),true);
+ const unchanged=await square('e3').evaluate(el=>getComputedStyle(el).backgroundColor);await square('e2').click();
+ assert.equal(await square('e3').evaluate(el=>getComputedStyle(el).backgroundColor),unchanged);
+ assert.equal(await square('e3').evaluate(el=>getComputedStyle(el,'::before').display),'block');
+ assert.equal(await square('e3').evaluate(el=>getComputedStyle(el,'::before').backgroundColor),'rgba(0, 0, 0, 0)');
  assert.equal(await page.locator('.gambit-square small').count(),0);
  assert.deepEqual(await page.locator('.gambit-file-axis span').allTextContents(),[...'abcdefgh']);
  assert.deepEqual(await page.locator('.gambit-rank-axis span').allTextContents(),[...'87654321']);

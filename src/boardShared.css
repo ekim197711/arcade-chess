@@ -1,0 +1,9 @@
+﻿/* Shared surfaces retain each mode's layout, collapse controls and contents. */
+.app-shell .board-panel { color: var(--text-primary); background: var(--surface-card); border-color: var(--border-default); border-radius: 8px; }
+.app-shell .board-panel :is(h2,h3,h4) { color: var(--text-primary); }
+.app-shell .board-panel select { color: var(--text-on-control); background: var(--surface-control); border-color: var(--border-control); }
+.chessboard {
+ --board-highlight-base: color-mix(in srgb, var(--board-square-light, var(--training-board-light, #cedbe0)) 50%, var(--board-square-dark, var(--training-board-dark, #52798d)));
+ --board-move-from-fill: color-mix(in srgb, var(--board-highlight-base) 85%, var(--accent-info, #72e9ff));
+ --board-move-to-fill: color-mix(in srgb, var(--board-move-from-fill) 89%, white);
+}

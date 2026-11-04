@@ -1,0 +1,12 @@
+.history-library { width: 100%; min-width: 0; }
+.history-library-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; color: var(--text-primary); }
+.history-library-heading h1 { margin: 0 0 8px; }
+.history-library-heading p { color: var(--text-secondary); }
+.classic-search, .history-filter { display: grid; gap: 8px; color: var(--text-secondary); }
+.classic-search input, .history-filter input { width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid var(--border-control); border-radius: 8px; background: var(--surface-inset); color: var(--text-primary); font: inherit; }
+.classic-search input:focus-visible, .history-filter input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.classic-game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; }
+.classic-game-card { min-width: 0; padding: 20px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-card); color: var(--text-primary); overflow-wrap: anywhere; }
+.classic-game-card small, .classic-game-card p { color: var(--text-secondary); }
+.classic-game-card a, .history-library-heading a { color: var(--accent-info); }
+.history-library .history-toolbar { flex-wrap: wrap; }

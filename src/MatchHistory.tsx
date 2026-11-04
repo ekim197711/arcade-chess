@@ -9,6 +9,7 @@ import { bossPortrait, resolveBossCharacter } from "./bossArtwork";
 import { bossRematchPlea } from "./bossRematches";
 import { bossVictoryTaunt } from "./bossVictoryTaunts";
 import { FinalPositionBoard } from "./FinalPositionBoard";
+import { GameStartButton } from "./GameStartButton";
 import type { PieceStyle } from "./PieceArtwork";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
 function movesFor(match: ArchivedMatch) { const game = new Chess(); game.loadPgn(match.pgn); return game.history({ verbose: true }); }
@@ -27,6 +28,7 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
   onResume: (match: ArchivedMatch) => void; onOnline: (route: string) => void;
   refreshToken?: number; onRefresh?: () => void; refreshing?: boolean;
 }) {
+  const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | GameType>("all");
   const [visibleLimit, setVisibleLimit] = useState(50);
   const [online, setOnline] = useState<OnlineHistoryGame[]>([]);
@@ -76,10 +78,11 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
     });
     return [...local, ...remote].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
   }, [matches, online, userId]);
-  const visible = entries.filter(entry => filter === "all" || entry.type === filter);
+  const visible = entries.filter(entry => (filter === "all" || entry.type === filter) && `${entry.opponent} ${typeLabels[entry.type]} ${labels[entry.result]}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <section className="game-review history-page" aria-labelledby="history-title">
-    <header><h2 id="history-title">Historic games</h2>
+    <header><h2 id="history-title">Your games</h2>
       <div className="history-toolbar">
+        <label className="history-filter">Search your games<input type="search" value={query} onChange={event => { setQuery(event.target.value); setVisibleLimit(50); }} placeholder="Opponent or result" /></label>
         <label className="history-filter">Game type
           <select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setVisibleLimit(50); }}>
             <option value="all">All types</option>
@@ -92,14 +95,14 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
     </header>
     <p className="review-note">{userId ? "Your boss, human and practice games in one place. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices and play humans."}</p>
     {onlineError && <p className="review-note" role="status">Online game history is unavailable. Use Refresh saved data to retry.</p>}
-    {!visible.length ? <p>{filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.slice(0, visibleLimit).map(entry =>
+    {!visible.length ? <p>{query.trim() ? "No saved games match your search." : filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.slice(0, visibleLimit).map(entry =>
       <div className={`history-item history-type-${entry.type}`} key={entry.id}>
         <span><strong>{entry.opponent}</strong><small>{new Date(entry.startedAt).toLocaleString()} &middot; {entry.elo} ELO &middot; You played {entry.color === "w" ? "White" : "Black"}{entry.archived?.debug ? " \u00b7 DEBUG TEST" : ""}{entry.online ? ` \u00b7 ${entry.online.minutes}+0 \u00b7 ${entry.online.rated ? "Rated" : "Unrated"}` : ""}</small></span>
         <span className={`match-style match-style-${entry.type}`}>{typeLabels[entry.type]}</span>
         <span className={`match-outcome outcome-${entry.result}`}>{labels[entry.result]}</span>
         <span>{entry.plies ?? movesFor(entry.archived!).length} plies</span>
         <div className="history-actions">
-          {entry.result === "unfinished" && <button onClick={() => entry.online ? onOnline(`online/${entry.online.id}`) : onResume(entry.archived!)}>Resume game</button>}
+          {entry.result === "unfinished" && <GameStartButton size="small" tone="resume" onClick={() => entry.online ? onOnline(`online/${entry.online.id}`) : onResume(entry.archived!)}>Resume game</GameStartButton>}
           <a href={entry.online ? `#online/review/${entry.online.id}` : `#review/${entry.archived!.id}`} onClick={event => {
             event.preventDefault();
             if (entry.online) onOnline(`online/review/${entry.online.id}`);

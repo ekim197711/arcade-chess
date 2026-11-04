@@ -1,3 +1,4 @@
+import { GameStartButton } from "./GameStartButton";
 import { CookieNotice } from "./CookieNotice";
 import { Administration } from "./Administration";
 import { EmojiReactionSettings, LocalBotSocial } from "./OnlineSocial";
@@ -45,9 +46,8 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { legalTargets } from "./bot";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
-import { DragSquare } from "./DragSquare";
+import { BoardSquare, BoardPanel, PremoveControl } from "./BoardShared";
 import { PromotionMenu, type PromotionPiece, type PromotionPosition } from "./PromotionMenu";
 import { BoardResizeHandle } from "./BoardResizeHandle";
 import { BoardAnnotations } from "./BoardAnnotations";
@@ -60,6 +60,7 @@ import { OnlineQuickStart } from "./OnlineQuickStart";
 const GambitTraining = lazy(() => import("./GambitTraining"));
 import { HomeDuelVideo } from "./HomeDuelVideo";
 import { HumanElo } from "./HumanElo";
+import { HistoryPage } from "./HistoryPage";
 import { MatchHistory, MatchResult } from "./MatchHistory";
 import { SignupDisclaimer } from "./SignupDisclaimer";
 import { EmailAuth } from "./EmailAuth";
@@ -770,7 +771,7 @@ function resultFor(
 function readPageRoute() {
   const route = window.location.hash.slice(1);
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|gambits|settings|statistics|administration)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
+  return /^(home|roster|battle|gambits|history|settings|statistics|administration)$/.test(route) || /^history\/classic\/[\w-]+$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -907,12 +908,12 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home");
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home" && screen !== "history");
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
-  const isReviewPage = screen === "review" || (screen === "online" && route.split("/")[1] === "review");
+  const isReviewPage = route.startsWith("history/classic/") || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
   const activeMusicTrack: MusicTrack = screen === "battle" || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
@@ -1057,9 +1058,9 @@ function App() {
     if (reviewing || !selectedSquare) return [];
     return queuingPremove
       ? plannedBoard.targets(selectedSquare)
-      : legalTargets(fen, selectedSquare);
-  }, [fen, plannedBoard, queuingPremove, reviewing, selectedSquare]);
-  const currentResult = debugCheckmate ? "win" : resigned ? "loss" : resultFor(game, boss.chessColor);
+      : game.moves({ square: selectedSquare, verbose: true }).map(move => move.to);
+  }, [game, plannedBoard, queuingPremove, reviewing, selectedSquare]);
+  const currentResult = useMemo(() => debugCheckmate ? "win" : resigned ? "loss" : resultFor(game, boss.chessColor), [debugCheckmate, resigned, game, boss.chessColor]);
   // Save both sides' moves, including positions where the bot still needs to play.
   useEffect(() => {
     if (screen === "battle" && !currentResult) persistCurrentMatch();
@@ -1080,7 +1081,7 @@ function App() {
       id: matchId.current, startedAt: matchStarted.current, updatedAt: new Date().toISOString(),
       bossIndex, opponent: boss.name, playerName: user ? playerName : "Guest player", elo: boss.elo, color: playerColor, pgn,
       result: currentResult ?? "unfinished", debug: debugMatch, moveTimesMs: normalizeMoveTimes(moveTiming.current.times, moveHistory.length),
-      reason: debugCheckmate ? "Debug auto checkmate (simulated)" : resigned ? "Resignation" : game.isCheckmate() ? "Checkmate" : game.isStalemate() ? "Stalemate" : game.isThreefoldRepetition() ? "Threefold repetition" : game.isInsufficientMaterial() ? "Insufficient material" : game.isDraw() ? "Draw by the fifty-move rule" : "Match in progress",
+      reason: debugCheckmate ? "Debug auto checkmate (simulated)" : resigned ? "Resignation" : game.isCheckmate() ? "Checkmate" : game.drawReason() ?? "Match in progress",
     };
     setHistory((previous) => {
       const existing = previous.find((item) => item.id === record.id);
@@ -1376,7 +1377,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of (screenRef.current === "home" ? [] : pending.slice(0, 5))) {
+      for (const event of ((screenRef.current === "home" || screenRef.current === "history") ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1399,7 +1400,7 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        if (screenRef.current === "home") {
+        if ((screenRef.current === "home" || screenRef.current === "history")) {
           syncedProgress = mergeProgress(syncedProgress, guest);
           setCloudSyncError(true);
         } else {
@@ -1591,7 +1592,7 @@ function App() {
   useEffect(() => {
     const reconnect = () => {
       const userId = activeUserId.current;
-      if (screenRef.current !== "home" && !document.hidden && userId &&
+      if (screenRef.current !== "home" && screenRef.current !== "history" && !document.hidden && userId &&
         (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
     window.addEventListener("online", reconnect);
@@ -2318,7 +2319,7 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
-        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" onClose={() => setScreen("home")} /></Suspense>}
+        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
@@ -2421,46 +2422,13 @@ function App() {
               <h2 id="home-options-title">Options</h2>
               <nav className="home-options-actions" aria-label="Game options">
                 <button type="button" onClick={() => setScreen("settings")}>Game settings <Settings size={16} aria-hidden="true" /></button>
-                <button type="button" onClick={() => document.getElementById("history-title")?.scrollIntoView({ block: "start" })}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setScreen("history")}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
                 <button type="button" onClick={() => setHelpOpen(true)}>How to play <Gamepad2 size={16} aria-hidden="true" /></button>
                 {administrationRole === "administrator" && <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>}
               </nav>
             </section>
             </div>
-            <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
-              <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
-              <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
-              <div className="arcade-control-deck">
-                <div className="arcade-credit-display">
-                <span className="arcade-control-label">CREDITS</span>
-                <output aria-live="polite" aria-label={`${coinCount} credits`}>
-                  <SegmentedCredits value={coinCount} />
-                </output>
-                <span ref={creditMessageRef} className={`arcade-credit-hint${coinCount >= MAX_CREDITS ? " arcade-credit-maximum" : ""}`} aria-live="polite">
-                  {coinCount >= MAX_CREDITS ? "Maximum credits achieved!" : coinCount > 0 ? "READY TO PLAY" : "INSERT COIN TO START"}
-                </span>
-              </div>
 
-              <div className="arcade-coin-control">
-              <button
-                className="arcade-coin-button"
-                type="button"
-                onClick={insertCoin}
-                disabled={!coinAnimationReady}
-                aria-label={`Insert one coin. ${coinCount} ${coinCount === 1 ? "credit" : "credits"} available`}
-              >
-                <span className="arcade-slot" aria-hidden="true">
-                  <i />
-                </span>
-                <span>INSERT COIN</span>
-                <small>
-                  {coinCount >= MAX_CREDITS ? "MAX CREDITS" : "+1 CREDIT"}
-                </small>
-              </button>
-              <p className="arcade-coin-note">Coins are free for now</p>
-              </div>
-              </div>
-            </section>
           </aside>
           <aside className="home-stats-panel" aria-label="Your progress">
         {screen === "home" && (
@@ -2530,53 +2498,84 @@ function App() {
             <HomeDuelVideo />
           </aside>
           <div className="home-dashboard-content">
-            <section className="home-play-area" aria-labelledby="home-play-title">
-              <div className="home-play-heading"><div><h1 id="home-play-title">Play</h1><p>Choose a mode to start or resume a game.</p></div></div>
+            <section className="home-play-area" aria-label="Play options">
+              <div className="home-play-heading">
+            <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
+              <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
+              <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
+              <div className="arcade-control-deck">
+                <div className="arcade-credit-display">
+                <span className="arcade-control-label">CREDITS</span>
+                <output aria-live="polite" aria-label={`${coinCount} credits`}>
+                  <SegmentedCredits value={coinCount} />
+                </output>
+                <span ref={creditMessageRef} className={`arcade-credit-hint${coinCount >= MAX_CREDITS ? " arcade-credit-maximum" : ""}`} aria-live="polite">
+                  {coinCount >= MAX_CREDITS ? "Maximum credits achieved!" : coinCount > 0 ? "READY TO PLAY" : "INSERT COIN TO START"}
+                </span>
+              </div>
+
+              <div className="arcade-coin-control">
+              <button
+                className="arcade-coin-button"
+                type="button"
+                onClick={insertCoin}
+                disabled={!coinAnimationReady}
+                aria-label={`Insert one coin. ${coinCount} ${coinCount === 1 ? "credit" : "credits"} available`}
+              >
+                <span className="arcade-slot" aria-hidden="true">
+                  <i />
+                </span>
+                <span>INSERT COIN</span>
+                <small>
+                  {coinCount >= MAX_CREDITS ? "MAX CREDITS" : "+1 CREDIT"}
+                </small>
+              </button>
+              <p className="arcade-coin-note">Coins are free for now</p>
+              </div>
+              </div>
+            </section>
+              </div>
               <div className="home-play-modes">
             {user ? <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} /> :
-              <section className="online-home-card" aria-labelledby="online-home-title">
-                <h2 id="online-home-title">Play against human</h2>
-                <p>Sign in to play. Choose your game to get started.</p>
+              <section className="online-home-card" aria-label="Play against human">
+                <p>Sign in to play against humans.</p>
                 <OnlineQuickStart onStart={(minutes, mode) => { setScreen(`online/new/${minutes}/${mode}`); setAuthOpen(true); }} />
               </section>}
 
-            <section className="boss-run-card" aria-labelledby="boss-run-title">
-                <div className="boss-run-heading">
-                  <h2 id="boss-run-title"><Trophy size={16} aria-hidden="true" /> Boss Run</h2>
-                  <span>1 CREDIT PER RUN</span>
-                </div>
+            <section className="boss-run-card" aria-label="Boss Run">
                 <div className="boss-run-options">
                   {(["standard", "freestyle"] as const).map((mode) => {
                     const clears = ladderClears(progress, mode);
                     const nextBoss = BOSSES[Math.min(clears, BOSSES.length - 1)]!;
                     return (
                     <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
-                      <button className="boss-run-button" type="button"
+                      <GameStartButton className="boss-run-button" size="large"
                         onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
                         <img className="boss-run-portrait" src={bossThumbnail(nextBoss.character, __BOSS_PORTRAITS__)} width={112} height={112} alt="" decoding="async" />
-                        <span className="boss-run-label"><strong>{mode === "standard" ? "Standard" : "Freestyle"}</strong><span>{clears >= BOSSES.length ? "Ladder conquered! Replay" : "Next boss"}</span><b>{nextBoss.name}</b><small>{nextBoss.elo} Elo</small></span>
-                        <ArrowRight size={17} aria-hidden="true" />
-                      </button>
-                      <p className="boss-run-description">{mode === "standard" ? "Classic chess" : "Chess960"} · {BOSSES.length} challengers</p>
+                        <span className="boss-run-label"><strong>Boss Run</strong><span>{mode === "standard" ? "Standard" : "Freestyle"} · {clears >= BOSSES.length ? "Replay" : "Next boss"}</span><b>{nextBoss.name}</b><small>{nextBoss.elo} Elo</small></span>
+                      </GameStartButton>
+                      {mode === "freestyle" && <p className="boss-run-description">Chess960 · {BOSSES.length} challengers</p>}
                       {savedMatch && savedMode === mode && (
-                        <button
+                        <GameStartButton
                           className="resume-match-button"
-                          type="button"
+                          size="large" tone="resume"
                           onClick={() => resumeSavedMatch(savedMatch)}
                           aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
                         >
-                          RESUME <ArrowRight size={13} aria-hidden="true" />
-                        </button>
+                          <span className="resume-match-copy">
+                            <strong>Resume boss battle</strong>
+                            <span>vs {BOSSES[savedMatch.bossIndex]!.name}</span>
+                            <small>{mode === "standard" ? "Standard" : "Freestyle"} · Saved game</small>
+                          </span>
+                        </GameStartButton>
                       )}
                     </div>
                     );
                   })}
                 </div>
               </section>
-              <section className="gambit-academy-card" aria-labelledby="gambit-academy-title">
-                <h2 id="gambit-academy-title">Gambit Academy</h2>
-                <p>Learn gambits with guided boss coaching and Stockfish practice.</p>
-                <button className="resume-match-button" type="button" onClick={() => setScreen("gambits")}>Train gambits <ArrowRight size={16} aria-hidden="true" /></button>
+              <section className="gambit-academy-card" aria-label="Gambit Academy">
+                <GameStartButton className="gambit-training-button" onClick={() => setScreen("gambits")}>Train gambits</GameStartButton>
               </section>
               </div>
             </section>
@@ -2585,9 +2584,6 @@ function App() {
 
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
-        {screen === "home" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
-        {screen === "home" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
-        {screen === "home" && user && historyPending > 0 && <p className="review-note">{historyPending} local saves awaiting cloud verification. Refresh saved data syncs up to 5 at a time.</p>}
           </div>
           </div>
         )}
@@ -2596,9 +2592,14 @@ function App() {
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
         </>}
+        {screen === "history" && <HistoryPage route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark}>
+        {screen === "history" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
+        {screen === "history" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
+        {screen === "history" && user && historyPending > 0 && <p className="review-note">{historyPending} local saves awaiting cloud verification. Refresh saved data syncs up to 5 at a time.</p>}
+        </HistoryPage>}
         {(screen === "result" || screen === "review") && (selectedMatch ? (
           screen === "result" ? <MatchResult match={selectedMatch} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onReview={() => setScreen(`review/${selectedMatch.id}`)} onHome={() => setScreen("home")} /> :
-          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")}
+          <GameReview key={selectedMatch.id} opponent={selectedMatch.opponent} opponentElo={selectedMatch.elo} playerName={selectedMatch.playerName ?? "Player"} pgn={selectedMatch.pgn} moveTimesMs={selectedMatch.moveTimesMs} timingSource="device" theme={pieceTheme} color={selectedMatch.color} light={boardPalette.light} dark={boardPalette.dark} closeLabel="Back to game history" onClose={() => setScreen("history")}
             onMoveSound={(move, position) => playBoardSound(boardSoundForMove(move, position, selectedMatch.color), soundEnabled, soundTheme)} />
         ) : <section className="game-review"><h2>Game not found</h2><p>This game is not available in your history.</p><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {(screen === "roster" || screen === "battle") && (
@@ -2635,7 +2636,7 @@ function App() {
                       <p>{playMode === "freestyle"
                         ? "A random starting position with matching back ranks, opposite-color bishops, and the king between the rooks. Normal chess rules apply. To castle, move your king onto your rook; they finish on g/f or c/d."
                         : "The traditional starting position and standard chess rules."}</p>
-                      {savedMatch && <small>Resume keeps the saved position. Earlier unfinished games remain available in Historic games.</small>}
+                      {savedMatch && <small>Resume keeps the saved position. Earlier unfinished games remain available in Game history.</small>}
                     </div>
                   <div className="roster-fight-dock">
                     <div className="roster-fight-target">
@@ -2749,7 +2750,7 @@ function App() {
                 <div
                   className={`game-layout${opponentColumnCollapsed ? " opponent-column-collapsed" : ""}${playerColumnCollapsed ? " player-column-collapsed" : ""}`}
                 >
-                  <aside
+                  <BoardPanel
                     className={`opponent-column${opponentColumnCollapsed ? " is-collapsed" : ""}`}
                     aria-label="Opponent information"
                   >
@@ -2858,7 +2859,7 @@ function App() {
                       <LocalBotSocial userId={user?.id} game={{ id: matchId.current, is_bot: true, pgn, ply_count: moveHistory.length, result: currentResult === "win" ? playerColor === "w" ? "1-0" : "0-1" : currentResult === "loss" ? playerColor === "w" ? "0-1" : "1-0" : currentResult === "draw" ? "1/2-1/2" : null, black_name: boss.name, botColor: boss.chessColor }} />
                       {battleAppearance}
                     </div>
-                  </aside>
+                  </BoardPanel>
                   <article className="cabinet" aria-label="Chess game">
                     {game.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
                     <div className="cabinet-body">
@@ -2908,7 +2909,7 @@ function App() {
                                     ? `${piece.color === playerColor ? "Your" : "Boss"} ${PIECE_NAMES[piece.type]}`
                                     : "empty square";
                                   return (
-                                    <DragSquare
+                                    <BoardSquare piece={piece} theme={pieceTheme}
                                       key={square}
                                       className={`square ${isLight ? "square-light" : "square-dark"} ${isSelected ? "square-selected" : ""} ${isLast ? "square-last" : ""} ${viewedLastMove?.from === square ? "square-last-from" : ""} ${viewedLastMove?.to === square ? "square-last-to" : ""} ${isLegal ? "square-target" : ""} ${isPremoveTarget ? "square-premove-target" : ""} ${premoves.some(move => move.from === square) ? "square-premove-from" : ""} ${premoves.some(move => move.to === square) ? "square-premove-to" : ""} ${piece?.color === "w" ? "piece-white" : "piece-black"}`}
                                       aria-label={`${square}, ${pieceName}${isLegal ? `, ${queuingPremove ? "premove" : "legal"} destination` : ""}${premoves.some(move => move.from === square) ? ", premove origin" : ""}${premoves.some(move => move.to === square) ? ", premove target" : ""}${isSelected ? ", selected" : ""}`}
@@ -2917,31 +2918,18 @@ function App() {
                                       square={square}
                                       canDrag={!promotionMove && !reviewing && piece?.color === playerColor && !currentResult && (!thinking || premoveTurn)}
                                       positionKey={`${matchId.current}:${piece?.color}:${piece?.type}`}
-                                      artwork={piece && <PieceArtwork type={piece.type} color={piece.color} theme={pieceTheme} fitToSquare />}
                                       onPickUp={() => {
                                         playBoardSound("select", soundEnabled, soundTheme);
                                         setSelectedSquare(square);
                                       }}
                                       onMovePiece={(from, to, position) => makeMove(from, to, undefined, position)}
                                     >
-                                      {piece && (
-                                        <span
-                                          className={`chess-piece ${piece.color === "w" ? "white-piece-glyph" : "black-piece-glyph"}`}
-                                        >
-                                          <PieceArtwork
-                                            type={piece.type}
-                                            color={piece.color}
-                                            theme={pieceTheme}
-                                            fitToSquare
-                                          />
-                                        </span>
-                                      )}
                                       {isLegal && (
                                         <span
                                           className={`move-dot ${piece ? "move-capture" : ""}`}
                                         />
                                       )}
-                                    </DragSquare>
+                                    </BoardSquare>
                                   );
                                 }),
                               )}
@@ -2966,7 +2954,7 @@ function App() {
                     </div>
                   </article>
 
-                  <aside
+                  <BoardPanel
                     className={`side-panel${playerColumnCollapsed ? " is-collapsed" : ""}`}
                     aria-label="Player status and game history"
                   >
@@ -3026,23 +3014,7 @@ function App() {
                           </span>
                         </div>
                       </section>
-                      {premoves.length > 0 && (
-                        <button
-                          className="premove-cancel"
-                          onClick={() => {
-                            setPremoves([]);
-                            setSelectedSquare(null);
-                            setPromotionMove(null);
-                          }}
-                          aria-label={premoves.length === 1 ? "Cancel premove" : `Cancel all ${premoves.length} premoves`}
-                        >
-                          <span>{premoves.length} PREMOVE{premoves.length === 1 ? "" : "S"} QUEUED</span>
-                          <b>
-                            {premoves.map(move => `${move.from}\u2192${move.to}`).join(" / ")}
-                          </b>
-                          <X size={13} />
-                        </button>
-                      )}
+                      <PremoveControl moves={premoves} onCancel={()=>{setPremoves([]);setSelectedSquare(null);setPromotionMove(null);}}/>
                       <div
                         className="captured-army"
                         aria-label="Captured pieces"
@@ -3173,7 +3145,7 @@ function App() {
                         )}
                       </div>
                     </div>
-                  </aside>
+                  </BoardPanel>
                 </div>
               </section>
             )}

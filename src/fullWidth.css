@@ -18,7 +18,7 @@
   .home-options-body { overflow: visible; }
 }
 .home-play-cards { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; margin: 24px 0; }
-.home-play-area { flex: 1 1 600px; min-width: 0; padding: 18px; border: 1px solid #5368bd; border-radius: 12px; background: #0e173a; }
+.home-play-area { container-type: inline-size; flex: 1 1 600px; min-width: 0; padding: 18px; border: 1px solid #5368bd; border-radius: 12px; background: #0e173a; }
 .home-play-heading h1 { margin: 0; color: #eff5ff; font-size: 26px; }
 .home-play-heading p { margin: 8px 0 18px; color: #c4d0f5; font-size: 13px; }
 .home-play-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; align-items: stretch; }
@@ -105,7 +105,7 @@
 .boss-run-label > span, .boss-run-label small { font-size: 10px; font-weight: 400; opacity: .85; }
 .boss-run-label b { font-size: 12px; }
 .boss-run-button > svg { flex-shrink: 0; }
-.online-quick-start { display: grid; gap: 18px; }
+.online-quick-start { display: grid; gap: 12px; }
 .online-quick-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
 .online-quick-mode legend { margin-bottom: 10px; padding: 0; color: #d7f5ff; font-size: 14px; font-weight: 700; }
 .online-quick-freestyle legend { color: #efcaff; }
@@ -169,3 +169,49 @@
 }
 .app-shell > main:has(.boss-select-page) { padding-top: 12px; }
 .flow-stage:has(> .boss-select-page) { padding-top: 0; padding-bottom: 20px; }
+
+/* One shared arcade deck for every play mode. */
+.home-play-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 28px; }
+.app-shell .home-play-heading > .home-coin-card { width: min(100%, 330px); margin: 0; padding: 12px; flex-shrink: 0; }
+.app-shell .home-play-modes > :is(.online-home-card, .boss-run-card, .gambit-academy-card) { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.home-dashboard-content .home-play-modes { gap: 30px; }
+.home-play-modes h2, .home-play-modes .boss-run-heading h2 { margin: 0 0 14px; color: var(--text-primary); font-size: 18px; }
+.home-play-modes p { color: var(--text-secondary); }
+.home-play-modes .boss-run-heading { margin: 0; padding: 0; border: 0; }
+.app-shell .home-play-modes .boss-run-mode { padding: 0; border: 0; background: none; box-shadow: none; }
+.home-play-modes .boss-run-options { gap: 14px; }
+.home-play-modes .boss-run-description { padding: 12px 0 0; }
+.online-quick-times { grid-template-columns: repeat(auto-fit, 148px); gap: 12px; padding: 0; }
+.app-shell .online-quick-times .game-start-button { padding: 14px 22px; gap: 5px; }
+.online-quick-times .online-quick-button-action { font-size: 12px; line-height: 1.25; }
+.online-quick-times .game-start-content { flex-direction: column; }
+.online-quick-times .online-quick-button-mode { font-size: 11px; line-height: 1.25; }
+.online-quick-times .online-quick-button-time { font-size: 12px; }
+.online-quick-times .game-start-button { justify-self: center; }
+.app-shell .home-play-modes .boss-run-mode { overflow: visible; text-align: center; }
+.app-shell .home-play-modes .boss-run-button,
+.app-shell .home-play-modes .resume-match-button { width: var(--play-size); min-height: 0; padding: 22px; margin: 12px auto; justify-content: center; text-align: center; }
+.boss-run-button .game-start-content { flex-direction: column; gap: 4px; }
+.boss-run-button .boss-run-portrait { width: 48px; height: 48px; flex: 0 0 48px; }
+.boss-run-button .boss-run-label { flex: none; gap: 3px; }
+.gambit-training-button { margin: 22px auto 14px; }
+.resume-match-copy { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.resume-match-copy strong { color: var(--accent-success); font-size: 14px; }
+.resume-match-copy > span { color: var(--text-primary); font-size: 13px; }
+.resume-match-copy small { color: var(--text-secondary); font-size: 11px; }
+.resume-match-button .game-start-icon { color: var(--accent-success); }
+.home-play-modes .online-quick-mode legend { color: var(--text-secondary); }
+@container (min-width: 750px) {
+  .home-dashboard-content .home-play-modes {
+    grid-template-columns: minmax(308px, 1fr) 414px;
+    align-items: start;
+    column-gap: 24px;
+  }
+  .home-play-modes > .online-home-card { grid-column: 1; grid-row: 1; }
+  .home-play-modes > .boss-run-card { grid-column: 2; grid-row: 1; }
+  .home-play-modes > .gambit-academy-card { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .home-play-heading > h1 { width: 100%; }
+  .app-shell .home-play-heading > .home-coin-card { width: 100%; }
+}

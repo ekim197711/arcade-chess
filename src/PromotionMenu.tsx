@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
 import type { Color } from "./chess";
@@ -18,6 +18,11 @@ export function PromotionMenu({ position, color, theme, onChoose, onCancel }: {
   onChoose: (piece: PromotionPiece) => void;
   onCancel: () => void;
 }) {
+  const [palette]=useState(()=>{
+    const root=document.querySelector(".app-shell")??document.documentElement;
+    const current=getComputedStyle(root);
+    return Object.fromEntries(["--surface-dialog","--surface-control","--text-primary","--text-secondary","--text-muted","--border-control","--accent-info","--focus-ring"].map(token=>[token,current.getPropertyValue(token)]).filter(([,value])=>value.trim())) as CSSProperties;
+  });
   const menu = useRef<HTMLDivElement>(null);
   const cancel = useRef(onCancel);
   cancel.current = onCancel;
@@ -59,7 +64,7 @@ export function PromotionMenu({ position, color, theme, onChoose, onCancel }: {
 
   return createPortal(
     <div ref={menu} className="promotion-menu" role="menu" aria-label="Promote your pawn"
-      style={{ left: location.x, top: location.y }}
+      style={{ ...palette, left: location.x, top: location.y }}
       onKeyDown={(event) => {
         if (event.key === "Escape" || event.key === "Tab") {
           if (event.key === "Escape") event.preventDefault();

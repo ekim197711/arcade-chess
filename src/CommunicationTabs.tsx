@@ -1,9 +1,11 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState, useLayoutEffect, useRef, type ReactNode } from "react";
 
 export function CommunicationTabs({ chat, emojis }: { chat: ReactNode; emojis: ReactNode }) {
   const [tab, setTab] = useState(0);
   const id = useId();
-  return <div className="communication-tabs">
+  const root=useRef<HTMLDivElement>(null);
+  useLayoutEffect(()=>{if(tab===0)root.current?.querySelectorAll<HTMLElement>('[role="log"]').forEach(log=>{log.scrollTop=log.scrollHeight;});},[tab]);
+  return <div className="communication-tabs" ref={root}>
     <div role="tablist" aria-label="Game communication" className="communication-tab-list">
       {["Chat", "Emojis"].map((label, index) => <button key={label} type="button" role="tab"
         id={`${id}-tab-${index}`} aria-controls={`${id}-panel-${index}`} aria-selected={tab === index}

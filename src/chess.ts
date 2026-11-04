@@ -182,8 +182,18 @@ export class Chess {
     const current = key(this.fen());
     return [this.initialFen, ...this.played.map((move) => move.after)].filter((fen) => key(fen) === current).length >= 3;
   }
-  isDraw() { return this.position ? this.isStalemate() || this.isInsufficientMaterial() || this.isThreefoldRepetition() || this.position.halfmoves >= 100 : this.standard.isDraw(); }
-  isGameOver() { return this.position ? this.isCheckmate() || this.isDraw() : this.standard.isGameOver(); }
+  isDrawByFiftyMoves() { return this.position ? this.position.halfmoves >= 100 : this.standard.isDrawByFiftyMoves(); }
+  drawReason(): string | null {
+    // Checkmate takes precedence when the mating move reaches the move limit.
+    if (this.isCheckmate()) return null;
+    if (this.isStalemate()) return "Stalemate";
+    if (this.isInsufficientMaterial()) return "Insufficient material";
+    if (this.isThreefoldRepetition()) return "Threefold repetition";
+    if (this.isDrawByFiftyMoves()) return "Fifty-move rule";
+    return null;
+  }
+  isDraw() { return this.drawReason() !== null; }
+  isGameOver() { return this.isCheckmate() || this.isDraw(); }
 }
 
 // Scharnagl numbering enumerates each of the 960 legal arrays exactly once.

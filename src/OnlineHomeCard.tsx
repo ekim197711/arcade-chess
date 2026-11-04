@@ -1,3 +1,4 @@
+import { GameStartButton } from "./GameStartButton";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reconnectDeadline, type OnlineGame } from "./onlineChess";
@@ -75,12 +76,11 @@ export function OnlineHomeCard({ userId, navigate, refreshToken = 0 }: { userId:
     return () => window.clearInterval(clock);
   }, [deadline]);
   const seconds = game ? Math.max(0, Math.ceil(((reconnectDeadline(game,side) ?? now) - now) / 1000)) : 0;
-  return <section className="online-home-card" aria-labelledby="online-home-title">
-    <h2 id="online-home-title">Play against human</h2>
+  return <section className="online-home-card" aria-label="Play against human">
     {game && !game.result ? <>
       <p>Your {game.minutes}-minute {game.is_bot ? "practice game" : "human match"} against <strong>{side === "w" ? game.black_name : game.white_name}</strong> is in progress.</p>
       <p className="online-home-countdown" role="timer" aria-label="Seconds before auto-resign">{seconds > 0 ? <>About <strong>{seconds}</strong> seconds before auto-resign while away. Your game clock keeps running.</> : <>Reconnect deadline reached. Open your game to check its result.</>}</p>
-      <div className="online-home-actions"><button onClick={() => navigate(`online/${game.id}`)}>Resume</button>
+      <div className="online-home-actions"><GameStartButton tone="resume" onClick={() => navigate(`online/${game.id}`)}>Resume {game.is_bot ? "practice game" : "human match"}</GameStartButton>
         <button disabled={busy} onClick={() => setConfirmResign(true)}>Resign current game</button></div>
       {confirmResign && <div className="online-home-confirm"><p>Resign your current game?</p><button disabled={busy} onClick={() => void refresh(true)}>{busy ? "Resigning…" : "Confirm resignation"}</button><button disabled={busy} onClick={() => setConfirmResign(false)}>Keep playing</button></div>}
     </> : <>

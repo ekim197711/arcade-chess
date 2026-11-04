@@ -30,7 +30,6 @@
 .gambit-board .gambit-square { box-shadow: none; }
 .gambit-board .gambit-square.last-move { background: var(--board-move-from-fill); }
 .gambit-board .gambit-square.last-move-to { background: var(--board-move-to-fill); }
-.gambit-board .gambit-square.legal { background: var(--board-target-fill); }
 .gambit-board .gambit-square.selected { background: var(--board-selection-fill); }
 .gambit-board .gambit-square.hint-from { background: var(--board-guide-from-fill); }
 .gambit-board .gambit-square.hint-to { background: var(--board-guide-fill); }
@@ -155,3 +154,7 @@
  .gambit-briefing-panel .gambit-briefing-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
  .gambit-briefing-layout .gambit-briefing { padding: 16px; }
 }
+
+/* The guided path remains distinct from ordinary selection and move history. */
+.app-shell .chessboard.gambit-board .square.hint-from { background: var(--board-guide-from-fill); }
+.app-shell .chessboard.gambit-board .square.hint-to { background: var(--board-guide-fill); }

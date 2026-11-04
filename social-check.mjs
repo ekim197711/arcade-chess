@@ -54,19 +54,19 @@ try {
   assert.equal(state.reactions[0].body,'👍');
   await assert.rejects(inGame(a,'emoji','😮'));
   await call(b,'preferences',null,null,false);
-  assert.equal((await inGame(b)).reactions.length,0);
+  assert.equal((await inGame(b)).reactions.length,0);assert.equal((await inGame(b)).messages.filter(item=>item.kind==='emoji').length,0,'mute hides emoji history');
   assert.equal((await call(b)).emojis_enabled,false);
   await assert.rejects(inGame(a,'emoji','😮'));
   await call(b,'preferences',null,null,true);
   await db.exec("update public.online_social_messages set created_at=clock_timestamp()-interval '10 seconds'");
-  assert.equal((await inGame(a)).reactions.length,0);
+  assert.equal((await inGame(a)).reactions.length,0);assert.equal((await inGame(a)).messages.filter(item=>item.kind==='emoji').length,1,'emoji remains in history after the popup expires');
   await inGame(b,'emoji','😠');
   await call(b,'remove',a);
   assert.equal((await inGame(a)).friends.length,0);
   await assert.rejects(call(a,'chat',b,'still friends?'));
   assert.equal((await db.query("select * from public.online_social_messages where kind='chat' and game_id is null")).rows.length,0);
   state = await inGame(a,'chat','Match chat remains available');
-  assert.equal(state.messages.length,3);
+  assert.equal(state.messages.filter(item=>item.kind==='chat').length,3);assert.equal(state.messages.filter(item=>item.kind==='emoji').length,2,'reactions remain in the match timeline');
   await inGame(a,'request'); await inGame(b,'remove'); // Decline.
   assert.equal((await inGame(a)).friends.length,0);
   await db.exec('set role authenticated');
@@ -81,6 +81,7 @@ try {
     await db.exec("update public.online_social_messages set created_at=clock_timestamp()-interval '10 seconds'");
     assert.equal((await inGame(a,'emoji',emoji)).reactions.at(-1).body,emoji);
   }
+  const timeline=(await inGame(a)).messages;assert.equal(timeline.length,50);assert(timeline.every((item,index)=>index===0||item.id>timeline[index-1].id),'mixed timeline is ordered and bounded');
   await db.exec('alter table public.online_games alter column white_id drop not null');
   await db.query('update public.online_games set white_id=null where id=$1',[game.id]);
   await assert.rejects(inGame(c),'a deleted opponent must not allow outsiders through a NULL participant check');
@@ -89,5 +90,5 @@ try {
   await inGame(a,'request'); await inGame(b,'accept'); // Can connect after a match.
   await db.query('delete from auth.users where id=$1',[a]);
   assert.equal((await call(b)).friends.length,0);
-  console.log('Social checks passed: immediate participant-only match chat, separate friend lobby chat, all 48 emojis, mute/rate limits, friendship removal, NULL-safe participants, account deletion and repeatable migration.');
+  console.log('Social checks passed: immediate participant-only match chat, separate friend lobby chat, all catalogue emojis with persistent history, mute/rate limits, friendship removal, NULL-safe participants, account deletion and repeatable migration.');
 } finally { await db.close(); }

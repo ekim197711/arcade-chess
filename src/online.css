@@ -25,7 +25,7 @@
 .online-play .online-board button.square { min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; aspect-ratio: 1; position: relative; opacity: 1; font: inherit; }
 .online-play .online-cabinet { display: flex; flex-direction: column; min-width: 0; padding: 12px; }
 .online-play .online-board-stage { order: 1; width: 100%; min-height: 0; }
-.online-play .board-frame { --online-auto-width: clamp(240px, calc(100dvh - 390px), 760px); box-sizing: border-box; width: min(100%, var(--board-width, var(--online-auto-width))); flex: 0 1 auto; }
+.online-play .board-frame { --online-auto-width: max(180px, calc(100dvh - 260px)); box-sizing: border-box; width: min(100%, var(--online-auto-width), var(--board-width, var(--online-auto-width))); flex: 0 1 auto; }
 .online-play .online-cabinet, .online-play .online-game-info { color: var(--text-primary, #f4f5f7); }
 .online-play .board-coordinates { color: var(--text-muted, #b8bec9); }
 .online-play .board-wrap { min-width: 0; }

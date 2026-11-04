@@ -38,6 +38,9 @@
     --board-move-to-fill: color-mix(in srgb, var(--board-move-from-fill) 82%, white);
     --board-selection-fill: #72d9dd;
     --board-target-fill: #92b9a0;
+    --board-target-marker: #172c3cb3;
+    --board-target-marker-edge: #ffffff80;
+    --board-premove-marker: #96611de0;
     --board-premove-fill: #ceaa67;
     --board-guide-from-fill: #b89aef;
     --board-guide-fill: color-mix(in srgb, var(--board-guide-from-fill) 82%, white);

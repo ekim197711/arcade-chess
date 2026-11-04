@@ -57,7 +57,7 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 
 ## Front-page traffic constraint
 
-- Home performs one cached, bounded initial snapshot (five database reads); never add focus/reconnect refreshes, polling, expiry inspections, automatic uploads or SDK database retries. Refresh saved data is the explicit network action. Cache failures as well as successes to prevent remount retry storms.
+- Home performs one cached, bounded initial snapshot (four database reads; online history is a fifth read only when Game history is opened); never add focus/reconnect refreshes, polling, expiry inspections, automatic uploads or SDK database retries. Refresh saved data is the explicit network action. Cache failures as well as successes to prevent remount retry storms.
 - Fetch history in pages of 50 only on demand, render 50 rows initially, and preserve the durable account-specific pending-save IDs across reloads. Flush at most five history saves or progress events per action. Preserve normal save-on-move behavior outside home. Run `node frontpage-budget-check.mjs` for the healthy, large-cache and failing-server cases.
 
 - Browser rendering budget: home has at most 12 parade actors, using 112x112 thumbnails; cycle the roster at route boundaries rather than mounting all bosses. Small ladder portraits also use thumbnails. Do not decode full-resolution character artwork for tiny UI images. Bubble events from the child dance animation must not trigger React state updates. Run the isolated Firefox responsiveness check for changes to this path.
@@ -67,3 +67,13 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 - Human Standard and Freestyle (Chess960) share time controls and the overall rating pool, but matchmaking must match both the clock and variant. The server selects a legal random setup. Supabase's `multiplayer-freestyle.sql` runs after the existing multiplayer, roles and transport migrations; reapply it after rerunning those older files.
 - `supabase/functions/multiplayer/rules.ts` imports the same `src/chess.ts` implementation as the client, resolved in Deno through the function's `deno.json`. Keep browser and server rules aligned, including king-to-rook Chess960 castling and variant-tagged PGNs.
 - `OnlineQuickStart` is shared by signed-in and guest home cards. Starting a new match is an explicit click; never enqueue a player on home mount. Preserve the active-game Resume/Resign controls.
+
+## Shared board UI
+
+- `src/BoardShared.tsx` owns interactive square artwork, board panel surfaces and premove cancellation controls for boss, online and academy games. Keep mode-specific layouts and game rules in their existing components. Use `PromotionMenu` for every playable board, including promotion at premove execution.
+- `src/boardShared.css` derives paired last-move fills from the selected board palette. The origin is slightly darker than the destination on both light and dark squares. Preserve separate guidance fills and hollow legal-destination markers. Run `node board-consistency-check.mjs` and `node movement-highlights-check.mjs` when changing these interactions.
+
+## Dedicated game history
+
+- Game history navigates to `#history`; do not mount personal history rows on home. Keep personal games scoped to the active account, with bounded paging and explicit refresh. History browsing also defers pending progress uploads until explicit refresh.
+- `src/classicGames.ts` contains the sourced starter collection of historic games; `#history/classic/:id` reuses game review without inventing historic ratings. Run `node history-page-check.mjs` and `node frontpage-budget-check.mjs` when changing this flow.

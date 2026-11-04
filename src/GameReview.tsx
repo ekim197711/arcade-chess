@@ -38,7 +38,7 @@ function readReviewPreferences(fallbackTheme: PieceStyle): ReviewPreferences {
 type Props = {
   pgn: string;
   opponent: string;
-  opponentElo: number;
+  opponentElo: number | null;
   opponentKind?: "human" | "bot";
   closeLabel?: string;
   playerName: string;
@@ -453,7 +453,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
       <section className="review-skills" aria-labelledby="review-skills-title">
         <div className="review-elo-scores" aria-label="Player Elo scores">
           <div><span>{playerName} · ESTIMATE</span><strong>{playerElo === null ? "—" : `~${playerElo}`}</strong><small>{playerElo === null ? "Three analyzed moves needed" : "Estimated from this game"}</small></div>
-          <div><span>{opponent} · {opponentKind === "human" ? "ONLINE ELO" : "LADDER RATING"}</span><strong>{opponentElo}</strong><small>{opponentKind === "human" ? "Online rating at game start" : "Progression rating"}</small></div>
+          {opponentElo !== null && <div><span>{opponent} · {opponentKind === "human" ? "ONLINE ELO" : "LADDER RATING"}</span><strong>{opponentElo}</strong><small>{opponentKind === "human" ? "Online rating at game start" : "Progression rating"}</small></div>}
         </div>
         <h3 id="review-skills-title">Your estimated Elo by skill</h3>
         <p className="review-note">{playerName} · {color === "w" ? "White" : "Black"} · {failed ? "Partial analysis" : Object.keys(analyses).length < moves.length ? "Updating as moves are analyzed" : "Game analysis complete"}</p>

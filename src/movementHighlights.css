@@ -11,8 +11,20 @@
 }
 .app-shell .chessboard .square:is(.square-light, .square-dark):is(.square-premove-from, .square-premove-to) { background: var(--board-premove-fill); }
 .app-shell .chessboard .square:is(.square-light, .square-dark).square-premove-to { background: color-mix(in srgb, var(--board-premove-fill) 82%, white); }
-.app-shell .chessboard .square:is(.square-light, .square-dark).square-target { background: var(--board-target-fill); }
-.app-shell .chessboard .square:is(.square-light, .square-dark).square-premove-target { background: var(--board-premove-fill); }
 .app-shell .chessboard .square:is(.square-light, .square-dark).square-selected { background: var(--board-selection-fill); }
-.app-shell .chessboard .square.square-target::before,
 .app-shell .chessboard .square.square-target .move-dot { display: none; box-shadow: none; }
+/* Keep the palette stable under the pointer and across turn changes. */
+.app-shell .chessboard .square:hover { filter: none; }
+
+/* Legal destinations are donuts; their underlying square color is preserved. */
+.app-shell .chessboard :is(.square.square-target, .gambit-square.legal)::before {
+ content: ""; display: block; position: absolute; z-index: 5;
+ inset: 50% auto auto 50%; transform: translate(-50%, -50%);
+ width: 27%; height: auto; aspect-ratio: 1; box-sizing: border-box;
+ border: clamp(3px, .35vw, 5px) solid var(--board-target-marker);
+ border-radius: 50%; background: transparent; box-shadow: 0 0 0 1px var(--board-target-marker-edge);
+ pointer-events: none;
+}
+.app-shell .chessboard .square.square-target:has(.move-capture)::before,
+.app-shell .chessboard .gambit-square.legal[data-capture="true"]::before { width: 80%; }
+.app-shell .chessboard .square.square-premove-target::before { border-color: var(--board-premove-marker); }
