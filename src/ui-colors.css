@@ -1,0 +1,149 @@
+/* Shared semantic palette. Change colors here, or override these tokens on
+   .app-shell for a theme. Keep foreground/background pairs together.
+   Existing cabinet themes supply --bg, --panel, --panel-2, --line and --cyan. */
+:root {
+    --text-primary: #f4f5f7;
+    --text-secondary: #d5d8df;
+    --text-muted: #b8bec9;
+    --text-on-control: #f4f5f7;
+    --text-feedback: #ffceda;
+    --surface-feedback: #401e38;
+    --focus-ring: var(--text-primary);
+}
+
+:root, .app-shell {
+    --surface-page: var(--bg, #050608);
+    --surface-card: var(--panel, #101d55);
+    --surface-raised: var(--panel-2, #182b72);
+    --surface-inset: #071120;
+    --surface-control: var(--surface-raised);
+    --surface-control-hover: var(--surface-card);
+    --surface-dialog: var(--surface-card);
+    --border-default: var(--line, #4c63bf);
+    --border-control: var(--border-default);
+    --accent-info: var(--cyan, #7eeaff);
+    --accent-success: #b8f89b;
+    --accent-warning: #ffda88;
+    --accent-error: #ffb3bd;
+    --text-on-accent: #071120;
+    --surface-info: #173848;
+    --surface-success: #173d30;
+    --surface-warning: #42341b;
+    --surface-message-own: #20365c;
+    --surface-scrim: #03081466;
+    --shadow-dialog: 0 16px 70px #000b;
+    --board-move-tint: #ffbd4a;
+    --board-move-fill: #d6b56d;
+    --board-move-from-fill: var(--board-move-fill);
+    --board-move-to-fill: color-mix(in srgb, var(--board-move-from-fill) 82%, white);
+    --board-selection-fill: #72d9dd;
+    --board-target-fill: #92b9a0;
+    --board-target-marker: #172c3cb3;
+    --board-target-marker-edge: #ffffff80;
+    --board-premove-marker: #96611de0;
+    --board-premove-fill: #ceaa67;
+    --board-guide-from-fill: #b89aef;
+    --board-guide-fill: color-mix(in srgb, var(--board-guide-from-fill) 82%, white);
+    --text-guide-destination: #d6c1ff;
+    --text-guide-origin: color-mix(in srgb, var(--text-guide-destination) 78%, white);
+    --training-board-light: #cedbe0;
+    --training-board-dark: #52798d;
+    --border-board: #528dae;
+}
+
+.topbar .nav-link {
+    color: var(--text-secondary);
+}
+
+.topbar .nav-active,
+.topbar .nav-link:hover {
+    color: var(--text-primary);
+}
+
+.topbar .sound-button,
+.topbar .login-button,
+.topbar .profile-chip,
+.modal-card .modal-close,
+.modal-card .social-button {
+    color: var(--text-on-control);
+    background: var(--surface-control);
+    border-color: var(--border-control);
+}
+
+.topbar .sound-button:hover,
+.topbar .login-button:hover,
+.topbar .profile-chip:hover,
+.modal-card .modal-close:hover,
+.modal-card .social-button:hover {
+    color: var(--text-on-control);
+    background: var(--surface-control-hover);
+    border-color: var(--text-muted);
+}
+
+.topbar .sound-button svg,
+.topbar .profile-name,
+.modal-card .social-button > svg:last-child,
+.modal-card .google-g,
+.modal-card .facebook-f {
+    color: inherit;
+}
+
+.modal-card {
+    color: var(--text-primary);
+    background: var(--surface-dialog);
+}
+
+.modal-card h2,
+.modal-card h2 em {
+    color: var(--text-primary);
+    text-shadow: none;
+}
+
+.modal-card .modal-description,
+.modal-card .help-steps p {
+    color: var(--text-secondary);
+}
+
+.modal-card .modal-eyebrow,
+.modal-card .privacy-note,
+.modal-card .help-footnote {
+    color: var(--text-muted);
+}
+
+.modal-card .guest-link {
+    color: var(--text-secondary);
+}
+
+.modal-card .guest-link:hover {
+    color: var(--text-primary);
+}
+
+.modal-card .account-stats > span {
+    color: var(--text-on-control);
+    background: var(--surface-control);
+    border-color: var(--border-control);
+}
+
+.modal-card .auth-message {
+    color: var(--text-feedback);
+    background: var(--surface-feedback);
+}
+
+.topbar button:focus-visible,
+.modal-card button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+}
+
+/* Descendant sections (including emoji preferences) inherit the same palette. */
+.app-shell .settings-page { color: var(--text-primary); }
+.app-shell .settings-card { color: var(--text-primary); background: var(--surface-card); border-color: var(--border-default); }
+.app-shell .settings-page :is(h1, h2, h3, label) { color: var(--text-primary); }
+.app-shell .settings-page p { color: var(--text-secondary); }
+.app-shell .settings-page .review-note { color: var(--text-muted); }
+.app-shell .settings-page .social-error { color: var(--accent-error); }
+.app-shell .settings-page select { color: var(--text-on-control); background: var(--surface-control); border-color: var(--border-control); }
+.app-shell .settings-page input[type="checkbox"] { accent-color: var(--accent-info); }
+.app-shell .settings-page :is(button, input, select):focus-visible { outline-color: var(--focus-ring); }
+
+.app-shell { color: var(--text-primary); }

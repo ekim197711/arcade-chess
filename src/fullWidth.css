@@ -1,0 +1,217 @@
+/* Page containers span the viewport. Square boards retain their height limits. */
+.home-dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); gap: 24px; align-items: start; margin: 24px 0; }
+.home-dashboard-content { grid-column: 1; grid-row: 1; min-width: 0; }
+.home-dashboard-content > .hud-row, .home-dashboard-content > .history-page { box-sizing: border-box; width: 100%; max-width: none; margin-inline: 0; }
+.home-dashboard > .home-options-panel { grid-column: 2; grid-row: 1; position: sticky; top: 16px; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 18px; min-width: 0; max-height: calc(100dvh - 120px); overflow-y: auto; margin: 0; padding: 16px; border: 1px solid #5368bd; border-radius: 12px; background: #0e173a; scrollbar-width: thin; }
+.home-options-panel .home-play-area { flex: none; padding: 0; border: 0; background: none; }
+.home-options-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px; scrollbar-width: thin; }
+.home-options-body .home-options { margin-top: 20px; }
+.app-shell .home-dashboard .home-options-panel > .home-coin-card { flex: 0 0 auto; }
+.home-options h2 { margin: 0 0 12px; font-size: 18px; color: #eff5ff; }
+.home-options-actions { display: grid; gap: 8px; }
+.home-options-actions > button, .home-options-panel .admin-home-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid #637ac4; border-radius: 7px; color: #eff5ff; background: #17285f; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.home-options-actions > button:focus-visible { outline: 2px solid #85e7ff; outline-offset: 2px; }
+@media (max-width: 1000px) {
+  .home-dashboard { grid-template-columns: minmax(0, 1fr); }
+  .home-dashboard > .home-options-panel { grid-column: 1; grid-row: 1; position: static; max-height: none; }
+  .home-dashboard-content { grid-column: 1; grid-row: 2; }
+  .home-options-body { overflow: visible; }
+}
+.home-play-cards { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; margin: 24px 0; }
+.home-play-area { container-type: inline-size; flex: 1 1 600px; min-width: 0; padding: 18px; border: 1px solid #5368bd; border-radius: 12px; background: #0e173a; }
+.home-play-heading h1 { margin: 0; color: #eff5ff; font-size: 26px; }
+.home-play-heading p { margin: 8px 0 18px; color: #c4d0f5; font-size: 13px; }
+.home-play-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; align-items: stretch; }
+.home-play-modes > .boss-run-card { min-width: 0; grid-column: auto; }
+.app-shell .home-play-modes > .online-home-card { width: 100%; min-width: 0; margin: 0; padding: 16px; }
+.home-play-modes .online-home-card h2 { font-size: 18px; }
+.home-play-modes .boss-run-heading h2 { font-size: 18px; }
+.home-play-modes .online-home-card p { font-size: 13px; }
+.boss-run-description { margin: 0; padding: 0 12px 12px; font-size: 11px; line-height: 1.5; }
+.app-shell .home-play-cards > .home-coin-card { flex: 0 1 300px; width: 300px; max-width: 100%; margin: 0 0 0 auto; padding: 12px; }
+.home-coin-card .arcade-cabinet-topline { margin-bottom: 10px; padding-bottom: 8px; }
+.app-shell .home-coin-card .arcade-control-deck { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 12px; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.home-coin-card .arcade-credit-display { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.app-shell .home-coin-card .arcade-credit-display output { grid-column: 1; grid-row: 2; min-width: 0; padding: 4px; }
+.home-coin-card .arcade-credit-hint { grid-column: 1; grid-row: 3; margin: 0; font-size: 8px; letter-spacing: normal; text-align: left; overflow-wrap: anywhere; }
+.home-coin-card .segmented-credits { width: 48px; height: 42px; }
+.home-coin-card .arcade-coin-control { min-width: 0; gap: 8px; }
+.home-coin-card .arcade-coin-button { width: 100%; }
+.home-coin-card .arcade-coin-note { font-size: 10px; }
+.home-coin-card .coin-insert-stage { border-radius: inherit; }
+.app-shell { --page-gutter: clamp(12px, 1.5vw, 28px); }
+.app-shell > main,
+.app-shell > main.home-main,
+.app-shell > main.online-main,
+.app-shell > main.review-main,
+.app-shell.app-shell-battle > main {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--page-gutter);
+}
+.app-shell > .topbar,
+.app-shell > .site-footer { padding-inline: var(--page-gutter); }
+.app-shell .settings-page,
+.app-shell .administration-page,
+.app-shell .boss-select-page,
+.app-shell .battle-page,
+.app-shell .online-play,
+.app-shell .online-result,
+.app-shell .online-home-card,
+.app-shell main > .game-review,
+.app-shell .arcade-cabinet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+.online-game-layout { grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(230px, 300px); gap: 18px; }
+.online-game-layout > .online-communication { grid-column: 1; }
+.online-game-layout > .online-cabinet { grid-column: 2; }
+.online-game-layout > .online-game-info { grid-column: 3; }
+@media (min-width: 761px) {
+  .app-shell-battle .game-layout { grid-template-columns: clamp(240px, 22vw, 320px) minmax(0, 1fr) clamp(160px, 18vw, 260px); }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .online-game-layout { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
+  .online-game-layout > .online-game-info { grid-column: 1 / -1; }
+  .app-shell-battle .game-layout { grid-template-columns: 220px minmax(0, 1fr) 160px; gap: 8px; }
+}
+@media (max-width: 760px) {
+  .online-game-layout { grid-template-columns: minmax(0, 1fr); }
+  .online-game-layout > .online-cabinet { grid-column: 1; grid-row: 1; }
+  .online-game-layout > .online-communication { grid-column: 1; grid-row: 2; }
+  .online-game-layout > .online-game-info { grid-column: 1; grid-row: 3; }
+}
+/* Quick-start arena occupies the middle; progress and options flank it. */
+.home-dashboard { grid-template-columns: minmax(190px, .65fr) minmax(400px, 2fr) minmax(240px, .8fr); gap: 20px; }
+.home-dashboard-content { grid-column: 2; }
+.home-stats-panel { grid-column: 1; grid-row: 1; min-width: 0; }
+.home-dashboard > .home-options-panel { grid-column: 3; }
+.home-stats-panel .hud-row { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin: 0; width: 100%; padding: 16px; }
+.home-stats-panel .hud-row > * { width: 100%; min-width: 0; border-left: 0; }
+.home-stats-panel .hud-row > .hud-stat { padding: 18px 0; border-top: 1px solid var(--line); }
+.home-stats-panel .hud-player { padding: 0 0 18px; flex-wrap: wrap; }
+.home-stats-panel .hud-player-name-row { flex-wrap: wrap; }
+.home-stats-panel .hud-label { white-space: normal; line-height: 1.6; }
+.home-dashboard-content .home-play-area { margin: 0 0 24px; }
+.home-dashboard-content .home-play-modes { grid-template-columns: minmax(0, 1fr); }
+.home-dashboard-content .boss-run-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.home-dashboard-content .boss-run-button { min-height: 122px; gap: 10px; padding: 12px; text-align: left; }
+.boss-run-portrait { width: 76px; height: 90px; flex: 0 0 76px; object-fit: contain; }
+.boss-run-label { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.boss-run-label strong { font-size: 16px; }
+.boss-run-label > span, .boss-run-label small { font-size: 10px; font-weight: 400; opacity: .85; }
+.boss-run-label b { font-size: 12px; }
+.boss-run-button > svg { flex-shrink: 0; }
+.online-quick-start { display: grid; gap: 12px; }
+.online-quick-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
+.online-quick-mode legend { margin-bottom: 10px; padding: 0; color: #d7f5ff; font-size: 14px; font-weight: 700; }
+.online-quick-freestyle legend { color: #efcaff; }
+.online-quick-times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.online-quick-times button { display: flex; align-items: baseline; justify-content: center; gap: 5px; min-height: 62px; padding: 10px 4px; background: linear-gradient(150deg, #195676, #18335a); border-color: #63cfdf; }
+.online-quick-times strong { font-size: 24px; }
+.online-quick-times span { font-size: 12px; }
+.online-quick-freestyle button { background: linear-gradient(150deg, #59356d, #30244e); border-color: #c492dd; }
+.online-quick-times button:hover:not(:disabled) { filter: brightness(1.2); transform: translateY(-1px); }
+.online-quick-times button:focus-visible, .boss-run-button:focus-visible { outline: 3px solid #ffda88; outline-offset: 3px; }
+.online-quick-times button:disabled { cursor: wait; opacity: .5; }
+.online-quick-note { margin: 0; font-size: 12px; }
+@media (max-width: 1250px) {
+  .home-dashboard { grid-template-columns: minmax(0, 1fr) 280px; }
+  .home-dashboard-content { grid-column: 1; grid-row: 1 / span 2; }
+  .home-dashboard > .home-options-panel { grid-column: 2; grid-row: 2; position: static; max-height: none; }
+  .home-stats-panel { grid-column: 2; grid-row: 1; }
+}
+@media (max-width: 850px) {
+  .home-dashboard { grid-template-columns: minmax(0, 1fr); }
+  .home-dashboard-content { grid-column: 1; grid-row: 1; }
+  .home-stats-panel { grid-column: 1; grid-row: 2; }
+  .home-dashboard > .home-options-panel { grid-column: 1; grid-row: 3; }
+  .home-dashboard-content .boss-run-button { padding: 10px 8px; gap: 6px; }
+  .boss-run-portrait { width: 56px; height: 76px; flex-basis: 56px; }
+}
+@media (max-width: 520px) {
+  .home-dashboard-content .boss-run-options { grid-template-columns: minmax(0, 1fr); }
+  .home-dashboard-content .boss-run-button { min-height: 100px; justify-content: flex-start; }
+  .boss-run-label { flex: 1; }
+  .online-quick-times { gap: 6px; }
+  .online-quick-times strong { font-size: 21px; }
+}
+.home-play-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.home-play-heading > div:first-child { min-width: 0; }
+.home-play-heading p { margin-bottom: 0; line-height: 1.6; }
+.home-duel-video { position: relative; flex: 0 1 230px; min-width: 150px; overflow: hidden; border: 1px solid #4a5278; border-radius: 9px; background: #101520; }
+.home-duel-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.home-duel-video button { position: absolute; bottom: 6px; right: 6px; padding: 5px 9px; border: 1px solid #7f8cb0; border-radius: 5px; color: #fff; background: #101520dd; font: 10px var(--mono); cursor: pointer; }
+.home-duel-video button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+@media (max-width: 520px) { .home-play-heading { gap: 10px; } .home-duel-video { flex-basis: 150px; min-width: 120px; } .home-play-heading p { font-size: 11px; } }
+
+.home-play-modes > .gambit-academy-card { min-width: 0; padding: 18px; border: 1px solid #375e88; border-radius: 12px; background: linear-gradient(135deg, #112339, #17172f); }
+.gambit-academy-card h2 { margin: 0 0 10px; color: #7eeaff; font-size: 18px; }
+.gambit-academy-card p { color: #b4c8de; font-size: 13px; line-height: 1.5; }
+/* Ladder list and controls share the space below a compact title. */
+.app-shell .boss-select-page { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px 24px; align-items: start; padding: 18px; }
+.boss-select-page > .roster-heading { grid-column: 1 / -1; margin: 0; }
+.boss-select-page .roster-heading .section-kicker { margin-bottom: 6px; }
+.boss-select-page > .boss-select-list { grid-column: 1; grid-row: 2; min-width: 0; max-height: calc(100dvh - 220px); scroll-padding-top: 0; }
+.roster-options-panel { grid-column: 2; grid-row: 2; position: sticky; top: 16px; min-width: 0; padding: 18px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--surface-card); color: var(--text-secondary); overflow-wrap: anywhere; }
+.roster-options-panel > p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; }
+.roster-options-panel .play-mode-picker { margin-top: 18px; font-size: 12px; }
+.roster-options-panel .play-mode-picker select { min-width: 0; }
+.roster-options-panel .roster-fight-dock { position: static; display: grid; gap: 14px; margin-top: 20px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--border-default); background: none; box-shadow: none; backdrop-filter: none; }
+.roster-options-panel .fight-button { width: 100%; margin: 0; }
+@media (max-width: 760px) {
+ .app-shell .boss-select-page { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 14px; }
+ .roster-options-panel { grid-column: 1; grid-row: 2; position: static; padding: 14px; }
+ .boss-select-page > .boss-select-list { grid-column: 1; grid-row: 3; max-height: 65dvh; }
+}
+.app-shell > main:has(.boss-select-page) { padding-top: 12px; }
+.flow-stage:has(> .boss-select-page) { padding-top: 0; padding-bottom: 20px; }
+
+/* One shared arcade deck for every play mode. */
+.home-play-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 28px; }
+.app-shell .home-play-heading > .home-coin-card { width: min(100%, 330px); margin: 0; padding: 12px; flex-shrink: 0; }
+.app-shell .home-play-modes > :is(.online-home-card, .boss-run-card, .gambit-academy-card) { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.home-dashboard-content .home-play-modes { gap: 30px; }
+.home-play-modes h2, .home-play-modes .boss-run-heading h2 { margin: 0 0 14px; color: var(--text-primary); font-size: 18px; }
+.home-play-modes p { color: var(--text-secondary); }
+.home-play-modes .boss-run-heading { margin: 0; padding: 0; border: 0; }
+.app-shell .home-play-modes .boss-run-mode { padding: 0; border: 0; background: none; box-shadow: none; }
+.home-play-modes .boss-run-options { gap: 14px; }
+.home-play-modes .boss-run-description { padding: 12px 0 0; }
+.online-quick-times { grid-template-columns: repeat(auto-fit, 148px); gap: 12px; padding: 0; }
+.app-shell .online-quick-times .game-start-button { padding: 14px 22px; gap: 5px; }
+.online-quick-times .online-quick-button-action { font-size: 12px; line-height: 1.25; }
+.online-quick-times .game-start-content { flex-direction: column; }
+.online-quick-times .online-quick-button-mode { font-size: 11px; line-height: 1.25; }
+.online-quick-times .online-quick-button-time { font-size: 12px; }
+.online-quick-times .game-start-button { justify-self: center; }
+.app-shell .home-play-modes .boss-run-mode { overflow: visible; text-align: center; }
+.app-shell .home-play-modes .boss-run-button,
+.app-shell .home-play-modes .resume-match-button { width: var(--play-size); min-height: 0; padding: 22px; margin: 12px auto; justify-content: center; text-align: center; }
+.boss-run-button .game-start-content { flex-direction: column; gap: 4px; }
+.boss-run-button .boss-run-portrait { width: 48px; height: 48px; flex: 0 0 48px; }
+.boss-run-button .boss-run-label { flex: none; gap: 3px; }
+.gambit-training-button { margin: 22px auto 14px; }
+.resume-match-copy { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.resume-match-copy strong { color: var(--accent-success); font-size: 14px; }
+.resume-match-copy > span { color: var(--text-primary); font-size: 13px; }
+.resume-match-copy small { color: var(--text-secondary); font-size: 11px; }
+.resume-match-button .game-start-icon { color: var(--accent-success); }
+.home-play-modes .online-quick-mode legend { color: var(--text-secondary); }
+@container (min-width: 750px) {
+  .home-dashboard-content .home-play-modes {
+    grid-template-columns: minmax(308px, 1fr) 414px;
+    align-items: start;
+    column-gap: 24px;
+  }
+  .home-play-modes > .online-home-card { grid-column: 1; grid-row: 1; }
+  .home-play-modes > .boss-run-card { grid-column: 2; grid-row: 1; }
+  .home-play-modes > .gambit-academy-card { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .home-play-heading > h1 { width: 100%; }
+  .app-shell .home-play-heading > .home-coin-card { width: 100%; }
+}

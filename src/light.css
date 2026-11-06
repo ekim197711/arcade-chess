@@ -258,6 +258,7 @@ body,
 }
 
 .hud-player-info > strong,
+.hud-player-name-row > strong,
 .hud-stat strong,
 .section-heading h2,
 .opponent-info > strong,
@@ -575,7 +576,7 @@ body,
 }
 
 .square-dark.square-last {
-    background: #ae90dc;
+    background: color-mix(in srgb, #f39a45 24%, var(--board-square-dark, #66705f));
 }
 
 .white-piece-glyph {
@@ -1848,7 +1849,7 @@ body,
     position: relative;
     min-height: 275px;
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     gap: 16px;
     padding: 28px clamp(22px, 5vw, 58px);
@@ -1957,12 +1958,11 @@ body,
 }
 
 .arcade-screen-piece {
-    color: #fff;
-    font:
-        165px / 1 Georgia,
-        serif;
-    filter: drop-shadow(7px 8px 0 rgba(48, 217, 255, 0.35))
-        drop-shadow(0 0 18px rgba(255, 255, 255, 0.24));
+    display: block;
+    width: min(100%, 204px);
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 14px rgba(48, 217, 255, 0.3));
     animation: knight-float 4.6s ease-in-out infinite;
 }
 
@@ -2193,7 +2193,7 @@ body,
 
     .arcade-screen {
         min-height: 245px;
-        grid-template-columns: minmax(0, 1fr) 150px;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0;
         padding: 23px 18px;
     }
@@ -2212,7 +2212,7 @@ body,
     }
 
     .arcade-screen-piece {
-        font-size: 130px;
+        width: min(100%, 150px);
     }
 
     .arcade-control-deck {
@@ -2252,13 +2252,10 @@ body,
     }
 
     .arcade-screen-art {
-        position: absolute;
+        position: relative;
         z-index: 1;
-        top: 0;
-        right: -22px;
-        bottom: 0;
-        width: 48%;
-        opacity: 0.42;
+        width: 100%;
+        opacity: 1;
     }
 
     .arcade-screen-prompt {
@@ -2475,6 +2472,16 @@ body,
     animation: boss-miniature-hover 2.6s ease-in-out infinite;
 }
 
+.boss-character-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+}
+
 .boss-portrait-gem {
     position: absolute;
     z-index: 3;
@@ -2689,7 +2696,16 @@ body,
 }
 
 .brand {
+    width: 120px;
     min-width: 0;
+}
+
+.brand-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 72px;
+    object-fit: contain;
 }
 
 .top-nav .nav-active {
@@ -2768,6 +2784,21 @@ body,
 main {
     width: min(1160px, calc(100% - 48px));
     padding-top: 34px;
+}
+
+/* Give all home cards the same edges and use more of wide displays. */
+main.home-main {
+    width: calc(100% - clamp(28px, 4vw, 96px));
+    max-width: 1600px;
+    padding-inline: 0;
+}
+
+.home-main > .arcade-cabinet,
+.home-main > .hud-row,
+.home-main > .history-page {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
 }
 
 .hero {
@@ -2903,15 +2934,31 @@ main {
 .player-bar,
 .quip-box,
 .rematch-button {
-    border: 1px solid #e3e8e2;
+    border: 1px solid var(--line);
     border-radius: 14px;
-    background: #fff;
+    background: var(--panel);
     box-shadow: 0 8px 24px rgba(33, 47, 36, 0.04);
 }
 
 .hud-row {
     margin-top: 18px;
     padding: 16px 20px;
+}
+
+.hud-player-elo {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-muted, #b8bec9);
+    font-size: 10px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.hud-player-elo strong {
+    margin-left: 6px;
+    color: var(--cyan, #91e9ff);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
 }
 
 .hud-avatar,
@@ -3461,11 +3508,11 @@ main {
 }
 
 .square-last {
-    background: #e2d994;
+    background: color-mix(in srgb, #f39a45 22%, var(--board-square-light, #bfc4b0));
 }
 
 .square-dark.square-last {
-    background: #b7b774;
+    background: color-mix(in srgb, #f39a45 24%, var(--board-square-dark, #66705f));
 }
 
 .square-target::before {
@@ -4010,6 +4057,7 @@ main {
     .app-shell-battle {
         height: 100vh;
         height: 100svh;
+        height: 100dvh;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -4060,9 +4108,8 @@ main {
     }
 
     .app-shell-battle .game-layout {
-        /* Side-panel content must not enlarge the board's viewport-sized row. */
-        grid-template-rows: minmax(0, 1fr);
         grid-template-columns: clamp(150px, 16vw, 250px) minmax(0, 1fr) clamp(150px, 16vw, 250px);
+        grid-template-rows: minmax(0, 1fr);
         align-items: stretch;
         gap: 12px;
         min-height: 0;
@@ -4088,7 +4135,6 @@ main {
     }
 
     .app-shell-battle .cabinet-body {
-        grid-template-rows: minmax(0, 1fr);
         min-height: 0;
         display: grid;
         flex: 1;
@@ -4104,8 +4150,8 @@ main {
     }
 
     .app-shell-battle .board-frame {
-        /* Coordinates add 16px; reserve another 12px for the beveled bottom edge. */
-        width: min(100%, calc(100cqh - 28px), var(--board-width, 100cqw));
+        /* Allow 16px for coordinates and 16px for the bottom bevel/shadow. */
+        width: min(100%, calc(100cqh - 32px), var(--board-width, 100cqw));
         padding: 8px;
     }
 
@@ -4153,20 +4199,24 @@ main {
 
     .app-shell-battle .opponent-column {
         min-height: 0;
-        height: 100%;
         overflow: hidden;
     }
 
     .app-shell-battle .opponent-column .side-column-content,
     .app-shell-battle .side-panel .side-column-content {
         flex: 1 1 0;
-        overflow: auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         scrollbar-width: thin;
-        scrollbar-color: #6f83da #111b43;
     }
 
-    .app-shell-battle .opponent-column .side-column-content > * {
+    .app-shell-battle .side-column-content > * {
         flex-shrink: 0;
+    }
+
+    .app-shell-battle .freestyle-notice {
+        flex: 0 0 auto;
     }
 
     .app-shell-battle .quip-box {
@@ -4178,14 +4228,22 @@ main {
     }
 
     .app-shell-battle .move-log {
-        min-height: 0;
+        min-height: 160px;
         max-height: none;
-        flex: 1;
+        flex: 1 0 160px;
     }
 
     .app-shell-battle .rematch-button {
         flex: 0 0 auto;
         margin-top: 12px;
+    }
+}
+
+@media (max-width: 760px) {
+    .app-shell-battle .board-frame {
+        /* Reserve space for the header, mode notice, coordinates and bevel. */
+        width: min(100%, calc(100svh - 200px), var(--board-width, 100%));
+        width: min(100%, calc(100dvh - 200px), var(--board-width, 100%));
     }
 }
 
@@ -4405,6 +4463,22 @@ main {
 @media (max-width: 420px) {
     .piece-theme-option {
         font-size: 8px;
+    }
+}
+
+@media (max-width: 760px) {
+    .brand {
+        width: 90px;
+    }
+
+    .brand-logo {
+        max-height: 54px;
+    }
+}
+
+@media (max-width: 420px) {
+    .brand {
+        width: 72px;
     }
 }
 

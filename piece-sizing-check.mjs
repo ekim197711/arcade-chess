@@ -17,7 +17,7 @@ try {
   });
   await page.goto(server.resolvedUrls.local[0]);
   await page.getByRole('button', { name: /^Insert one coin/ }).click();
-  await page.getByRole('button', { name: 'Play using one credit' }).click();
+  await page.getByRole('button', { name: 'Standard', exact: true }).click();
   await page.getByRole('button', { name: /^Fight against/ }).click();
 
   const viewports = baseline ? [[1566, 888]] : [[1566, 888], [768, 1024], [390, 844], [320, 640]];

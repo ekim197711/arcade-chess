@@ -1,9 +1,13 @@
 {
-  "name": "neon-knights",
+  "name": "arcade-gambit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.20",
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "setup": "node scripts/install-git-hooks.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "aws:login": "aws sso login --profile mikeaa",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
@@ -11,9 +15,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
     "chess.js": "^1.4.0",
+    "chessops": "^0.15.1",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "stockfish": "19.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

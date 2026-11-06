@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from './.tmp/ladder-check/node_modules/@electric-sql/pglite/dist/index.js';
+const db = new PGlite();
+const a = crypto.randomUUID(), b = crypto.randomUUID();
+const base = { id: crypto.randomUUID(), bossIndex: 0, opponent: 'Test boss', elo: 100, color: 'w', pgn: '1. e4 e5', result: 'unfinished', reason: 'Match in progress', startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+try {
+  await db.exec(`create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated;
+    create function auth.uid() returns uuid language sql as $$ select current_setting('test.uid', true)::uuid $$; grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`);
+  await db.query('insert into auth.users values ($1), ($2)', [a, b]);
+  const schema = await readFile('supabase/schema.sql', 'utf8');
+  await db.exec(schema);
+  const login = async (id) => { await db.query("select set_config('test.uid', $1, false)", [id]); };
+  let owner = a;
+  const save = async (game, count = 2) => (await db.query('select public.save_player_game($1, $2, $3) as game', [game, count, owner])).rows[0].game;
+  await login(a);
+  assert.deepEqual(await save(base), base);
+  assert.deepEqual(await save(base), base);
+  assert.deepEqual(await save({ ...base, pgn: '1. e4', updatedAt: '2099-01-01T00:00:00Z' }, 1), base);
+  const finished = { ...base, result: 'loss', reason: 'Resignation' };
+  assert.deepEqual(await save(finished), finished);
+  assert.deepEqual(await save({ ...base, updatedAt: '2099-01-01T00:00:00Z' }), finished);
+  await login(b);
+  await assert.rejects(save(base)); // An in-flight save from the old account cannot cross accounts.
+  owner = b;
+  await db.exec('set role authenticated');
+  assert.equal((await db.query('select * from public.player_games')).rows.length, 0);
+  const other = { ...base, opponent: 'Other account' };
+  assert.deepEqual(await save(other), other);
+  assert.equal((await db.query('select * from public.player_games')).rows.length, 1);
+  await assert.rejects(db.query('update public.player_games set game = $1', [base]));
+  await login(a);
+  assert.deepEqual((await db.query('select game from public.player_games')).rows.map(row => row.game), [finished]);
+  await assert.rejects(save({ ...base, bossIndex: 59 }));
+  await assert.rejects(save({ ...base, pgn: null }));
+  await assert.rejects(save(base, -1));
+  await db.exec('reset role');
+  await login('');
+  await assert.rejects(save(base));
+  await db.exec(schema);
+  console.log('PASS game archive RPC, retry idempotency, stale/offline protection, completed-game preservation, RLS account isolation, write permissions, validation, schema reapplication');
+} finally { await db.close(); }

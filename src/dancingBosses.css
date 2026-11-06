@@ -1,0 +1,68 @@
+.dancing-bosses {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    --boss-size: 56px;
+    --route-end: max(calc(100vw + 80px), 1800px);
+}
+.dancing-boss-route {
+    position: absolute;
+    top: 78px;
+    left: 0;
+    width: var(--boss-size);
+    height: var(--boss-size);
+    animation: boss-parade 240s linear infinite;
+    animation-delay: var(--parade-delay);
+    will-change: transform;
+}
+.dancing-boss {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 3px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    opacity: .55;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
+    animation: boss-boogie .8s ease-in-out infinite alternate;
+    animation-delay: var(--dance-delay);
+}
+.dancing-boss img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.dancing-boss:hover, .dancing-boss:focus-visible { opacity: 1; background: #79eaff18; }
+.dancing-boss:focus-visible { outline: 2px solid #85e7ff; outline-offset: 2px; }
+.dancing-boss-route:hover, .dancing-boss-route:focus-within,
+.dancing-boss-route:hover .dancing-boss { animation-play-state: paused; }
+.dancing-bosses-paused *, .dancing-boss-route:focus-within .dancing-boss { animation-play-state: paused; }
+/* Page controls stay in front; gaps let the background characters be clicked. */
+main.home-main { pointer-events: none; padding-top: 80px; }
+.home-main > * { pointer-events: auto; }
+.dancing-boss-announcement { position: fixed; z-index: 10; left: 16px; right: 16px; bottom: 82px; pointer-events: none; display: flex; justify-content: center; }
+.dancing-boss-quip { display: flex; align-items: flex-start; gap: 16px; width: min(100%, 440px); box-sizing: border-box; padding: 14px 16px; border: 1px solid #6c7ebc; border-radius: 12px; background: #10192ff5; color: #eff5ff; box-shadow: 0 8px 30px #0005; }
+.dancing-boss-quip strong { color: #91e9ff; font-size: 13px; }
+.dancing-boss-quip p { margin: 5px 0 0; font-size: 14px; line-height: 1.45; }
+.dancing-boss-quip button { flex-shrink: 0; margin-left: auto; border: 0; background: transparent; color: #eff5ff; font-size: 24px; line-height: 1; cursor: pointer; pointer-events: auto; }
+@keyframes boss-parade {
+    0% { transform: translate3d(-80px, 0, 0); }
+    48% { transform: translate3d(var(--route-end), 0, 0); }
+    50% { transform: translate3d(var(--route-end), calc(100dvh - 150px), 0); }
+    98% { transform: translate3d(-80px, calc(100dvh - 150px), 0); }
+    100% { transform: translate3d(-80px, 0, 0); }
+}
+@keyframes boss-boogie {
+    from { transform: translateY(2px) rotate(-9deg); }
+    to { transform: translateY(-5px) rotate(9deg); }
+}
+@media (max-width: 600px) {
+    .dancing-bosses { --boss-size: 44px; --route-end: max(calc(100vw + 80px), 1400px); }
+    .dancing-boss-route { animation-duration: 300s; animation-delay: calc(var(--parade-delay) * 1.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dancing-boss-route { animation-play-state: paused; }
+    .dancing-boss { animation: none; }
+}

@@ -1,0 +1,8 @@
+{
+  "path": "C:\\Users\\mikem\\Documents\\ChatGPT\\chessArcade\\public\\characters\\alekhine-alice\\focused.png",
+  "source": "C:\\Users\\mikem\\.codex\\generated_images\\01a15609-0b0b-79a3-b48b-0ba93f4fbfc6\\exec-98d283f8-e729-4fe3-a82e-008f0f37dbd9.png",
+  "prompt": "Use case: stylized-concept. Create ONE new full-body cartoon arcade chess boss: Alekhine Alice, 2000 Elo. DESIGN: A silver alien dragonfly with long slender segmented body, large magenta expressive eyes, two small hands, four long legs, four transparent cyan veined wings. Small gold chin and cheek plates, elegant airborne creature. Reference is rendering STYLE ONLY: bold dark outlines, polished colorful cel shading, arcade character appeal. Do NOT copy reference octopus anatomy, crown, accessories or palette. FOCUSED: thoughtful concentration, furrowed expressive brow or eyelids, pursed mouth, a natural thoughtful gesture. Small clean badge reads \"2,000 ELO\". Make face readable at game portrait scale. Entire body and all appendages inside square canvas with clear padding. Genuinely transparent background, clean cutout without halo, shadows, scenery or background glow. NO musical instruments of any kind. No extra characters or text. This is master design for five consistent expressions.",
+  "name": "Alekhine Alice",
+  "elo": 2000,
+  "state": "focused"
+}

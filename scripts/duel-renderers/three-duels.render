@@ -1,0 +1,1 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Ivory & Obsidian — 3D chess duels</title><style>html,body{margin:0;background:#10121c}canvas{display:block}</style><script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script></head><body><script type="module" src="three-duels.js"></script></body></html>

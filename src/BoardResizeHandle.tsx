@@ -1,9 +1,9 @@
 import { useRef } from "react";
 import { Grip } from "lucide-react";
 
-type Props = { onResize: (width: number | undefined) => void };
+type Props = { onResize: (width: number | undefined) => void; fitToStageHeight?: boolean };
 
-export function BoardResizeHandle({ onResize }: Props) {
+export function BoardResizeHandle({ onResize, fitToStageHeight = true }: Props) {
   const drag = useRef<{ x: number; y: number; width: number } | null>(null);
 
   function limits(handle: HTMLElement) {
@@ -11,8 +11,8 @@ export function BoardResizeHandle({ onResize }: Props) {
     const stage = frame.parentElement!;
     const max = Math.max(0, Math.min(
       stage.clientWidth,
-      window.matchMedia("(min-width: 761px)").matches
-        ? stage.clientHeight - 28
+      fitToStageHeight && window.matchMedia("(min-width: 761px)").matches
+        ? stage.clientHeight - 32
         : stage.clientWidth,
     ));
     return { width: frame.getBoundingClientRect().width, min: Math.min(240, max), max };

@@ -1,6 +1,17 @@
 node_modules/
 dist/
+.tmp/
+.tmp-*.log
 .env
 .env.*
 !.env.example
 *.tsbuildinfo
+supabase/.temp/
+
+# Terraform local state, caches, and saved plans
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log

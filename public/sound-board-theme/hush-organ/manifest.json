@@ -1,0 +1,69 @@
+{
+  "id": "hush-organ",
+  "name": "Hush Organ",
+  "description": "Smooth breath-sized organ pulses with a cushion-soft attack.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.047,
+      "peakDbFS": -35.2
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.067,
+      "peakDbFS": -32.2
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.102,
+      "peakDbFS": -31.4
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.148,
+      "peakDbFS": -30.1
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.094,
+      "peakDbFS": -32.7
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.11,
+      "peakDbFS": -34.1
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.092,
+      "peakDbFS": -35.1
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.105,
+      "peakDbFS": -34.9
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.139,
+      "peakDbFS": -30.9
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.234,
+      "peakDbFS": -31.0
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.248,
+      "peakDbFS": -32.9
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.129,
+      "peakDbFS": -37.7
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

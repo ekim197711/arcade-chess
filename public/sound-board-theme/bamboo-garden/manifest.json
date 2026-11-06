@@ -1,0 +1,69 @@
+{
+  "id": "bamboo-garden",
+  "name": "Bamboo Garden",
+  "description": "Short hollow bamboo taps with soft edges.",
+  "events": {
+    "select": {
+      "file": "select.wav",
+      "duration": 0.047,
+      "peakDbFS": -30.9
+    },
+    "move": {
+      "file": "move.wav",
+      "duration": 0.066,
+      "peakDbFS": -28.3
+    },
+    "check": {
+      "file": "check.wav",
+      "duration": 0.102,
+      "peakDbFS": -27.9
+    },
+    "checkmate": {
+      "file": "checkmate.wav",
+      "duration": 0.147,
+      "peakDbFS": -27.4
+    },
+    "capture-opponent": {
+      "file": "capture-opponent.wav",
+      "duration": 0.096,
+      "peakDbFS": -29.1
+    },
+    "piece-lost": {
+      "file": "piece-lost.wav",
+      "duration": 0.109,
+      "peakDbFS": -30.6
+    },
+    "en-passant": {
+      "file": "en-passant.wav",
+      "duration": 0.092,
+      "peakDbFS": -31.5
+    },
+    "castle": {
+      "file": "castle.wav",
+      "duration": 0.106,
+      "peakDbFS": -30.7
+    },
+    "timeout": {
+      "file": "timeout.wav",
+      "duration": 0.139,
+      "peakDbFS": -28.2
+    },
+    "win": {
+      "file": "win.wav",
+      "duration": 0.236,
+      "peakDbFS": -27.7
+    },
+    "lose": {
+      "file": "lose.wav",
+      "duration": 0.247,
+      "peakDbFS": -29.7
+    },
+    "invalid-move": {
+      "file": "invalid-move.wav",
+      "duration": 0.129,
+      "peakDbFS": -32.5
+    }
+  },
+  "format": "PCM WAV, mono, 16-bit, 24000 Hz",
+  "defaultVolume": 0.65
+}

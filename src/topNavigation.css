@@ -1,0 +1,31 @@
+.navigation-toggle {
+    order: 4;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 28px;
+    margin-left: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-control);
+    border-radius: 4px;
+    background: var(--surface-control);
+    color: var(--text-on-control);
+    font: 10px var(--mono);
+    cursor: pointer;
+}
+.navigation-toggle:hover { background: var(--surface-control-hover); }
+.navigation-toggle svg { transform: rotate(-90deg); }
+.topbar.is-collapsed .navigation-toggle svg { transform: rotate(90deg); }
+.topbar.is-collapsed > :not(.navigation-toggle) { display: none; }
+.app-shell > .topbar.is-collapsed {
+    height: 32px;
+    min-height: 32px;
+    flex: 0 0 32px;
+    justify-content: flex-end;
+}
+@media (max-width: 520px) {
+    .navigation-toggle { margin-left: 6px; padding: 4px; }
+    .navigation-toggle span { display: none; }
+}
