@@ -1,0 +1,97 @@
+/* Aged enamel, chrome bezels and translucent jukebox selection keys. */
+.app-shell {
+  --jukebox-ink: #302317;
+  --jukebox-paper: #f6e2ad;
+  --jukebox-chrome: #a99e85;
+  --jukebox-dark: #18140f;
+  background: linear-gradient(#120e0bb3, #120e0bdb), url('/artwork/grill-bar-background.png') center top / cover fixed;
+}
+.app-shell:has(.home-main) {
+  --surface-card: #211c16;
+  --surface-raised: #332b21;
+  --surface-inset: #15120f;
+  --border-default: #776348;
+  --text-primary: #fff0d1;
+  --text-secondary: #dfceb0;
+  --text-muted: #baa88a;
+  --accent-info: #edc576;
+}
+.app-shell .home-play-area {
+  border: 1px solid var(--jukebox-chrome);
+  border-radius: 12px;
+  padding: clamp(16px, 2.2vw, 32px);
+  background:
+    radial-gradient(ellipse at 12% 18%, #08060375 0 1%, transparent 1.5%),
+    radial-gradient(ellipse at 82% 68%, #08060366 0 2%, transparent 3%),
+    repeating-linear-gradient(0deg, #ffffff03 0 1px, transparent 1px 4px),
+    linear-gradient(120deg, #3a3027f5, #1d1915f5 50%, #30271ff5);
+  box-shadow: inset 0 0 0 5px #16130f, inset 0 0 0 7px #776a56, 0 20px 45px #0008;
+}
+.home-play-heading .jukebox-title { flex: 1 1 220px; }
+.app-shell .jukebox-title h1 { color: var(--text-primary); font-size: clamp(22px, 2.5vw, 36px); line-height: 1.25; }
+.app-shell .jukebox-title .section-kicker { color: var(--accent-info); font-size: 10px; letter-spacing: .22em; }
+.app-shell .home-play-heading { align-items: center; margin-bottom: 28px; }
+.app-shell .home-dashboard-content .home-play-modes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.app-shell .home-play-modes > :is(.online-home-card, .boss-run-card, .gambit-academy-card) { grid-column: 1; grid-row: auto; }
+.app-shell .home-play-modes > :is(.boss-run-card, .gambit-academy-card) { padding-top: 22px; border-top: 1px solid var(--border-default); }
+.app-shell .online-quick-start { gap: 22px; }
+.app-shell .online-quick-mode legend, .app-shell .jukebox-section-title { margin: 0 0 12px; color: var(--text-secondary); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.app-shell .online-quick-times { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.app-shell .game-start-button {
+  --play-accent: #ffd386;
+  --key-top: #fff0c8;
+  --key-bottom: #c39248;
+  --play-size: 148px;
+  box-sizing: border-box;
+  width: var(--play-size); height: var(--play-size); min-height: 0; max-width: 100%;
+  padding: 24px 14px 16px;
+  border: 5px solid var(--jukebox-chrome); border-radius: 7px;
+  color: var(--jukebox-ink);
+  background: linear-gradient(135deg, #ffffff65, transparent 45%), linear-gradient(var(--key-top), var(--key-bottom));
+  box-shadow: 0 7px 0 #524537, 0 9px 0 #0b0907, 0 12px 16px #0009, inset 0 0 0 2px #fff0ce, inset 0 0 16px #ffdf91, 0 0 18px #ffd38620;
+  text-shadow: 0 1px #ffffff70;
+  font-family: var(--mono); font-weight: 700;
+  transition: transform 100ms ease, box-shadow 100ms ease, filter 100ms ease;
+}
+.app-shell .game-start-button::before {
+  content: ''; position: absolute; inset: 9px; border: 1px solid #69502a55; border-radius: 2px; pointer-events: none;
+}
+.app-shell .game-start-small { --play-size: 100px; padding: 18px 9px 10px; }
+.app-shell .game-start-large { --play-size: 200px; }
+.app-shell .game-start-resume { --play-accent: #c0e9ae; --key-top: #e7f3cb; --key-bottom: #8ca56d; }
+.app-shell .online-quick-freestyle .game-start-button { --play-accent: #c1e4dc; --key-top: #e6f2df; --key-bottom: #86b0a1; }
+.game-start-lamp { position: absolute; top: 10px; left: 50%; width: 22px; height: 4px; transform: translateX(-50%); border-radius: 2px; background: var(--play-accent); box-shadow: 0 0 6px var(--play-accent), 0 0 12px var(--play-accent); }
+.app-shell .game-start-button .game-start-content { position: relative; z-index: 1; color: inherit; }
+.app-shell .game-start-button .game-start-icon { width: 13px; height: 13px; color: inherit; filter: none; }
+.app-shell .game-start-button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.07); }
+.app-shell .game-start-button:active:not(:disabled) { transform: translateY(6px); filter: brightness(.94); box-shadow: 0 1px 0 #524537, 0 3px 6px #0009, inset 0 3px 9px #60451d66, inset 0 0 0 2px #fff0ce; }
+.app-shell .game-start-button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 5px; }
+.app-shell .game-start-button:disabled, .app-shell fieldset:disabled .game-start-button {
+  --key-top: #b6ac91; --key-bottom: #877a60;
+  opacity: 1; color: var(--jukebox-ink); cursor: not-allowed; filter: saturate(.35); transform: none;
+  box-shadow: 0 7px 0 #443d31, 0 9px 0 #0b0907, 0 12px 16px #0007, inset 0 0 0 2px #c4bba3;
+}
+.app-shell .game-start-button:disabled .game-start-lamp, .app-shell fieldset:disabled .game-start-lamp { background: #625b47; box-shadow: inset 0 1px 2px #0008; }
+.app-shell .online-quick-times .game-start-button { width: 100%; height: auto; aspect-ratio: 1; padding: 23px 8px 12px; gap: 6px; }
+.app-shell .online-quick-times .online-quick-button-action { font-size: clamp(8px, .9vw, 11px); }
+.app-shell .online-quick-times .online-quick-button-mode { font-size: 10px; }
+.app-shell .online-quick-times .online-quick-button-time strong { font-size: clamp(22px, 2.6vw, 32px); }
+.app-shell .home-play-modes .boss-run-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.app-shell .home-play-modes .boss-run-button, .app-shell .home-play-modes .resume-match-button { width: min(100%, 200px); height: auto; aspect-ratio: 1; padding: 24px 12px 12px; margin: 0 auto 10px; }
+.app-shell .boss-run-label, .app-shell .resume-match-copy { color: inherit; }
+.app-shell .resume-match-copy > * { color: inherit; }
+.app-shell .boss-run-label strong { font-size: 14px; }
+.app-shell .boss-run-label b { font-size: 11px; }
+.app-shell .boss-run-description { font-size: 10px; }
+.app-shell .gambit-training-button { margin: 0 0 10px; }
+.app-shell .home-dashboard > .home-options-panel, .app-shell .home-stats-panel .hud-row { background: #211c16ed; border-color: var(--border-default); }
+@media (max-width: 580px) {
+  .app-shell .online-quick-times { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .app-shell .online-quick-times .online-quick-button-action { font-size: 10px; }
+  .app-shell .home-play-modes .boss-run-options { gap: 12px; }
+  .app-shell .home-play-modes .boss-run-button, .app-shell .home-play-modes .resume-match-button { padding: 22px 7px 10px; }
+  .app-shell .boss-run-button .boss-run-portrait { width: 36px; height: 36px; flex-basis: 36px; }
+  .app-shell .boss-run-label strong { font-size: 12px; }
+  .app-shell .boss-run-label > span, .app-shell .boss-run-label small { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .app-shell .game-start-button { transition: none; } }

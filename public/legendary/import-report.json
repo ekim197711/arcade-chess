@@ -1,0 +1,172 @@
+{
+  "source": "https://www.pgnmentor.com/files.html",
+  "importedAt": "2026-11-06T21:03:10.965Z",
+  "files": 982,
+  "events": 982,
+  "games": 87407,
+  "rejected": [
+    {
+      "file": "events/SaintLouis2022-Sinq.pgn",
+      "white": "Carlsen,M",
+      "black": "Mamedyarov,S",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WijkaanZee2022.pgn",
+      "white": "Giri, Anish",
+      "black": "Dubov, Daniil",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WijkaanZee2022.pgn",
+      "white": "Rapport, Richard",
+      "black": "Dubov, Daniil",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WijkaanZee2022.pgn",
+      "white": "Dubov, Daniil",
+      "black": "Praggnanandhaa, R",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WijkaanZee2022.pgn",
+      "white": "Carlsen, Magnus",
+      "black": "Dubov, Daniil",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/Biel2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Biel2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Biel2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Poikovsky2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Poikovsky2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Sochi2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Sochi2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/Sochi2008.pgn",
+      "white": "?",
+      "black": "?",
+      "reason": "Illegal move at ply 1: --"
+    },
+    {
+      "file": "events/WorldCup2013.pgn",
+      "white": "Moiseenko, Alexander",
+      "black": "Adly, Ahmed",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2013.pgn",
+      "white": "Adly, Ahmed",
+      "black": "Moiseenko, Alexander",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2013.pgn",
+      "white": "Cori, Jorge",
+      "black": "Radjabov, Teimour",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2011.pgn",
+      "white": "Ivanov, Alexander",
+      "black": "Wang, Hao",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2011.pgn",
+      "white": "Akopian, Vladimir",
+      "black": "Negi, Parimarjan",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2011.pgn",
+      "white": "Wang, Hao",
+      "black": "Ivanov, Alexander",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2011.pgn",
+      "white": "Adly, Ahmed",
+      "black": "Bu, Xiangzhi",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2011.pgn",
+      "white": "Negi, Parimarjan",
+      "black": "Akopian, Vladimir",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2009.pgn",
+      "white": "Pavasovic,D",
+      "black": "Polgar,Ju",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2009.pgn",
+      "white": "Polgar,Ju",
+      "black": "Pavasovic,D",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2009.pgn",
+      "white": "Li Chao2",
+      "black": "Gashimov,V",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2009.pgn",
+      "white": "Wang Yue",
+      "black": "Bacrot,E",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldCup2007.pgn",
+      "white": "Iturrizaga,E",
+      "black": "Svidler,P",
+      "reason": "No played moves (e.g. forfeit)"
+    },
+    {
+      "file": "events/WorldChamp2006.pgn",
+      "white": "Kramnik,V",
+      "black": "Topalov,V",
+      "reason": "No played moves (e.g. forfeit)"
+    }
+  ],
+  "failures": []
+}

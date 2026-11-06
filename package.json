@@ -1,7 +1,7 @@
 {
   "name": "arcade-gambit",
   "private": true,
-  "version": "0.1.20",
+  "version": "0.1.21",
   "type": "module",
   "scripts": {
     "prepare": "node scripts/install-git-hooks.mjs",
@@ -10,7 +10,8 @@
     "aws:login": "aws sso login --profile mikeaa",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "import:legendary": "node scripts/import-legendary-matches.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

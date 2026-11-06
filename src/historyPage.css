@@ -10,3 +10,7 @@
 .classic-game-card small, .classic-game-card p { color: var(--text-secondary); }
 .classic-game-card a, .history-library-heading a { color: var(--accent-info); }
 .history-library .history-toolbar { flex-wrap: wrap; }
+.legendary-library .classic-search { margin: 20px 0; }
+.legendary-library .game-review > h2 { margin-top: 28px; }
+.legendary-library .game-review a { color: var(--accent-info); }
+.legendary-pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 16px; margin-top: 24px; color: var(--text-secondary); }

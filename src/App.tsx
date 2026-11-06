@@ -58,6 +58,7 @@ import { OnlinePlay } from "./OnlinePlay";
 import { OnlineHomeCard } from "./OnlineHomeCard";
 import { OnlineQuickStart } from "./OnlineQuickStart";
 const GambitTraining = lazy(() => import("./GambitTraining"));
+const LegendaryMatches = lazy(() => import("./LegendaryMatches"));
 import { HomeDuelVideo } from "./HomeDuelVideo";
 import { HumanElo } from "./HumanElo";
 import { HistoryPage } from "./HistoryPage";
@@ -771,8 +772,9 @@ function resultFor(
 
 function readPageRoute() {
   const route = window.location.hash.slice(1);
+  if (/^history\/classic\/[\w-]+$/.test(route)) return route.replace("history/classic/", "legendary/classic/");
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|gambits|history|settings|statistics|administration)$/.test(route) || /^history\/classic\/[\w-]+$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
+  return /^(home|roster|battle|gambits|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -910,12 +912,12 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), screen !== "home" && screen !== "history");
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary"].includes(screen));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
-  const isReviewPage = route.startsWith("history/classic/") || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
+  const isReviewPage = (screen === "legendary" && !!route.split("/")[2]) || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
   const activeMusicTrack: MusicTrack = screen === "battle" || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
@@ -1379,7 +1381,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of ((screenRef.current === "home" || screenRef.current === "history") ? [] : pending.slice(0, 5))) {
+      for (const event of ((["home", "history", "legendary"].includes(screenRef.current)) ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1402,7 +1404,7 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        if ((screenRef.current === "home" || screenRef.current === "history")) {
+        if ((["home", "history", "legendary"].includes(screenRef.current))) {
           syncedProgress = mergeProgress(syncedProgress, guest);
           setCloudSyncError(true);
         } else {
@@ -1594,7 +1596,7 @@ function App() {
   useEffect(() => {
     const reconnect = () => {
       const userId = activeUserId.current;
-      if (screenRef.current !== "home" && screenRef.current !== "history" && !document.hidden && userId &&
+      if (!["home", "history", "legendary"].includes(screenRef.current) && !document.hidden && userId &&
         (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
     window.addEventListener("online", reconnect);
@@ -2434,6 +2436,7 @@ function App() {
               <nav className="home-options-actions" aria-label="Game options">
                 <button type="button" onClick={() => setScreen("settings")}>Game settings <Settings size={16} aria-hidden="true" /></button>
                 <button type="button" onClick={() => setScreen("history")}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setScreen("legendary")}>Legendary matches <ArrowRight size={16} aria-hidden="true" /></button>
                 <button type="button" onClick={() => setHelpOpen(true)}>How to play <Gamepad2 size={16} aria-hidden="true" /></button>
                 {administrationRole === "administrator" && <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>}
               </nav>
@@ -2511,6 +2514,7 @@ function App() {
           <div className="home-dashboard-content">
             <section className="home-play-area" aria-label="Play options">
               <div className="home-play-heading">
+                <div className="jukebox-title"><p className="section-kicker">THE ARCADE GRILL</p><h1>Pick your next game</h1><p>Choose a key. Settle in. Make your move.</p></div>
             <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
               <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
               <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
@@ -2554,6 +2558,7 @@ function App() {
               </section>}
 
             <section className="boss-run-card" aria-label="Boss Run">
+                <h2 className="jukebox-section-title">03 / Boss runs</h2>
                 <div className="boss-run-options">
                   {(["standard", "freestyle"] as const).map((mode) => {
                     const clears = ladderClears(progress, mode);
@@ -2586,6 +2591,7 @@ function App() {
                 </div>
               </section>
               <section className="gambit-academy-card" aria-label="Gambit Academy">
+                <h2 className="jukebox-section-title">04 / Practice</h2>
                 <GameStartButton className="gambit-training-button" onClick={() => setScreen("gambits")}>Train gambits</GameStartButton>
               </section>
               </div>
@@ -2603,7 +2609,8 @@ function App() {
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
         </>}
-        {screen === "history" && <HistoryPage route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark}>
+        {screen === "legendary" && <Suspense fallback={<section className="game-review" role="status">Loading legendary matches…</section>}><LegendaryMatches route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} /></Suspense>}
+        {screen === "history" && <HistoryPage navigate={setScreen}>
         {screen === "history" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {screen === "history" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
         {screen === "history" && user && historyPending > 0 && <p className="review-note">{historyPending} local saves awaiting cloud verification. Refresh saved data syncs up to 5 at a time.</p>}

@@ -1,59 +1,85 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 import { chromium } from 'file:///C:/Users/mikem/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs';
-const server = await createServer({ server: { host: '127.0.0.1', port: 0, open: false, watch: null } });
+const catalog=JSON.parse(readFileSync('public/legendary/catalog.json','utf8'));
+const report=JSON.parse(readFileSync('public/legendary/import-report.json','utf8'));
+assert.equal(report.failures.length,0);
+assert.equal(catalog.gameCount,catalog.events.reduce((sum,event)=>sum+event.count,0));
+assert.equal(catalog.events.length,982);
+const server = await createServer({server:{host:'127.0.0.1',port:0,open:false,watch:null}});
 let browser;
 try {
-  await server.listen();
-  browser = await chromium.launch({ channel: 'msedge', headless: true });
-  const page = await browser.newPage();
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(() => {
-    localStorage.setItem('neon-knights-music-v1', 'off');
-    localStorage.setItem('neon-knights-sound-v1', 'off');
-    localStorage.setItem('arcade-gambit-storage-notice-v1', 'acknowledged');
-    localStorage.setItem('arcade-gambit-analytics-consent-v1', 'denied');
-  });
-  await page.goto(server.resolvedUrls.local[0]);
-  await page.getByRole('button', { name: 'Game history', exact: true }).waitFor();
-  assert.equal(await page.locator('.history-page').count(), 0);
-  await page.getByRole('button', { name: 'Game history', exact: true }).click();
-  await page.getByRole('heading', { name: 'Your games', exact: true }).waitFor();
-  assert.equal(await page.locator('.classic-game-card').count(), 3);
-  const search = page.getByRole('searchbox', { name: 'Search historic battles' });
-  for (const term of ['Morphy', '1858', 'Philidor']) {
-    await search.fill(term);
-    assert.equal(await page.locator('.classic-game-card').count(), 1);
-    assert.match(await page.locator('.classic-game-card').textContent(), /Opera Game/);
-  }
-  await search.fill('no-such-player');
-  assert.equal(await page.locator('.classic-game-card').count(), 0);
-  await search.fill('');
-  const games = await page.evaluate(async () => {
-    const { CLASSIC_GAMES, classicPgn } = await import('/src/classicGames.ts');
-    const { Chess } = await import('/src/chess.ts');
-    return CLASSIC_GAMES.map(game => {
-      const board = new Chess(); board.loadPgn(classicPgn(game));
-      return { id: game.id, mate: board.isCheckmate(), plies: board.history().length };
-    });
-  });
-  for (const game of games) {
-    assert(game.mate, `${game.id} must end in checkmate`);
-    await page.goto(`${server.resolvedUrls.local[0]}#history/classic/${game.id}`);
-    await page.getByRole('button', { name: 'Back to game history', exact: true }).waitFor();
-    assert.equal(await page.locator('.game-review').count(), 1);
-    await page.reload();
-    await page.getByRole('button', { name: 'Back to game history', exact: true }).click();
-    await search.waitFor();
-  }
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `page fits ${width}px`);
-  }
-  await page.getByRole('button', { name: 'Back to arcade', exact: true }).click();
-  await page.getByRole('button', { name: 'Game history', exact: true }).waitFor();
-  assert.equal(await page.locator('.history-page').count(), 0);
-  assert.deepEqual(errors, []);
-  console.log('PASS history navigation, historic search, legal classic scores, replay deep links, reload, return home and mobile layout');
-} finally { await browser?.close(); await server.close(); }
+ await server.listen();
+ browser = await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL ?? 'chrome',headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ const errors=[],archiveRequests=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ page.on('request',request=>{if(request.url().includes('/legendary/')) archiveRequests.push(request.url());});
+ await page.addInitScript(()=>{
+  localStorage.setItem('neon-knights-music-v1','off'); localStorage.setItem('neon-knights-sound-v1','off');
+  localStorage.setItem('arcade-gambit-storage-notice-v1','acknowledged'); localStorage.setItem('arcade-gambit-analytics-consent-v1','denied');
+ });
+ const base=server.resolvedUrls.local[0];
+ await page.goto(base);
+ await page.getByRole('button',{name:'Game history',exact:true}).click();
+ await page.getByRole('heading',{name:'Your games',exact:true}).waitFor();
+ assert.equal(await page.locator('.classic-game-card').count(),0);
+ assert.equal(archiveRequests.length,0);
+ await page.getByRole('button',{name:'Back to arcade',exact:true}).click();
+ await page.getByRole('button',{name:'Legendary matches',exact:true}).click();
+ await page.getByRole('searchbox',{name:'Search tournaments or players'}).waitFor();
+ await page.waitForFunction(()=>document.querySelectorAll('.classic-game-card').length===27);
+ assert.equal(archiveRequests.filter(url=>!url.endsWith('catalog.json')).length,0);
+ await page.getByRole('button',{name:'Next',exact:true}).click();
+ await page.getByText('Page 2 of 41',{exact:true}).waitFor();
+ const search=page.getByRole('searchbox',{name:'Search tournaments or players'});
+ await search.fill('Fischer');
+ await page.waitForFunction(()=>document.querySelector('.legendary-pagination span')?.textContent.startsWith('Page 1'));
+ await search.fill('World Championship 1972');
+ const eventLink=page.getByRole('link',{name:'Explore tournament →',exact:true});
+ await page.waitForFunction(()=>document.querySelectorAll('a[href^="#legendary/"]:not([href*="/classic/"])').length===1);
+ await eventLink.waitFor(); assert.equal(await eventLink.count(),1);
+ await eventLink.click();
+ await page.getByRole('searchbox',{name:'Search tournament games'}).waitFor();
+ await page.waitForFunction(()=>document.querySelectorAll('.classic-game-card').length>0);
+ const games=JSON.parse(readFileSync('public/legendary/worldchamp1972.json','utf8'));
+ assert.equal(await page.locator('.classic-game-card').count(),games.length);
+ const searchGames=page.getByRole('searchbox',{name:'Search tournament games'});
+ await searchGames.fill('not-a-player'); await page.getByText('No matches. Try another player, tournament or year.').waitFor();
+ await searchGames.fill('');
+ await page.getByRole('link',{name:'Replay & analyse →',exact:true}).first().click();
+ await page.getByRole('button',{name:'Back to legendary matches',exact:true}).waitFor();
+ await page.getByLabel('Replay chessboard',{exact:true}).waitFor();
+ const scrubber=page.getByRole('slider',{name:'Replay position',exact:true});
+ assert.equal(Number(await scrubber.getAttribute('max')),games[0].plies);
+ await page.getByRole('button',{name:'Next',exact:true}).click(); assert.equal(await scrubber.inputValue(),'1');
+ await page.getByRole('button',{name:'End',exact:true}).click(); assert.equal(Number(await scrubber.inputValue()),games[0].plies);
+ await page.reload(); await page.getByRole('button',{name:'Back to legendary matches',exact:true}).click();
+ await page.getByRole('button',{name:'All tournaments',exact:true}).click();
+ const classics=await page.evaluate(async()=>{const {CLASSIC_GAMES,classicPgn}=await import('/src/classicGames.ts');const {Chess}=await import('/src/chess.ts');return CLASSIC_GAMES.map(game=>{const board=new Chess();board.loadPgn(classicPgn(game));return {id:game.id,mate:board.isCheckmate()};});});
+ for(const game of classics){
+  assert(game.mate);
+  await page.goto(`${base}#history/classic/${game.id}`);
+  await page.getByRole('button',{name:'Back to legendary matches',exact:true}).click();
+  await page.getByRole('heading',{name:'Legendary matches',exact:true}).waitFor();
+ }
+ const sample=await page.evaluate(async()=>{const {Chess}=await import('/src/chess.ts');const catalog=await (await fetch('/legendary/catalog.json')).json();const selected=['worldchamp2018','worldchamp1972','london1851','candidates1953'];const result=[];for(const id of selected){if(!catalog.events.some(e=>e.id===id))continue;const games=await (await fetch(`/legendary/${id}.json`)).json();for(const game of games){const board=new Chess();board.loadPgn(game.pgn);if(board.history().length!==game.plies)throw new Error('Missing moves');result.push(game.id);}}return result.length;});
+ assert(sample>40);
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.screenshot({path:`.tmp/legendary-${width}.png`,fullPage:true});
+ }
+ await page.goto(`${base}#legendary/worldchamp2018`);
+ await page.waitForFunction(()=>document.querySelectorAll('.classic-game-card').length===15);
+ await page.goto(`${base}#legendary/worldchamp2018/nonexistent`);
+ await page.getByText('Game not found in this collection.',{exact:true}).waitFor();
+ await page.route('**/legendary/catalog.json',route=>route.abort());
+ await page.goto(`${base}#home`);await page.getByRole('button',{name:'Legendary matches',exact:true}).click();
+ await page.getByRole('button',{name:'Retry',exact:true}).waitFor();
+ await page.unroute('**/legendary/catalog.json'); await page.getByRole('button',{name:'Retry',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('.classic-game-card').length===27);
+ assert.deepEqual(errors,[]);
+ console.log(`PASS personal history separation; ${catalog.gameCount} games / ${catalog.events.length} events; lazy archive loading; search, pagination, replay, deep links, legacy links, missing game, retry and responsive layout; ${sample} imported scores replayed legally.`);
+}finally{await browser?.close();await server.close();}
