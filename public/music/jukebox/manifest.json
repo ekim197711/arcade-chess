@@ -1,0 +1,62 @@
+[
+  {
+    "id": "last-booth-blues",
+    "title": "Last Booth Blues",
+    "scene": "home",
+    "bpm": 78,
+    "duration": 113.27,
+    "src": "/music/jukebox/last-booth-blues.mp3",
+    "peak": 0.78,
+    "rms": 0.1315
+  },
+  {
+    "id": "neon-after-midnight",
+    "title": "Neon After Midnight",
+    "scene": "home",
+    "bpm": 72,
+    "duration": 109.17,
+    "src": "/music/jukebox/neon-after-midnight.mp3",
+    "peak": 0.78,
+    "rms": 0.1126
+  },
+  {
+    "id": "grease-stained-45",
+    "title": "Grease-stained 45",
+    "scene": "roster",
+    "bpm": 94,
+    "duration": 94.41,
+    "src": "/music/jukebox/grease-stained-45.mp3",
+    "peak": 0.78,
+    "rms": 0.1483
+  },
+  {
+    "id": "chrome-and-coffee",
+    "title": "Chrome & Coffee",
+    "scene": "roster",
+    "bpm": 96,
+    "duration": 92.5,
+    "src": "/music/jukebox/chrome-and-coffee.mp3",
+    "peak": 0.78,
+    "rms": 0.1265
+  },
+  {
+    "id": "quarter-slot-shuffle",
+    "title": "Quarter Slot Shuffle",
+    "scene": "battle",
+    "bpm": 108,
+    "duration": 82.5,
+    "src": "/music/jukebox/quarter-slot-shuffle.mp3",
+    "peak": 0.78,
+    "rms": 0.148
+  },
+  {
+    "id": "backroom-boogie",
+    "title": "Backroom Boogie",
+    "scene": "battle",
+    "bpm": 104,
+    "duration": 85.58,
+    "src": "/music/jukebox/backroom-boogie.mp3",
+    "peak": 0.78,
+    "rms": 0.1385
+  }
+]

@@ -9,6 +9,7 @@ import "./ui-colors.css";
 import "./fullWidth.css";
 import "./movementHighlights.css";
 import "./jukebox.css";
+import "./jukeboxControls.css";
 import { startAnalytics } from "./analytics";
 
 startAnalytics();

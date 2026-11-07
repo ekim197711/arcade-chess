@@ -1,0 +1,77 @@
+.app-shell:has(.astroid-solver) { --surface-card:#13212d; --surface-raised:#1e3440; --surface-inset:#0b151f; --text-primary:#f4eddb; --text-secondary:#ccdbdf; --text-muted:#a5bfc7; --accent-info:#91d8d5; --border-default:#476570; }
+.astroid-solver { max-width:1180px; margin:0 auto; padding:clamp(16px,3vw,36px); color:var(--text-primary); }
+.astroid-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:26px; }
+.astroid-heading h1 { font-size:clamp(34px,5vw,60px); line-height:1; margin:12px 0; letter-spacing:-.04em; }
+.astroid-heading em { color:var(--accent-info); font-style:normal; }
+.astroid-solver p { color:var(--text-secondary); line-height:1.6; }
+.astroid-solver .section-kicker { font-size:10px; letter-spacing:.15em; color:var(--accent-info); }
+.astroid-solver button:not([data-square]):not(.game-start-button) { padding:10px 15px; font:inherit; font-size:12px; }
+.astroid-intro { display:grid; grid-template-columns:minmax(180px,280px) minmax(0,1fr); align-items:center; gap:28px; margin-bottom:28px; padding:20px; background:var(--surface-inset); border:1px solid var(--border-default); border-radius:12px; }
+.astroid-intro h2 { font-size:clamp(20px,3vw,30px); margin:0 0 12px; }
+.astroid-intro small { color:var(--text-muted); line-height:1.6; }
+.astroid-ladder { display:grid; gap:14px; }
+.astroid-rung { display:flex; align-items:center; gap:clamp(10px,2vw,28px); padding:18px; border:1px solid var(--border-default); border-radius:10px; background:linear-gradient(115deg,var(--surface-raised),var(--surface-inset)); }
+.astroid-rank { color:var(--text-muted); font-size:18px; font-family:var(--mono); }
+.astroid-boss-art { flex:0 0 96px; width:96px; }
+.astroid-boss-art svg { display:block; width:100%; filter:drop-shadow(0 8px 8px #0006); }
+.astroid-rung-copy { flex:1; min-width:0; }
+.astroid-rung h2 { margin:7px 0; font-size:22px; }
+.astroid-rung p { margin:0; font-size:12px; }
+.astroid-rung small { color:var(--text-muted); font-size:10px; }
+.astroid-rung-locked .astroid-boss-art { filter:grayscale(1); opacity:.5; }
+.astroid-mission-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; color:var(--text-secondary); font-size:12px; }
+.astroid-trap-dots { display:flex; gap:8px; }
+.astroid-trap-dots span { display:grid; place-items:center; width:28px; height:28px; border:1px solid var(--border-default); border-radius:50%; }
+.astroid-trap-dots .current { border-color:var(--accent-warning); color:var(--accent-warning); }
+.astroid-trap-dots .cleared { background:var(--surface-success); color:var(--accent-success); border-color:var(--accent-success); }
+.astroid-arena { display:grid; grid-template-columns:minmax(0,620px) minmax(250px,1fr); gap:24px; align-items:start; }
+.astroid-board-frame { display:grid; grid-template-columns:20px minmax(0,1fr); grid-template-rows:auto 24px; min-width:0; }
+.astroid-ranks,.astroid-files { display:grid; color:var(--text-muted); font-size:11px; }
+.astroid-ranks { grid-template-rows:repeat(8,1fr); }
+.astroid-files { grid-column:2; grid-template-columns:repeat(8,1fr); }
+.astroid-ranks span,.astroid-files span { display:grid; place-items:center; }
+.astroid-board.chessboard { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); width:100%; max-width:none; aspect-ratio:1; padding:0; gap:0; border:3px solid var(--border-board); border-radius:0; }
+.astroid-board .astroid-square { position:relative; display:grid; place-items:center; min-width:0; aspect-ratio:1; border:0; border-radius:0; margin:0; padding:0; box-shadow:none; opacity:1; }
+.astroid-square.square-light { background:var(--board-square-light); }
+.astroid-square.square-dark { background:var(--board-square-dark); }
+.astroid-board .astroid-square.selected { background:var(--board-selection-fill); }
+.astroid-square.legal-target::after { content:''; position:absolute; width:26%; height:26%; border:3px solid var(--board-target-marker); border-radius:50%; pointer-events:none; }
+.astroid-square .chess-piece { position:absolute; inset:0; display:grid; place-items:center; }
+.astroid-square .chess-piece img { width:100%; height:100%; object-fit:contain; }
+.astroid-mission-panel { padding:22px; border:1px solid var(--border-default); background:var(--surface-card); border-radius:10px; min-width:0; }
+.astroid-mission-panel h2 { margin:8px 0 12px; font-size:24px; }
+.astroid-control-note { font-size:11px; }
+.astroid-timer { color:var(--accent-info); margin:22px 0; }
+.astroid-timer>div { display:flex; justify-content:space-between; align-items:center; }
+.astroid-timer span { font-size:10px; letter-spacing:.12em; }
+.astroid-timer strong { font:40px var(--mono); font-variant-numeric:tabular-nums; }
+.astroid-timer small { font-size:16px; }
+.astroid-timer progress { display:block; width:100%; height:8px; margin-top:10px; accent-color:var(--accent-info); }
+.astroid-timer-danger { color:var(--accent-error); }
+.astroid-timer-danger progress { accent-color:var(--accent-error); }
+.astroid-outcome { outline:none; }
+.astroid-outcome a { color:var(--accent-info); font-size:12px; }
+.astroid-outcome>button { display:block; margin-top:20px; }
+
+.astroid-scene { position:relative; height:230px; overflow:hidden; border:1px solid var(--border-default); border-radius:10px; background:radial-gradient(circle at 15% 25%,#d8edeb 0 1px,transparent 2px),radial-gradient(circle at 72% 18%,#d8edeb 0 1px,transparent 2px),radial-gradient(circle at 82% 75%,#d8edeb 0 1px,transparent 2px),radial-gradient(ellipse at 40% 10%,#315267,#0a1420 65%); background-size:137px 113px,173px 131px,101px 167px,auto; }
+.astroid-orbit { position:absolute; width:200%; height:200%; left:-50%; top:55%; border:1px solid #7fbac030; border-radius:50%; }
+.astroid-scene-rock { position:absolute; width:100px; height:100px; top:15px; left:calc(50% - 50px); }
+.astroid-scene-rock svg { width:100%; height:100%; }
+.astroid-ship { position:absolute; width:100px; height:72px; bottom:15px; left:calc(50% - 50px); }
+.astroid-fragments { position:absolute; left:50%; top:65px; }
+.astroid-fragments i { position:absolute; display:none; width:13px; height:17px; background:var(--fragment-color); clip-path:polygon(10% 20%,70% 0,100% 60%,30% 100%); }
+.astroid-shockwave,.astroid-impact { position:absolute; opacity:0; left:calc(50% - 40px); top:25px; width:80px; height:80px; border:4px solid #ffe4a8; border-radius:50%; }
+.astroid-scene-win .astroid-scene-rock { animation:astroid-shatter 1.1s ease-out both; }
+.astroid-scene-win .astroid-fragments i { display:block; animation:astroid-fragment 1.1s .15s ease-out both; }
+.astroid-scene-win .astroid-shockwave { animation:astroid-wave 1s .1s ease-out both; }
+.astroid-scene-loss .astroid-scene-rock { animation:astroid-collision 1.2s ease-in both; }
+.astroid-scene-loss .astroid-ship { animation:astroid-ship-hit 1.2s ease-in both; }
+.astroid-scene-loss .astroid-impact { top:auto; bottom:25px; background:#ffad4d; animation:astroid-impact 1.2s ease-out both; }
+@keyframes astroid-shatter { 0%,12% {opacity:1;transform:scale(1)}30% {opacity:1;filter:brightness(3);transform:scale(1.2)}50%,100% {opacity:0;transform:scale(.25)} }
+@keyframes astroid-fragment { 0% {opacity:0;transform:rotate(var(--fragment-angle)) translateX(0)}10% {opacity:1}100% {opacity:0;transform:rotate(var(--fragment-angle)) translateX(145px) rotate(90deg)} }
+@keyframes astroid-wave { from {opacity:1;transform:scale(.3)}to {opacity:0;transform:scale(4)} }
+@keyframes astroid-collision { 0% {transform:translateY(-35px) scale(.65)}55% {transform:translateY(110px) scale(1)}100% {transform:translateY(170px) scale(.9);opacity:.35} }
+@keyframes astroid-ship-hit { 0%,50% {transform:translateX(0);opacity:1}65% {transform:translateX(-12px) rotate(-16deg)}100% {transform:translateY(75px) rotate(35deg);opacity:0} }
+@keyframes astroid-impact { 0%,48% {opacity:0;transform:scale(.1)}60% {opacity:1;transform:scale(1)}100% {opacity:0;transform:scale(3)} }
+@media(max-width:760px) { .astroid-arena {grid-template-columns:minmax(0,1fr)}.astroid-mission-panel {padding:16px}.astroid-intro {grid-template-columns:1fr}.astroid-intro>.astroid-scene {height:180px}.astroid-rung {gap:12px;padding:12px}.astroid-rank {display:none}.astroid-boss-art {flex-basis:58px;width:58px}.astroid-rung h2 {font-size:17px}.astroid-rung .game-start-button {--play-size:84px;font-size:10px} }
+@media(prefers-reduced-motion:reduce) { .astroid-scene * {animation:none!important}.astroid-scene-win .astroid-scene-rock {opacity:.15}.astroid-scene-win .astroid-fragments i {display:block;opacity:.8;transform:rotate(var(--fragment-angle)) translateX(70px)}.astroid-scene-loss .astroid-scene-rock {transform:translateY(100px)}.astroid-scene-loss .astroid-ship {opacity:.3;transform:rotate(20deg)} }

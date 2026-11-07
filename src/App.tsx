@@ -1,4 +1,5 @@
 import { GameStartButton } from "./GameStartButton";
+import { arcadeJukebox, type MusicTrack } from "./jukeboxMusic";
 import { CookieNotice } from "./CookieNotice";
 import { Administration } from "./Administration";
 import { EmojiReactionSettings, LocalBotSocial } from "./OnlineSocial";
@@ -15,6 +16,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   lazy,
   Suspense,
   type CSSProperties,
@@ -59,6 +61,7 @@ import { OnlineHomeCard } from "./OnlineHomeCard";
 import { OnlineQuickStart } from "./OnlineQuickStart";
 const GambitTraining = lazy(() => import("./GambitTraining"));
 const LegendaryMatches = lazy(() => import("./LegendaryMatches"));
+const AstroidSolver = lazy(() => import("./AstroidSolver"));
 import { HomeDuelVideo } from "./HomeDuelVideo";
 import { HumanElo } from "./HumanElo";
 import { HistoryPage } from "./HistoryPage";
@@ -595,8 +598,6 @@ function boardSoundForMove(move: {
 }
 
 let audioContext: AudioContext | null = null;
-let musicAudio: HTMLAudioElement | null = null;
-let musicTrack: MusicTrack = "home";
 let arcadeSfxVolume = 0.85;
 let arcadeMusicVolume = 0.7;
 
@@ -730,36 +731,8 @@ function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
   }
 }
 
-type MusicTrack = "home" | "roster" | "battle";
-
-const MUSIC_SOURCES: Record<MusicTrack, string> = {
-  home: "/music/quiet-combo-preview.mp3",
-  roster: "/music/choose-your-rival-loop.ogg",
-  battle: "/music/opening-move-loop.ogg",
-};
-
-function startArcadeMusic(track: MusicTrack = musicTrack) {
-  try {
-    if (!musicAudio) {
-      musicAudio = new Audio(MUSIC_SOURCES[track]);
-      musicAudio.loop = true;
-      musicAudio.preload = "auto";
-      musicAudio.volume = 0.3 * arcadeMusicVolume;
-    } else if (musicTrack !== track) {
-      musicAudio.pause();
-      musicAudio.src = MUSIC_SOURCES[track];
-      musicAudio.load();
-    }
-    musicTrack = track;
-    void musicAudio.play().catch(() => {});
-  } catch {
-    // Music is optional; interaction and gameplay remain available without audio.
-  }
-}
-
-function stopArcadeMusic() {
-  musicAudio?.pause();
-}
+const startArcadeMusic = arcadeJukebox.start;
+const stopArcadeMusic = arcadeJukebox.stop;
 
 function resultFor(
   game: Chess,
@@ -774,7 +747,7 @@ function readPageRoute() {
   const route = window.location.hash.slice(1);
   if (/^history\/classic\/[\w-]+$/.test(route)) return route.replace("history/classic/", "legendary/classic/");
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|gambits|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
+  return /^(home|roster|battle|gambits|astroid|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -912,14 +885,15 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary"].includes(screen));
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary", "astroid"].includes(screen));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
   const isReviewPage = (screen === "legendary" && !!route.split("/")[2]) || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
-  const activeMusicTrack: MusicTrack = screen === "battle" || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
+  const activeMusicTrack: MusicTrack = (screen === "battle" || screen === "astroid") || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
+  const jukeboxTitle = useSyncExternalStore(arcadeJukebox.subscribe, arcadeJukebox.getTitle);
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
   useEffect(() => {
     const change = () => setRoute(readPageRoute());
@@ -1198,7 +1172,7 @@ function App() {
 
   useEffect(() => {
     arcadeMusicVolume = musicVolume / 100;
-    if (musicAudio) musicAudio.volume = 0.3 * arcadeMusicVolume;
+    arcadeJukebox.setVolume(arcadeMusicVolume);
     try {
       localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
     } catch {
@@ -1265,7 +1239,7 @@ function App() {
   }, [musicEnabled]);
 
   useEffect(() => {
-    if (musicEnabled && musicAudio && !musicAudio.paused && !document.hidden) {
+    if (musicEnabled && arcadeJukebox.isPlaying() && !document.hidden) {
       startArcadeMusic(activeMusicTrack);
     }
   }, [activeMusicTrack, musicEnabled]);
@@ -1381,7 +1355,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of ((["home", "history", "legendary"].includes(screenRef.current)) ? [] : pending.slice(0, 5))) {
+      for (const event of ((["home", "history", "legendary", "astroid"].includes(screenRef.current)) ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1404,7 +1378,7 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        if ((["home", "history", "legendary"].includes(screenRef.current))) {
+        if ((["home", "history", "legendary", "astroid"].includes(screenRef.current))) {
           syncedProgress = mergeProgress(syncedProgress, guest);
           setCloudSyncError(true);
         } else {
@@ -1596,7 +1570,7 @@ function App() {
   useEffect(() => {
     const reconnect = () => {
       const userId = activeUserId.current;
-      if (!["home", "history", "legendary"].includes(screenRef.current) && !document.hidden && userId &&
+      if (!["home", "history", "legendary", "astroid"].includes(screenRef.current) && !document.hidden && userId &&
         (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
     window.addEventListener("online", reconnect);
@@ -2061,7 +2035,7 @@ function App() {
     invalidateHomeData(owner);
     try {
       forgetHistory(owner);
-      for (const key of [`${ACCOUNT_STORAGE_PREFIX}${owner}`, pendingStorageKey(owner), guestMergeStorageKey(owner), `${SAVED_MATCH_KEY}:${owner}`, PENDING_SIGNUP_PLAN_KEY]) {
+      for (const key of [`${ACCOUNT_STORAGE_PREFIX}${owner}`, pendingStorageKey(owner), guestMergeStorageKey(owner), `${SAVED_MATCH_KEY}:${owner}`, `arcade-astroid-solver-v1:${owner}`, PENDING_SIGNUP_PLAN_KEY]) {
         localStorage.removeItem(key);
       }
     } catch { /* Server deletion succeeded even if browser storage is unavailable. */ }
@@ -2295,15 +2269,17 @@ function App() {
           </button>
           <button
             className={`sound-button ${musicEnabled ? "sound-on" : ""}`}
+            aria-pressed={musicEnabled}
             onClick={toggleMusic}
             aria-label={musicEnabled ? "Mute music" : "Enable music"}
-            title={musicEnabled ? "Music on" : "Music off"}
+            title={musicEnabled ? `Music on${jukeboxTitle ? ` · ${jukeboxTitle}` : ""}` : "Music off"}
           >
             <Music2 size={17} />
             <span>MUSIC {musicEnabled ? "ON" : "OFF"}</span>
           </button>
           <button
             className={`sound-button ${soundEnabled ? "sound-on" : ""}`}
+            aria-pressed={soundEnabled}
             onClick={() => setSoundEnabled((value) => !value)}
             aria-label={
               soundEnabled ? "Mute sound effects" : "Enable sound effects"
@@ -2333,6 +2309,7 @@ function App() {
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
         {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
+        {screen === "astroid" && <Suspense fallback={<p role="status">Loading Astroid Solver…</p>}><AstroidSolver key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onOutcome={won => playArcadeSound(won ? "win" : "lost", soundEnabled)} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
         {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
@@ -2395,6 +2372,11 @@ function App() {
                 </button>
                 <label className="settings-range-label settings-volume-label" htmlFor="settings-music-volume"><span>MUSIC VOLUME</span><strong>{musicVolume}%</strong></label>
                 <input id="settings-music-volume" className="settings-range" type="range" min="0" max="100" step="1" value={musicVolume} aria-label="Music volume" onChange={(event) => setMusicVolume(Number(event.currentTarget.value))} />
+                <div className="jukebox-now-playing">
+                  <p>Grill-bar jukebox · 6 original instrumentals<br /><strong>{jukeboxTitle || "Turn music on to start the jukebox"}</strong></p>
+                  <button type="button" disabled={!musicEnabled} onClick={() => arcadeJukebox.next(activeMusicTrack)}>Next song</button>
+                  <small>Songs change automatically when they finish. Each area has its own pair of tracks.</small>
+                </div>
                 <button className="settings-toggle" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((value) => !value)}>
                   <span>{soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />} Sound effects</span><b>{soundEnabled ? "ON" : "OFF"}</b>
                 </button>
@@ -2514,7 +2496,7 @@ function App() {
           <div className="home-dashboard-content">
             <section className="home-play-area" aria-label="Play options">
               <div className="home-play-heading">
-                <div className="jukebox-title"><p className="section-kicker">THE ARCADE GRILL</p><h1>Pick your next game</h1><p>Choose a key. Settle in. Make your move.</p></div>
+                <div className="jukebox-title"><h1>Pick your next game</h1></div>
             <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
               <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
               <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
@@ -2570,7 +2552,6 @@ function App() {
                         <img className="boss-run-portrait" src={bossThumbnail(nextBoss.character, __BOSS_PORTRAITS__)} width={112} height={112} alt="" decoding="async" />
                         <span className="boss-run-label"><strong>Boss Run</strong><span>{mode === "standard" ? "Standard" : "Freestyle"} · {clears >= BOSSES.length ? "Replay" : "Next boss"}</span><b>{nextBoss.name}</b><small>{nextBoss.elo} Elo</small></span>
                       </GameStartButton>
-                      {mode === "freestyle" && <p className="boss-run-description">Chess960 · {BOSSES.length} challengers</p>}
                       {savedMatch && savedMode === mode && (
                         <GameStartButton
                           className="resume-match-button"
@@ -2593,6 +2574,7 @@ function App() {
               <section className="gambit-academy-card" aria-label="Gambit Academy">
                 <h2 className="jukebox-section-title">04 / Practice</h2>
                 <GameStartButton className="gambit-training-button" onClick={() => setScreen("gambits")}>Train gambits</GameStartButton>
+                <GameStartButton className="astroid-home-button" onClick={() => setScreen("astroid")}>Astroid Solver</GameStartButton>
               </section>
               </div>
             </section>

@@ -1,0 +1,272 @@
+[
+  {
+    "id": "trap-1",
+    "title": "Fool's Mate",
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. f3 e5 2. g4 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "d8",
+        "to": "h4",
+        "san": "Qh4#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/54L66cN3"
+  },
+  {
+    "id": "trap-2",
+    "title": "Scholar's Mate",
+    "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 *",
+    "side": "w",
+    "solutions": [
+      {
+        "from": "h5",
+        "to": "f7",
+        "san": "Qxf7#"
+      }
+    ],
+    "source": "https://en.wikipedia.org/wiki/Scholar%27s_mate"
+  },
+  {
+    "id": "trap-3",
+    "title": "Lazard Gambit #1",
+    "fen": "rnb1kb1r/pppp1ppp/8/4P3/7q/4P1PP/PPPNP3/R1BQKBNR b KQkq - 0 6",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. d4 Nf6 2. Nd2 e5 3. dxe5 Ng4 4. h3 Ne3 5. fxe3 Qh4+ 6. g3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "h4",
+        "to": "g3",
+        "san": "Qxg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/yyYTm41f"
+  },
+  {
+    "id": "trap-4",
+    "title": "Légal's Mate",
+    "fen": "rn1q1bnr/ppp1kB1p/3p2p1/4N3/4P3/2N5/PPPP1PPP/R1BbK2R w KQ - 1 7",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 *",
+    "side": "w",
+    "solutions": [
+      {
+        "from": "c3",
+        "to": "d5",
+        "san": "Nd5#"
+      }
+    ],
+    "source": "https://en.wikipedia.org/wiki/Legal_Trap"
+  },
+  {
+    "id": "trap-5",
+    "title": "Blackburne Shilling Gambit #1",
+    "fen": "r1b1kbnr/pppp1Npp/8/8/3nq3/8/PPPPBP1P/RNBQKR2 b Qkq - 1 7",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5 Qg5 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "d4",
+        "to": "f3",
+        "san": "Nf3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/ZrQmNwyc"
+  },
+  {
+    "id": "trap-6",
+    "title": "Budapest Gambit #3",
+    "fen": "rnb1k2r/pppp1ppp/8/4P3/1bP4q/5PP1/PP1BP3/RN1QKBNR b KQkq - 0 7",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. d4 Nf6 2. c4 e5 3. dxe5 Ne4 4. f3 Bb4+ 5. Bd2 Qh4+ 6. g3 Nxg3 7. hxg3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "h4",
+        "to": "g3",
+        "san": "Qxg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/2QyZVvI8"
+  },
+  {
+    "id": "trap-7",
+    "title": "Bird's Opening Trap",
+    "fen": "rnbqk2r/ppp2ppp/3b4/8/6n1/1P3N1P/P1PPP1P1/RNBQKB1R b KQkq - 0 7",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. f4 Nf6 2. Nf3 d6 3. b3 e5 4. fxe5 dxe5 5. Nxe5 Bd6 6. Nf3 Ng4 7. h3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "d6",
+        "to": "g3",
+        "san": "Bg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/1cRy8HWd"
+  },
+  {
+    "id": "trap-8",
+    "title": "Englund Gambit #1",
+    "fen": "r1b1k1nr/pppp1ppp/2n5/4P3/8/2B2N2/PqP1PPPP/RN2KB1R b KQkq - 0 8",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Bf4 Qb4+ 5. Qd2 Qxb2 6. Qc3 Bb4 7. Bd2 Bxc3 8. Bxc3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "b2",
+        "to": "c1",
+        "san": "Qc1#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/wTDstsvV"
+  },
+  {
+    "id": "trap-9",
+    "title": "Budapest Gambit #1",
+    "fen": "r1b1k2r/ppppqppp/2n5/4n3/1PP2B2/5N2/1P1NPPPP/R2QKB1R b KQkq - 0 8",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. d4 Nf6 2. c4 e5 3. dxe5 Ng4 4. Nf3 Nc6 5. Bf4 Bb4+ 6. Nbd2 Qe7 7. a3 Ngxe5 8. axb4 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "e5",
+        "to": "d3",
+        "san": "Nd3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/YYgm0msk"
+  },
+  {
+    "id": "trap-10",
+    "title": "Stafford Gambit #6",
+    "fen": "r1bBk2r/ppp2ppp/2p5/8/4n3/3P4/PPP1KbPP/RN1Q1B1R b kq - 1 8",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 Nf6 3. Nxe5 Nc6 4. Nxc6 dxc6 5. d3 Bc5 6. Bg5 Nxe4 7. Bxd8 Bxf2+ 8. Ke2 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "c8",
+        "to": "g4",
+        "san": "Bg4#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/YCEAVTXj"
+  },
+  {
+    "id": "trap-11",
+    "title": "Bird's Opening Trap #2",
+    "fen": "rnb1k2r/ppp2ppp/8/8/6nq/1P4P1/PBPPP2N/RN1QKB1R b KQkq - 0 9",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. f4 Nf6 2. Nf3 d6 3. b3 e5 4. fxe5 dxe5 5. Nxe5 Bd6 6. Nf3 Ng4 7. Bb2 Bxh2 8. Nxh2 Qh4+ 9. g3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "h4",
+        "to": "g3",
+        "san": "Qxg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/RbPZcbLz"
+  },
+  {
+    "id": "trap-12",
+    "title": "Stafford Gambit #2",
+    "fen": "r1b1k2r/ppp2pp1/2pq4/2b5/4P1p1/3P2P1/PPP1BP2/RNBQ1RK1 b kq - 0 10",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 Nf6 3. Nxe5 Nc6 4. Nxc6 dxc6 5. d3 Bc5 6. Be2 h5 7. O-O Ng4 8. h3 Qd6 9. hxg4 hxg4 10. g3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "d6",
+        "to": "g3",
+        "san": "Qxg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/RDROHYGA"
+  },
+  {
+    "id": "trap-13",
+    "title": "Siberian Trap",
+    "fen": "r1b1kb1r/ppqp1ppp/4p3/8/2BNP1n1/2N4P/PP2QPP1/R1B2RK1 b kq - 0 10",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 c5 2. d4 cxd4 3. c3 dxc3 4. Nxc3 Nc6 5. Nf3 e6 6. Bc4 Qc7 7. O-O Nf6 8. Qe2 Ng4 9. h3 Nd4 10. Nxd4 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "c7",
+        "to": "h2",
+        "san": "Qh2#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/62ejuLTs"
+  },
+  {
+    "id": "trap-14",
+    "title": "Bird's Opening Trap #3",
+    "fen": "rnb1k2r/ppp2ppp/8/8/7q/1P4P1/PBPPP2N/RN1QKB2 b Qkq - 0 10",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. f4 Nf6 2. Nf3 d6 3. b3 e5 4. fxe5 dxe5 5. Nxe5 Bd6 6. Nf3 Ng4 7. Bb2 Bxh2 8. Rxh2 Nxh2 9. Nxh2 Qh4+ 10. g3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "h4",
+        "to": "g3",
+        "san": "Qxg3#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/6f81OK3L"
+  },
+  {
+    "id": "trap-15",
+    "title": "Fishing Pole Trap",
+    "fen": "r1b1kb1r/pppp1pp1/8/1B2p3/3nP3/2N2Pp1/PPPP2Pq/R1BQRK2 b kq - 3 11",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Ng4 5. h3 h5 6. hxg4 hxg4 7. Nh2 Qh4 8. f3 g3 9. Re1 Qxh2+ 10. Kf1 Nd4 11. Nc3 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "h2",
+        "to": "h1",
+        "san": "Qh1#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/ac7ofY1a"
+  },
+  {
+    "id": "trap-16",
+    "title": "French Trap",
+    "fen": "r1b1qrk1/ppNnb1pp/5n2/8/3P4/P7/1PP2PPP/R1BQKB1R b KQ - 0 11",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. Ne2 dxe4 5. a3 Be7 6. Nxe4 Nf6 7. Nf4 Nbd7 8. Ng5 O-O 9. Ngxe6 fxe6 10. Nxe6 Qe8 11. Nxc7 *",
+    "side": "b",
+    "solutions": [
+      {
+        "from": "e7",
+        "to": "b4",
+        "san": "Bb4#"
+      }
+    ],
+    "source": "https://lichess.org/study/vVn62TRB/nGPfvU4J"
+  },
+  {
+    "id": "trap-17",
+    "title": "Opera Game mating net",
+    "fen": "1n2kb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2KR4 w k - 0 17",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8. Nc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 *",
+    "side": "w",
+    "solutions": [
+      {
+        "from": "d1",
+        "to": "d8",
+        "san": "Rd8#"
+      }
+    ],
+    "source": "https://en.wikipedia.org/wiki/Opera_Game"
+  },
+  {
+    "id": "trap-18",
+    "title": "Evergreen Game mating net",
+    "fen": "1r3kr1/pbpBnp1p/1b3P2/8/8/B1P2q2/P4PPP/3R2K1 w - - 4 24",
+    "setupPgn": "[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. O-O d3 8. Qb3 Qf6 9. e5 Qg6 10. Re1 Nge7 11. Ba3 b5 12. Qxb5 Rb8 13. Qa4 Bb6 14. Nbd2 Bb7 15. Ne4 Qf5 16. Bxd3 Qh5 17. Nf6+ gxf6 18. exf6 Rg8 19. Rad1 Qxf3 20. Rxe7+ Nxe7 21. Qxd7+ Kxd7 22. Bf5+ Ke8 23. Bd7+ Kf8 *",
+    "side": "w",
+    "solutions": [
+      {
+        "from": "a3",
+        "to": "e7",
+        "san": "Bxe7#"
+      }
+    ],
+    "source": "https://en.wikipedia.org/wiki/Evergreen_Game"
+  }
+]
