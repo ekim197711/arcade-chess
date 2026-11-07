@@ -1,4 +1,5 @@
 import { GameStartButton } from "./GameStartButton";
+import { playJukeboxClick } from "./jukeboxClicks";
 import { arcadeJukebox, type MusicTrack } from "./jukeboxMusic";
 import { CookieNotice } from "./CookieNotice";
 import { Administration } from "./Administration";
@@ -2211,16 +2212,14 @@ function App() {
         const control = target.closest("button, a");
         if (
           !control ||
-          control.closest(".square") ||
-          control.matches(
-            ".hero-cta, .boss-card, .boss-line-locked, .fight-button, .arcade-coin-button, .try-again-action, .result-overlay button",
-          )
+          control.closest(".square, [data-square]") ||
+          control.matches(":disabled, [aria-disabled='true']")
         )
           return;
-        playArcadeSound(
-          control.tagName === "A" ? "navigate" : "ui",
-          soundEnabled,
-        );
+        if (soundEnabled && arcadeSfxVolume > 0) {
+          try { playJukeboxClick(getAudioContext(), arcadeSfxVolume); }
+          catch { /* Optional audio must never interrupt button actions. */ }
+        }
       }}
     >
       <div className="crt-overlay" aria-hidden="true" />
