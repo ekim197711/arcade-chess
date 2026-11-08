@@ -11,6 +11,7 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
+    localStorage.setItem('arcade-gambit-storage-notice-v1', 'acknowledged');
     localStorage.setItem('neon-knights-sound-v1', 'off');
     localStorage.setItem('neon-knights-music-v1', 'off');
   });
@@ -27,7 +28,6 @@ try {
   await page.reload();
   assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
   assert.equal(await page.evaluate(() => localStorage.getItem('arcade-chess-debug-mode-v1')), 'true');
-  const progressBefore = await page.evaluate(() => localStorage.getItem('neon-knights-progress-v1'));
   for (const mode of ['standard', 'freestyle']) {
     await page.goto(`${url}#roster`);
     await page.getByLabel('PLAY MODE', { exact: true }).selectOption(mode);
@@ -55,16 +55,21 @@ try {
     // Simulated wins retain an honest game history instead of inventing moves.
     assert.equal(after.pgn, before.pgn);
     assert.equal(after.opponent, 'Checkmate Cindy');
-    assert.equal(await page.evaluate(() => localStorage.getItem('neon-knights-progress-v1')), progressBefore);
+    const progress = await page.evaluate(() => JSON.parse(localStorage.getItem('neon-knights-progress-v1')));
+    assert.equal(progress[mode === 'standard' ? 'bossesDefeated' : 'freestyleBossesDefeated'], 59);
+    assert.equal(progress.wins, mode === 'standard' ? 1 : 2);
+    await page.goto(`${url}#roster`);
+    assert.equal(await page.locator('.boss-line-cleared').count(), 59);
     await page.reload();
-    await page.getByText('DEBUG MATCH COMPLETE · TEST RESULT', { exact: true }).waitFor();
+    await page.locator('.boss-line-cleared').first().waitFor();
+    assert.equal(await page.locator('.boss-line-cleared').count(), 59);
   }
   await page.goto(`${url}#settings`);
   await toggle.click();
   await page.goto(`${url}#roster`);
-  assert.equal(await page.locator('.boss-line[aria-disabled="true"]').count(), 58);
+  assert.equal(await page.locator('.boss-line[aria-disabled="true"]').count(), 0);
   await page.reload();
-  assert.equal(await page.locator('.boss-line[aria-disabled="true"]').count(), 58);
+  assert.equal(await page.locator('.boss-line[aria-disabled="true"]').count(), 0);
   await page.getByLabel('PLAY MODE', { exact: true }).selectOption('standard');
   await page.locator('.boss-line').first().click();
   await page.getByRole('button', { name: /Fight against Blunder Benny/ }).click();
@@ -72,5 +77,5 @@ try {
   assert.equal(await page.getByRole('button', { name: 'AUTO CHECKMATE', exact: true }).count(), 0);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('neon-knights-saved-match-v1')).debug), false);
   assert.deepEqual(errors, []);
-  console.log('PASS debug default off, persisted toggle, all 59 bosses unlocked in both modes, save/resume, simulated checkmate victory and rematch, honest test history, unchanged progress, locks restored when disabled');
+  console.log('PASS debug default off, persisted toggle, all 59 bosses unlocked in both modes, save/resume, simulated checkmate victory and rematch, honest test history, saved ladder clears in both modes, clears retained when disabled');
 } finally { await browser?.close(); await server.close(); }

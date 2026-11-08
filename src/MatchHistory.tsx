@@ -131,11 +131,15 @@ export function MatchResult({ match, onReview, onHome, theme, light, dark }: { m
         "--confetti-spin": `${index % 2 ? 720 : -540}deg`,
       } as CSSProperties} />)}
     </div>
+    <aside className="result-side-panel" aria-label="Match summary and actions">
     <Star className="result-celebration-star" fill="currentColor" strokeWidth={1.2} aria-hidden="true" />
     <p className="review-note">{match.debug ? "DEBUG MATCH COMPLETE · TEST RESULT" : "MATCH COMPLETE"}</p>
     <h1 id="result-title">{labels[match.result]}</h1>
     <p>You vs. <strong>{match.opponent}</strong> ? {match.elo} ELO</p>
     <p className="result-reason">{match.reason}</p>
+    <div className="review-controls"><button onClick={onReview}>Analyze & replay</button><button onClick={onHome}>Back to home</button></div>
+    </aside>
+    <div className="result-position-panel">
     {match.result === "win" && <section className="result-rematch" aria-label={`${match.opponent} wants a rematch`}>
       {angryPortrait ? <img className="result-boss-angry" src={angryPortrait} alt={`${match.opponent} looking angry`} />
         : <span className="result-boss-angry result-boss-fallback" role="img" aria-label={`${match.opponent} looking angry`}>{"\uD83D\uDE21"}</span>}
@@ -159,6 +163,6 @@ export function MatchResult({ match, onReview, onHome, theme, light, dark }: { m
       <div><dt>Final move</dt><dd>{moves.at(-1)?.san ?? "None"}</dd></div>
     </dl>
     <p className="review-note">{new Date(match.startedAt).toLocaleString()} ? Replay every move and explore the suggested alternatives.</p>
-    <div className="review-controls"><button onClick={onReview}>Analyze & replay</button><button onClick={onHome}>Back to home</button></div>
+    </div>
   </section>;
 }

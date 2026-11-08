@@ -1,4 +1,4 @@
-import { GameStartButton } from "./GameStartButton";
+import { GameStartButton, PlayAvailability } from "./GameStartButton";
 import { playJukeboxClick } from "./jukeboxClicks";
 import { arcadeJukebox, type MusicTrack } from "./jukeboxMusic";
 import { CookieNotice } from "./CookieNotice";
@@ -63,6 +63,8 @@ import { OnlineQuickStart } from "./OnlineQuickStart";
 const GambitTraining = lazy(() => import("./GambitTraining"));
 const LegendaryMatches = lazy(() => import("./LegendaryMatches"));
 const AstroidSolver = lazy(() => import("./AstroidSolver"));
+const StarshipRescue = lazy(() => import("./StarshipRescue"));
+const ChessPinball = lazy(() => import("./ChessPinball"));
 import { HomeDuelVideo } from "./HomeDuelVideo";
 import { HumanElo } from "./HumanElo";
 import { HistoryPage } from "./HistoryPage";
@@ -748,7 +750,7 @@ function readPageRoute() {
   const route = window.location.hash.slice(1);
   if (/^history\/classic\/[\w-]+$/.test(route)) return route.replace("history/classic/", "legendary/classic/");
   // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|gambits|astroid|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
+  return /^(home|roster|battle|gambits|astroid|starship|pinball|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -886,13 +888,13 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary", "astroid"].includes(screen));
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screen));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
   const isReviewPage = (screen === "legendary" && !!route.split("/")[2]) || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
-  const activeMusicTrack: MusicTrack = (screen === "battle" || screen === "astroid") || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
+  const activeMusicTrack: MusicTrack = (screen === "battle" || screen === "astroid" || screen === "starship" || screen === "pinball") || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
   const jukeboxTitle = useSyncExternalStore(arcadeJukebox.subscribe, arcadeJukebox.getTitle);
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
@@ -1356,7 +1358,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of ((["home", "history", "legendary", "astroid"].includes(screenRef.current)) ? [] : pending.slice(0, 5))) {
+      for (const event of (["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1379,7 +1381,7 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        if ((["home", "history", "legendary", "astroid"].includes(screenRef.current))) {
+        if ((["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current))) {
           syncedProgress = mergeProgress(syncedProgress, guest);
           setCloudSyncError(true);
         } else {
@@ -1452,10 +1454,19 @@ function App() {
   }, []);
 
   const progressRetryInFlight = useRef(false);
+  const progressRetryRequested = useRef(false);
   async function retryPendingProgress(userId: string) {
-    if (progressRetryInFlight.current) return;
+    if (progressRetryInFlight.current) {
+      progressRetryRequested.current = true;
+      return;
+    }
     progressRetryInFlight.current = true;
-    try { await syncPendingProgress(userId); }
+    try {
+      do {
+        progressRetryRequested.current = false;
+        await syncPendingProgress(userId);
+      } while (progressRetryRequested.current && activeUserId.current === userId);
+    }
     finally { progressRetryInFlight.current = false; }
   }
 
@@ -1472,7 +1483,7 @@ function App() {
       else latest = normalizeProgress(data?.progress);
     } catch { readFailed = true; }
 
-    for (const event of pending.slice(0, 5)) {
+    for (const event of (["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) ? pending.slice(0, 5) : pending)) {
       try {
         const { data, error } = await supabase.rpc("record_game_result", {
           p_event_id: event.id,
@@ -1525,6 +1536,9 @@ function App() {
       }
     }
 
+    // Include games queued while an earlier cloud request was in flight.
+    pending = readPendingResults(userId);
+    if (activeUserId.current !== userId) return;
     if (latest) {
       let displayProgress = pending.reduce(applyResult, latest);
       if (!guestMerged && hasProgress(guest)) {
@@ -1571,7 +1585,7 @@ function App() {
   useEffect(() => {
     const reconnect = () => {
       const userId = activeUserId.current;
-      if (!["home", "history", "legendary", "astroid"].includes(screenRef.current) && !document.hidden && userId &&
+      if (!["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) && !document.hidden && userId &&
         (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
     window.addEventListener("online", reconnect);
@@ -1582,7 +1596,7 @@ function App() {
     if (!currentResult || finishedFen.current === fen) return;
     finishedFen.current = fen;
     if (savedMatch?.bossIndex === bossIndex) clearSavedMatch(bossIndex);
-    if (debugMatch) {
+    if (debugMatch && !debugCheckmate) {
       playBoardSound(currentResult === "win" ? "win" : currentResult === "loss" ? "lose" : "move", soundEnabled, soundTheme);
       showToast("DEBUG MATCH COMPLETE");
       return;
@@ -1629,7 +1643,7 @@ function App() {
     } else {
       showToast("DRAW GAME — NO CONTINUE LOST");
     }
-  }, [currentResult, fen, soundEnabled, user, bossIndex, savedMatch, debugMatch]);
+  }, [currentResult, fen, soundEnabled, user, bossIndex, savedMatch, debugMatch, debugCheckmate]);
 
   useEffect(
     () => () => {
@@ -2036,7 +2050,7 @@ function App() {
     invalidateHomeData(owner);
     try {
       forgetHistory(owner);
-      for (const key of [`${ACCOUNT_STORAGE_PREFIX}${owner}`, pendingStorageKey(owner), guestMergeStorageKey(owner), `${SAVED_MATCH_KEY}:${owner}`, `arcade-astroid-solver-v1:${owner}`, PENDING_SIGNUP_PLAN_KEY]) {
+      for (const key of [`${ACCOUNT_STORAGE_PREFIX}${owner}`, pendingStorageKey(owner), guestMergeStorageKey(owner), `${SAVED_MATCH_KEY}:${owner}`, `arcade-astroid-solver-v1:${owner}`, `arcade-starship-v1:${owner}`, `arcade-pinball-v1:${owner}`, `arcade-pinball-v1:${owner}:name`, PENDING_SIGNUP_PLAN_KEY]) {
         localStorage.removeItem(key);
       }
     } catch { /* Server deletion succeeded even if browser storage is unavailable. */ }
@@ -2199,7 +2213,7 @@ function App() {
   }
 
   return (
-    <div
+    <PlayAvailability.Provider value={coinCount > 0}><div
       className={`app-shell ${screen === "battle" ? "app-shell-battle" : ""} ${
         ((screen === "review" || screen === "result") && selectedMatch
           ? selectedMatch.pgn.includes('[Variant "Chess960"]')
@@ -2307,10 +2321,13 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
-        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
-        {screen === "astroid" && <Suspense fallback={<p role="status">Loading Astroid Solver…</p>}><AstroidSolver key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onOutcome={won => playArcadeSound(won ? "win" : "lost", soundEnabled)} /></Suspense>}
+        {coinCount < 1 && (["gambits", "astroid", "starship", "pinball"].includes(screen) || (screen === "online" && (route === "online" || route.startsWith("online/new/")))) && <section className="game-review" aria-label="Coin required"><h2>Insert a coin to play</h2><p>All game modes need an available coin. Coins are free.</p><button onClick={() => setScreen("home")}>Back to arcade · Insert coin</button></section>}
+        {screen === "gambits" && coinCount > 0 && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
+        {screen === "pinball" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Chess Pinball…</p>}><ChessPinball key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} onClose={() => setScreen("home")} onScore={() => playBoardSound("capture", soundEnabled, soundTheme)} /></Suspense>}
+        {screen === "starship" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Starship Rescue…</p>}><StarshipRescue key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onRepair={() => playArcadeSound("win", soundEnabled)} /></Suspense>}
+        {screen === "astroid" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Astroid Solver…</p>}><AstroidSolver key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onOutcome={won => playArcadeSound(won ? "win" : "lost", soundEnabled)} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
-        {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
+        {screen === "online" && (coinCount > 0 || (route !== "online" && !route.startsWith("online/new/"))) && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
           <section className="settings-page" aria-labelledby="settings-title">
             <div className="settings-page-heading">
@@ -2574,6 +2591,8 @@ function App() {
                 <h2 className="jukebox-section-title">04 / Practice</h2>
                 <GameStartButton className="gambit-training-button" onClick={() => setScreen("gambits")}>Train gambits</GameStartButton>
                 <GameStartButton className="astroid-home-button" onClick={() => setScreen("astroid")}>Astroid Solver</GameStartButton>
+                <GameStartButton className="starship-home-button" onClick={() => setScreen("starship")}>Starship Rescue</GameStartButton>
+                <GameStartButton className="pinball-home-button" onClick={() => setScreen("pinball")}>Chess Pinball</GameStartButton>
               </section>
               </div>
             </section>
@@ -3394,7 +3413,7 @@ function App() {
           </section>
         </div>
       )}
-    </div>
+    </div></PlayAvailability.Provider>
   );
 }
 

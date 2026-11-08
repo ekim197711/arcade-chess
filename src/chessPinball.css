@@ -1,0 +1,42 @@
+.app-shell:has(.chess-pinball) { --surface-card:#152a36; --surface-raised:#234455; --text-primary:#f3eddb; --text-secondary:#d1e0e4; --text-muted:#acc5cf; --accent-info:#97e4da; --border-default:#496c78; }
+.app-shell>main:has(.chess-pinball) { padding:0; background:radial-gradient(ellipse at 50% 15%,#244054,#091321 70%); }
+.chess-pinball { max-width:1500px; margin:auto; padding:12px 24px; color:var(--text-primary); }
+.pinball-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.pinball-heading small,.chess-pinball .section-kicker { color:var(--accent-info); font:10px monospace; letter-spacing:.12em; }
+.pinball-heading h1 { font-size:clamp(25px,3vw,38px); margin:4px 0; }
+.pinball-heading em { color:var(--accent-info); font-style:normal; }
+.pinball-layout { display:grid; grid-template-columns:minmax(220px,1fr) minmax(0,1.8fr) minmax(230px,1fr); gap:24px; align-items:start; }
+.pinball-panel { background:var(--surface-card); border:1px solid var(--border-default); border-radius:10px; padding:16px; min-width:0; }
+.chess-pinball p,.pinball-panel li { color:var(--text-secondary); font-size:12px; line-height:1.5; }
+.chess-pinball h2 { font-size:17px; margin:16px 0 10px; }
+.chess-pinball small { color:var(--text-muted); font-size:11px; line-height:1.5; }
+.chess-pinball button { padding:9px 12px; font-size:12px; }
+.pinball-score { display:block; color:var(--accent-warning); font:bold clamp(28px,3vw,42px) monospace; }
+.pinball-stats { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:var(--text-secondary); }
+.pinball-stats b { display:block; margin-top:5px; color:var(--text-primary); }
+.pinball-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.pinball-missions { padding-left:18px; }
+.pinball-missions li { margin:7px 0; }
+.pinball-captures { display:flex; gap:8px; justify-content:space-between; font-size:32px; margin:12px 0; color:var(--text-muted); }
+.pinball-captures .captured { color:var(--accent-warning); text-shadow:0 0 10px #f8d78b60; }
+.pinball-center { text-align:center; min-width:0; }
+.pinball-mobile-hud { display:none; }
+.pinball-table { position:relative; width:min(100%,calc((100dvh - 345px)*2/3)); margin:auto; }
+.pinball-table canvas { display:block; width:100%; aspect-ratio:2/3; border:3px solid var(--border-default); border-radius:24px 24px 12px 12px; box-shadow:0 10px 35px #0006; touch-action:none; }
+.pinball-table canvas:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.pinball-message { min-height:36px; margin:7px 0; }
+.pinball-touch { display:flex; gap:10px; justify-content:center; }
+.pinball-touch button { touch-action:none; user-select:none; }
+.pinball-paused { position:absolute; inset:2px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#081323df; border-radius:20px; }
+.pinball-paused h2 { font:26px monospace; }
+.pinball-leaderboard ol { padding:0; list-style:none; max-height:210px; overflow:auto; }
+.pinball-leaderboard li { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--border-default); }
+.pinball-leaderboard li span { overflow-wrap:anywhere; }
+.pinball-leaderboard label { display:grid; gap:6px; color:var(--text-secondary); font-size:12px; margin:18px 0 10px; }
+.pinball-leaderboard input { width:100%; color:var(--text-primary); background:var(--surface-inset); border:1px solid var(--border-default); border-radius:5px; padding:10px; }
+.pinball-leaderboard>small { display:block; margin-top:10px; }
+.chess-pinball .pinball-save { font-size:11px; }
+@media(max-height:800px) and (min-width:901px) { .pinball-panel { padding:12px; } .pinball-panel h2 { margin:10px 0 7px; } .pinball-panel p { margin:8px 0; } .pinball-missions li { margin:4px 0; } .pinball-captures { margin:8px 0; } .pinball-leaderboard ol { max-height:150px; } }
+@media(max-width:900px) { .pinball-layout { grid-template-columns:200px minmax(0,1fr); gap:14px; } .pinball-leaderboard { grid-column:1/-1; } }
+@media(max-width:600px) { .chess-pinball { padding:10px 12px; } .pinball-layout { display:flex; flex-direction:column; } .pinball-center { order:0; width:100%; } .pinball-controls { order:1; width:100%; } .pinball-leaderboard { order:2; width:100%; } .pinball-table { width:min(100%,calc((100dvh - 260px)*2/3)); } .pinball-heading h1 { font-size:25px; } .pinball-heading small { font-size:8px; } }
+@media(max-width:600px) { .pinball-mobile-hud { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; margin-bottom:8px; } .pinball-table { width:min(100%,calc((100dvh - 340px)*2/3)); } }

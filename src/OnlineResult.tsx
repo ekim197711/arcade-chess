@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
+import { PlayAvailability } from "./GameStartButton";
 import { Chess } from "./chess";
 import { formatClock, type OnlineGame } from "./onlineChess";
 import { reviewAccuracy } from "./reviewAccuracy";
@@ -11,6 +12,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
   game: OnlineGame; userId: string; onReview: () => void; onPlayAgain: () => void; onChooseTime: () => void; onHome: () => void;
   theme: PieceStyle; light: string; dark: string;
 }) {
+  const canPlay = useContext(PlayAvailability);
   const moves = useMemo(() => { const position = new Chess(); if (game.pgn) position.loadPgn(game.pgn); return position.history({ verbose: true }); }, [game.pgn]);
   const { analyses, failed } = useGameAnalysis(game.pgn);
   const side = game.black_id === userId ? "b" : "w";
@@ -23,7 +25,7 @@ export function OnlineResult({ game, userId, onReview, onPlayAgain, onChooseTime
   const [socialOpen, setSocialOpen] = useState(false);
   return <section className="game-review online-result" data-outcome={draw ? "draw" : participant && !won ? "loss" : "win"} aria-labelledby="online-result-title">
     <nav className="review-controls online-result-actions" aria-label="Match result actions">
-      <button className="online-result-play-again" onClick={onPlayAgain}>New {game.minutes}-minute game</button><button onClick={onHome}>Back to home</button>
+      <button className="online-result-play-again" disabled={!canPlay} title={!canPlay ? "Insert a coin to play" : undefined} onClick={onPlayAgain}>New {game.minutes}-minute game</button><button onClick={onHome}>Back to home</button>
       <button onClick={onReview}>Review game</button><button onClick={onChooseTime}>Choose time control</button>
     </nav>
     <header className="online-result-summary">

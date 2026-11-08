@@ -1,0 +1,53 @@
+.app-shell:has(.starship-rescue) { --surface-card:#132235; --surface-raised:#20384d; --surface-inset:#091524; --text-primary:#f1efdf; --text-secondary:#ccdce4; --text-muted:#adc3cf; --accent-info:#92e3dc; --border-default:#436477; }
+.app-shell > main:has(.starship-rescue) { padding:0; background:radial-gradient(ellipse at 70% 0,#173246,#091321 75%); }
+.starship-rescue { padding:16px 24px; max-width:1600px; margin:auto; color:var(--text-primary); }
+.rescue-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.rescue-heading small,.starship-rescue .section-kicker { color:var(--accent-info); font-size:10px; letter-spacing:.14em; }
+.rescue-heading h1 { font-size:clamp(24px,3vw,40px); margin:5px 0; line-height:1.1; }
+.rescue-heading em { color:var(--accent-info); font-style:normal; }
+.rescue-layout { display:grid; grid-template-columns:minmax(180px, .8fr) minmax(0, 2.5fr) minmax(200px,1fr); gap:20px; align-items:start; }
+.rescue-controls,.rescue-details { padding:18px; border:1px solid var(--border-default); min-width:0; }
+.starship-rescue h2 { font-size:21px; margin:8px 0 12px; }
+.starship-rescue p { font-size:13px; line-height:1.55; color:var(--text-secondary); }
+.starship-rescue small { color:var(--text-muted); line-height:1.5; }
+.starship-rescue button:not([data-square]) { padding:10px 14px; font-size:12px; max-width:100%; }
+.rescue-controls progress { width:100%; height:8px; accent-color:var(--accent-success); }
+.rescue-controls ol { padding:0; list-style:none; margin:18px 0; }
+.rescue-controls li { display:flex; gap:10px; font-size:12px; padding:10px 0; border-bottom:1px solid var(--border-default); color:var(--text-muted); }
+.rescue-controls li span { font-family:monospace; }
+.rescue-controls .repaired { color:var(--accent-success); }
+.rescue-controls .repair-current { color:var(--accent-info); }
+.starship-rescue .rescue-save { font-size:11px; color:var(--text-muted); }
+.rescue-center { min-width:0; width:100%; text-align:center; }
+.rescue-board-caption { display:flex; justify-content:space-between; max-width:min(100%,calc(100dvh - 360px)); margin:0 auto 8px; font-size:12px; color:var(--text-secondary); }
+.rescue-board { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); width:min(100%,calc(100dvh - 360px)); aspect-ratio:1; margin:auto; border:3px solid var(--border-board); box-shadow:0 12px 40px #0005; }
+.rescue-square { position:relative; border:0; border-radius:0; padding:0; min-width:0; min-height:0; aspect-ratio:1; display:grid; place-items:center; }
+.rescue-square.square-light { background:var(--board-square-light); }
+.rescue-square.square-dark { background:var(--board-square-dark); }
+.rescue-square.selected { background:var(--board-selection-fill); }
+.rescue-square.legal-target::after { content:""; position:absolute; width:24%; height:24%; border:3px solid var(--board-target-marker); border-radius:50%; pointer-events:none; }
+.rescue-square.rescue-hint-square { box-shadow:inset 0 0 0 4px var(--board-guide-from-fill); }
+.rescue-square:focus-visible { outline:3px solid var(--focus-ring); outline-offset:-3px; z-index:1; }
+.rescue-square .chess-piece { width:85%; height:85%; display:grid; place-items:center; }
+.rescue-coordinate { position:absolute; bottom:1px; left:3px; font-size:clamp(7px,.7vw,10px); color:#142436!important; background:#e3e9dfcf; padding:0 2px; line-height:1.1!important; pointer-events:none; }
+.rescue-feedback { min-height:20px; margin:10px 0; }
+.rescue-mobile-hints { display:none; }
+.rescue-story { padding:0 12px; max-width:640px; margin:auto; }
+.rescue-story>p { max-width:480px; margin:14px auto; }
+.rescue-story h2 { font-size:clamp(22px,3vw,34px); }
+.rescue-scene { overflow:hidden; border:1px solid var(--border-default); border-radius:10px; background:var(--surface-inset); }
+.rescue-scene svg { display:block; width:100%; max-height:290px; }
+.rescue-scene>span { display:block; padding:10px 4px; color:var(--accent-info); font:9px monospace; letter-spacing:.06em; }
+.rescue-crash .rescue-ship { animation:rescue-landing 1.5s ease-out both; transform-origin:220px 210px; }
+.rescue-departed .rescue-ship { animation:rescue-liftoff 3s ease-in both; }
+.rescue-departed .rescue-flame { animation:rescue-thrust .2s infinite alternate; }
+.rescue-source { display:grid; gap:8px; border-top:1px solid var(--border-default); padding:14px 0; margin-top:15px; font-size:12px; }
+.rescue-source a { color:var(--accent-info); }
+@keyframes rescue-landing { from { transform:translate(-130px,-180px) rotate(-25deg); } 75% { transform:translate(0,0) rotate(5deg); } to { transform:rotate(0); } }
+@keyframes rescue-liftoff { 30% { transform:translate(0,-15px); } to { transform:translate(430px,-200px); } }
+@keyframes rescue-thrust { to { opacity:.5; } }
+@media(max-height:800px) and (min-width:901px) { .starship-rescue { padding:10px 20px; } .rescue-heading { margin-bottom:10px; } .rescue-controls,.rescue-details { padding:12px; } .rescue-controls li { padding:7px 0; } .rescue-details .rescue-scene svg { max-height:150px; } .rescue-story .rescue-scene svg { max-height:200px; } .rescue-details p { margin:8px 0; } }
+@media(max-width:900px) { .rescue-layout { grid-template-columns:170px minmax(0,1fr); gap:14px; } .rescue-details { grid-column:1/-1; display:grid; grid-template-columns:180px 1fr; gap:8px 16px; } .rescue-details .rescue-scene { grid-row:1/6; } .rescue-details p,.rescue-details h2 { margin:0; } .rescue-source { margin:0; padding:8px 0; } }
+@media(max-width:600px) { .starship-rescue { padding:12px; } .rescue-heading { gap:10px; } .rescue-layout { display:flex; flex-direction:column; } .rescue-center { order:0; } .rescue-controls { order:1; width:100%; } .rescue-details { order:2; width:100%; display:block; } .rescue-controls ol { display:grid; grid-template-columns:1fr 1fr; column-gap:12px; margin:10px 0; } .rescue-details .rescue-scene { display:none; } .rescue-board,.rescue-board-caption { width:min(100%,calc(100dvh - 245px)); max-width:100%; } .rescue-story { padding:0; } .rescue-story .rescue-scene svg { max-height:200px; } }
+@media(prefers-reduced-motion:reduce) { .rescue-scene * { animation:none!important; } .rescue-departed .rescue-ship { transform:translate(65px,-65px); } }
+@media(max-width:600px) { .rescue-desktop-hints { display:none; } .rescue-mobile-hints { display:block; } }

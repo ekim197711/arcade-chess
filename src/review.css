@@ -221,7 +221,6 @@
   .result-celebration-star { animation: none; }
   .result-confetti { display: none; }
 }
-
 .review-appearance { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding: 14px 16px; margin: 16px 0; border: 1px solid #536bb3; border-radius: 8px; background: #162555; }
 .review-appearance label { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .review-appearance select { padding: 8px; border: 1px solid #637ed4; border-radius: 6px; background: #0c163b; color: #eff5ff; font: inherit; }
@@ -271,3 +270,34 @@
 .review-settings-bottom .review-appearance { margin-bottom: 0; }
 
 .review-details > .review-variation { margin: 16px 0 0; flex-shrink: 0; }
+/* Keep the boss summary and actions beside a viewport-sized final board. */
+.game-review.match-result { display: grid; grid-template-columns: minmax(170px, 240px) minmax(0, 1fr); gap: 20px; width: 100%; margin: 12px auto; padding: 16px; text-align: left; overflow: visible; }
+.result-side-panel { min-width: 0; padding: 14px; border: 1px solid #536bb3; border-radius: 10px; background: #162555; align-self: start; }
+.match-result .result-celebration-star { width: clamp(36px, 7dvh, 64px); margin: 0 0 12px; }
+.match-result h1 { font-size: clamp(26px, 4dvh, 40px); margin: 8px 0; }
+.result-side-panel p { font-size: 13px; line-height: 1.4; margin: 8px 0; }
+.result-side-panel .result-reason { font-size: 15px; }
+.result-side-panel .review-controls { flex-direction: column; align-items: stretch; margin-top: 18px; }
+.result-position-panel { min-width: 0; }
+.match-result .result-rematch, .match-result .result-taunt { flex-direction: row; gap: 12px; width: 100%; margin: 0 0 10px; }
+.match-result .result-boss-angry, .match-result .result-boss-happy { width: clamp(48px, 10dvh, 84px); height: clamp(48px, 10dvh, 84px); font-size: 40px; }
+.match-result .result-rematch-speech { flex: 1; min-width: 0; padding: 10px 12px; }
+.match-result .result-rematch-speech blockquote { font-size: 13px; line-height: 1.35; margin-top: 4px; }
+.match-result .final-position { margin: 0; padding: 0; border: 0; }
+.match-result .final-position h2 { font-size: 15px; }
+.match-result .final-position-caption { margin: 4px 0; font-size: 12px; }
+.match-result .final-position-frame { width: min(100%, 440px, calc(100dvh - 455px)); margin-top: 6px; padding: 4px; }
+.match-result .result-stats { gap: 6px; margin: 10px 0 0; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.match-result .result-stats > div { padding: 8px; }
+.match-result .result-stats dt { font-size: 11px; }
+.match-result .result-stats dd { font-size: 16px; margin-top: 4px; }
+.result-position-panel > .review-note { margin: 8px 0 0; font-size: 11px; }
+@media (max-width: 600px) {
+  .game-review.match-result { grid-template-columns: minmax(115px, .7fr) minmax(0, 1fr); gap: 8px; padding: 8px; }
+  .result-side-panel { padding: 8px; }
+  .match-result .result-rematch, .match-result .result-taunt { flex-wrap: wrap; gap: 4px; }
+  .match-result .result-rematch-speech { flex-basis: 100%; padding: 8px; }
+  .match-result .result-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .match-result .result-stats > div { padding: 5px; }
+  .result-side-panel .review-controls button { padding: 8px 4px; font-size: 12px; }
+}

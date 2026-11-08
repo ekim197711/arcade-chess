@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from './.tmp/ladder-check/node_modules/@electric-sql/pglite/dist/index.js';
+const db = new PGlite();
+try {
+  await db.exec(`create schema auth; create table auth.users(id uuid primary key);
+    create role anon; create role authenticated;
+    create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.uid',true),'')::uuid $$;`);
+  const sql=await readFile('supabase/starship.sql','utf8');
+  await db.exec(sql); await db.exec(sql);
+  const a='00000000-0000-0000-0000-000000000001',b='00000000-0000-0000-0000-000000000002';
+  await db.query('insert into auth.users values ($1),($2)',[a,b]);
+  await db.exec('set role anon');
+  await assert.rejects(db.query('select public.save_starship_progress(0,false)'),/permission denied/);
+  await db.exec('reset role; set role authenticated');
+  await assert.rejects(db.query('select public.save_starship_progress(0,false)'),/Sign in required/);
+  await db.query("select set_config('test.uid',$1,false)",[a]);
+  const save=async (repaired, launched=false)=>(await db.query('select public.save_starship_progress($1,$2) as progress',[repaired,launched])).rows[0].progress;
+  assert.deepEqual(await save(3),{repaired:3,launched:false});
+  assert.deepEqual(await save(1),{repaired:3,launched:false});
+  assert.deepEqual(await save(6,true),{repaired:6,launched:true});
+  assert.deepEqual(await save(2),{repaired:6,launched:true});
+  for(const pair of [[-1,false],[7,false],[2,true],[null,false],[0,null]]) await assert.rejects(save(...pair),/Invalid starship/);
+  await assert.rejects(db.query('select * from public.starship_progress'),/permission denied/);
+  await assert.rejects(db.query('update public.starship_progress set repaired=0'),/permission denied/);
+  await db.query("select set_config('test.uid',$1,false)",[b]);
+  assert.deepEqual(await save(0),{repaired:0,launched:false});
+  await db.exec('reset role');
+  await db.query('delete from auth.users where id=$1',[a]);
+  assert.equal((await db.query('select * from public.starship_progress')).rows.length,1);
+  console.log('PASS: repeatable migration, guest rejection, authenticated account isolation, stale retries, validation, write protection and account deletion cascade.');
+} finally { await db.close(); }
