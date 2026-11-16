@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { ChatEmojiPicker, EmojiChatBody } from "./ChatEmoji";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "./supabase";
@@ -102,9 +103,9 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
         }} /> Emoji reactions enabled</label>}
       {!preferencesOnly && (botGame ? <BotBoardReactions game={botGame} enabled={state.emojis_enabled} onReaction={(sender,body)=>appendBotMessages([{author:sender==="you"?"You":botGame.black_name,body,kind:"emoji"}])} /> : <>
         {state.emojis_enabled ? <>
-          <div className="social-emojis" role="group" aria-label="Send an emoji reaction">{EMOJI_REACTIONS.map(([emoji, label]) =>
+          <div className="social-emojis" role="group" aria-label="Send an emoji reaction"><PagedItems pageSize={12} mobilePageSize={12} label="Emoji reactions">{EMOJI_REACTIONS.map(([emoji, label]) =>
             <button key={emoji} title={label} aria-label={`Send ${label.toLowerCase()}`} disabled={disabled || !state.peer_emojis_enabled || now - sentAt < 2000}
-              onClick={() => { setSentAt(Date.now()); void request("emoji", { p_body: emoji }); }}>{emoji}</button>)}</div>
+              onClick={() => { setSentAt(Date.now()); void request("emoji", { p_body: emoji }); }}>{emoji}</button>)}</PagedItems></div>
           {!state.peer_emojis_enabled && <p className="review-note">Your opponent has turned off emojis.</p>}
           <div className="social-reactions" role="status" aria-live="polite">{state.reactions.filter(item => now - Date.parse(item.created_at) < 8000).map(item =>
             <span key={item.id}>{item.sender_id === userId ? "You" : peerName}: {item.body}</span>)}</div>
@@ -128,9 +129,9 @@ function SocialContent({ userId, gameId, peer, name, onSelect, botGame, preferen
         <h4>Chat with {peerName}</h4>
         <div className="social-chat-log" role="log" aria-label={`Chat with ${peerName}`} ref={log}>
           {!state.messages.some(item=>item.kind!=="emoji"||state.emojis_enabled) && <p>Say hello to {peerName}!</p>}
-          {state.messages.filter(item=>item.kind!=="emoji"||state.emojis_enabled).map(item => <p key={item.id} className={item.sender_id === userId ? "social-message-own" : ""}>
+          <PagedItems pageSize={3} mobilePageSize={2} focusIndex={Math.max(0, state.messages.filter(item => item.kind !== "emoji" || state.emojis_enabled).length - 1)} label="Chat messages">{state.messages.filter(item=>item.kind!=="emoji"||state.emojis_enabled).map(item => <p key={item.id} className={item.sender_id === userId ? "social-message-own" : ""}>
             <strong>{item.sender_id === userId ? "You" : peerName}</strong> <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time><EmojiChatBody body={item.body}/>
-          </p>)}
+          </p>)}</PagedItems>
         </div>
         <form className="social-chat-form" onSubmit={event => {
           event.preventDefault(); const body = draft.trim();

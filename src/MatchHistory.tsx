@@ -9,6 +9,7 @@ import { bossPortrait, resolveBossCharacter } from "./bossArtwork";
 import { bossRematchPlea } from "./bossRematches";
 import { bossVictoryTaunt } from "./bossVictoryTaunts";
 import { FinalPositionBoard } from "./FinalPositionBoard";
+import { PagedItems } from "./PagedItems";
 import { GameStartButton } from "./GameStartButton";
 import type { PieceStyle } from "./PieceArtwork";
 const labels = { win: "Victory", loss: "Defeat", draw: "Draw", unfinished: "Unfinished" };
@@ -30,7 +31,6 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | GameType>("all");
-  const [visibleLimit, setVisibleLimit] = useState(50);
   const [online, setOnline] = useState<OnlineHistoryGame[]>([]);
   const [onlineError, setOnlineError] = useState(false);
   const [onlineLoading, setOnlineLoading] = useState(false);
@@ -82,9 +82,9 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
   return <section className="game-review history-page" aria-labelledby="history-title">
     <header><h2 id="history-title">Your games</h2>
       <div className="history-toolbar">
-        <label className="history-filter">Search your games<input type="search" value={query} onChange={event => { setQuery(event.target.value); setVisibleLimit(50); }} placeholder="Opponent or result" /></label>
+        <label className="history-filter">Search your games<input type="search" value={query} onChange={event => { setQuery(event.target.value); }} placeholder="Opponent or result" /></label>
         <label className="history-filter">Game type
-          <select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setVisibleLimit(50); }}>
+          <select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); }}>
             <option value="all">All types</option>
             {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
@@ -95,7 +95,7 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
     </header>
     <p className="review-note">{userId ? "Your boss, human and practice games in one place. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices and play humans."}</p>
     {onlineError && <p className="review-note" role="status">Online game history is unavailable. Use Refresh saved data to retry.</p>}
-    {!visible.length ? <p>{query.trim() ? "No saved games match your search." : filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list">{visible.slice(0, visibleLimit).map(entry =>
+    {!visible.length ? <p>{query.trim() ? "No saved games match your search." : filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list"><PagedItems key={`${filter}:${query}`} pageSize={4} mobilePageSize={3} label="Saved games">{visible.map(entry =>
       <div className={`history-item history-type-${entry.type}`} key={entry.id}>
         <span><strong>{entry.opponent}</strong><small>{new Date(entry.startedAt).toLocaleString()} &middot; {entry.elo} ELO &middot; You played {entry.color === "w" ? "White" : "Black"}{entry.archived?.debug ? " \u00b7 DEBUG TEST" : ""}{entry.online ? ` \u00b7 ${entry.online.minutes}+0 \u00b7 ${entry.online.rated ? "Rated" : "Unrated"}` : ""}</small></span>
         <span className={`match-style match-style-${entry.type}`}>{typeLabels[entry.type]}</span>
@@ -109,8 +109,7 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
             else onReview(entry.archived!.id);
           }}>Review &rarr;</a>
         </div>
-      </div>)}</div>}
-    {visible.length > visibleLimit && <button type="button" onClick={() => setVisibleLimit(limit => limit + 50)}>Show more saved games</button>}
+      </div>)}</PagedItems></div>}
     {hasMore && <button type="button" disabled={onlineLoading || refreshing} onClick={() => void loadOnline(false)}>{onlineLoading ? "Loading..." : "Load older online games"}</button>}
   </section>;
 }

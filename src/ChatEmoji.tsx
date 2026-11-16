@@ -1,7 +1,8 @@
-﻿import { EMOJI_REACTIONS } from "./emojiReactions";
+import { PagedItems } from "./PagedItems";
+import { EMOJI_REACTIONS } from "./emojiReactions";
 
 export function ChatEmojiPicker({onPick,disabled=false,draftLength=0}: {onPick:(emoji:string)=>void;disabled?:boolean;draftLength?:number}) {
- return <details className="chat-emoji-picker"><summary>Add emoji</summary><div className="social-emojis" role="group" aria-label="Add an emoji to message">{EMOJI_REACTIONS.map(([emoji,label])=><button key={emoji} type="button" title={label} aria-label={`Insert ${label.toLowerCase()}`} disabled={disabled||draftLength+emoji.length>500} onClick={()=>onPick(emoji)}>{emoji}</button>)}</div></details>;
+ return <details className="chat-emoji-picker"><summary>Add emoji</summary><div className="social-emojis" role="group" aria-label="Add an emoji to message"><PagedItems pageSize={12} mobilePageSize={8} label="Message emojis">{EMOJI_REACTIONS.map(([emoji,label])=><button key={emoji} type="button" title={label} aria-label={`Insert ${label.toLowerCase()}`} disabled={disabled||draftLength+emoji.length>500} onClick={()=>onPick(emoji)}>{emoji}</button>)}</PagedItems></div></details>;
 }
 export function EmojiChatBody({body}: {body:string}) {
  const reaction=EMOJI_REACTIONS.find(([emoji])=>body===emoji||body.startsWith(emoji+" "));

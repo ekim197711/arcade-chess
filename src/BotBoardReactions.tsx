@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { useEffect, useRef, useState } from "react";
 import { fallbackBotReaction, type BotGame, type BotReaction } from "./fallbackBotReactions";
 import { EMOJI_REACTIONS } from "./emojiReactions";
@@ -36,13 +37,13 @@ export function BotBoardReactions({ game, enabled, onReaction }: { game: BotGame
   }, [reaction]);
   return <>
     {enabled && <>
-      <div className="social-emojis" role="group" aria-label="Send an emoji reaction">{EMOJI_REACTIONS.map(([emoji, label]) =>
+      <div className="social-emojis" role="group" aria-label="Send an emoji reaction"><PagedItems pageSize={12} mobilePageSize={8} label="Emoji reactions">{EMOJI_REACTIONS.map(([emoji, label]) =>
         <button key={emoji} title={label} aria-label={`Send ${label.toLowerCase()}`} disabled={coolingDown}
           onClick={() => {
             if (coolingDown) return;
             setCoolingDown(true); setUserReaction({ emoji });
             notify.current?.("you",emoji);
-          }}>{emoji}</button>)}</div>
+          }}>{emoji}</button>)}</PagedItems></div>
       <div className="social-reactions" role="status" aria-live="polite" aria-label="Your reaction">
         {userReaction && <span>You: {userReaction.emoji}</span>}
       </div>

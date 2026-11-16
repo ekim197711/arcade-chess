@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Chess, type Square, type PlayMode } from "./chess";
 import { supabase, supabaseConfiguration } from "./supabase";
 import { PieceArtwork, type PieceStyle } from "./PieceArtwork";
-import { BoardSquare, BoardPanel, PremoveControl } from "./BoardShared";
-import { BoardResizeHandle } from "./BoardResizeHandle";
+import { BoardSquare, BoardPanel, ChessBoardFrame, PremoveControl } from "./BoardShared";
 import { BoardAnnotations } from "./BoardAnnotations";
 import type { BoardSound } from "./soundThemes";
 import { PromotionMenu, type PromotionPiece } from "./PromotionMenu";
 import { premoveBoard, usePremoveQueue } from "./premoves";
 import { GameReview } from "./GameReview";
 import { OnlineResult } from "./OnlineResult";
+import { PagedItems } from "./PagedItems";
 import { OnlineSocial } from "./OnlineSocial";
 import { clockRemaining, formatClock, reconnectDeadline, predictOnlineMove, predictionWasSaved, ONLINE_TIME_CONTROLS, type OnlineGame, type OnlineProfile, type OnlinePremove, type OnlineMovePrediction } from "./onlineChess";
 import "./online.css";
@@ -33,6 +33,8 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
   const [profile, setProfile] = useState<OnlineProfile | null>(null);
   const [minutes, setMinutes] = useState(newMatch && ONLINE_TIME_CONTROLS.some(time => time === Number(parts[2])) ? Number(parts[2]) : 5);
   const [mode, setMode] = useState<PlayMode>(newMatch && parts[3] === "freestyle" ? "freestyle" : "standard");
+  const [lobbyTab, setLobbyTab] = useState("play");
+  const [battleTab, setBattleTab] = useState("match");
   const [queued, setQueued] = useState(false);
   const [fallbackAt, setFallbackAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -300,36 +302,16 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       setNotice("Premoves canceled: the next move is no longer legal.");
     }
   }, [game?.fen, game?.result, canMove, premoves, promotion]);
-  useEffect(() => {
-    const frame = boardFrameRef.current;
-    if (!frame) return;
-    const cabinet = frame.closest(".online-cabinet")!;
-    const clock = cabinet.querySelector<HTMLElement>(".online-clock-you")!;
-    const fitBoard = () => {
-      // Keep both clocks and the board frame inside the visible page.
-      const board = frame.querySelector<HTMLElement>(".online-board")!;
-      const frameChrome = frame.offsetWidth - board.offsetWidth;
-      const verticalChrome = frame.offsetHeight - board.offsetHeight;
-      const width = window.innerHeight - frame.getBoundingClientRect().top - clock.offsetHeight - 34 - verticalChrome + frameChrome;
-      frame.style.setProperty("--online-auto-width", `${Math.max(180, Math.floor(width))}px`);
-    };
-    fitBoard();
-    const observer = new ResizeObserver(fitBoard);
-    observer.observe(cabinet);
-    const topbar = document.querySelector(".topbar");
-    if (topbar) observer.observe(topbar);
-    window.addEventListener("resize", fitBoard);
-    return () => { observer.disconnect(); window.removeEventListener("resize", fitBoard); };
-  }, [game?.id, game?.result, reviewing]);
   if (reviewing && game && !game.result) return <section className="game-review"><h2>Game still in progress</h2><p>Analysis becomes available when the game is complete.</p><button onClick={() => navigate(`online/${game.id}`)}>Resume match</button></section>;
   if (reviewing && game) return <GameReview pgn={game.pgn} moveTimesMs={game.move_times_ms} timingSource="server" playerName={side === "w" ? game.white_name : game.black_name} opponent={side === "w" ? game.black_name : game.white_name} opponentElo={side === "w" ? game.black_rating : game.white_rating} opponentKind={game.is_bot ? "bot" : "human"} theme={theme} color={side} light={light} dark={dark} onClose={() => navigate("online")} closeLabel="Back to online play" onMoveSound={(move, position) => onMoveSound(move, position, side)} />;
   if (game?.result && !reviewing) return <OnlineResult game={game} userId={userId} theme={theme} light={light} dark={dark} onReview={() => navigate(`online/review/${game.id}`)} onPlayAgain={() => navigate(`online/new/${game.minutes}/${confirmedPosition.mode}`)} onChooseTime={() => navigate("online")} onHome={() => navigate("home")} />;
-  return <section className={`online-play ${game && !reviewing ? "online-battle" : "game-review"}`} aria-label={game ? "Chess match" : undefined} aria-labelledby={game ? undefined : "online-title"}>
+  return <section className={`online-play ${game && !reviewing ? "online-battle" : "game-review"}`} data-lobby-tab={lobbyTab} data-battle-tab={battleTab} aria-label={game ? "Chess match" : undefined} aria-labelledby={game ? undefined : "online-title"}>
     {!game && <header><div><h2 id="online-title">Play against human</h2><p className="review-note">{profile ? `${profile.rating} overall Elo · ${profile.rated_games} rated games` : "Overall Elo starts at 1200"}</p></div></header>}
     {error && <p className="online-error" role="alert">{error} <button disabled={busy} onClick={() => void request(gameId ? "state" : queued ? "join" : "cancel")}>Reconnect</button></p>}
     {game && confirmedPosition.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
     {loading && <p role="status">Connecting to the arena…</p>}
     {!gameId && <>
+      <nav className="arena-segmented lobby-tabs" aria-label="Online arena sections">{[["play", "Find opponent"], ["friends", "Friends & chat"], ["games", "Community games"]].map(([id, label]) => <button key={id} aria-pressed={lobbyTab === id} onClick={() => setLobbyTab(id!)}>{label}</button>)}</nav>
       <div className="online-lobby"><h3>Find your next opponent</h3>
         <fieldset disabled={queued || busy || loading}><legend>Play style</legend><div className="online-times">{(["standard", "freestyle"] as const).map(style => <button key={style} aria-pressed={mode === style} onClick={() => setMode(style)}>{style === "standard" ? "Standard" : "Freestyle · Chess960"}</button>)}</div></fieldset>
         <fieldset disabled={queued || busy || loading}><legend>Minutes per player · no increment</legend><div className="online-times">{ONLINE_TIME_CONTROLS.map(time => <button key={time} aria-pressed={minutes === time} onClick={() => setMinutes(time)}>{time} min</button>)}</div></fieldset>
@@ -339,16 +321,15 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
       <details className="review-skill-method"><summary>How online Elo works</summary><p>Arcade Gambit uses one overall online rating, initially 1200. Human games use the FIDE expected-score table, a 400-point difference cap and ΔR = K × (score − expected score). A win scores 1, a draw ½, and a loss 0. K is 40 for your first 30 rated games, then 20, or 10 once you have reached 2400. Changes round to the nearest integer, with halves away from zero.</p><p>This is an internal online rating, not an official FIDE rating. We use adult K rules, update after each game rather than monthly, and share a pool across all four clocks. Bot games and games where both sides have not moved are unrated. Games with a gap of at least 600 are also unrated if either rating is above 2600.</p><p><a href="https://handbook.fide.com/chapter/B02RBRegulations2024" target="_blank" rel="noreferrer">FIDE rapid and blitz rating regulations</a></p></details>
       <OnlineSocial userId={userId} />
       <section className="online-history" aria-labelledby="online-history-title"><h3 id="online-history-title">Online game history</h3><div className="online-times" role="group" aria-label="History filter"><button aria-pressed={historyMode === "mine"} onClick={() => { setHistoryMode("mine"); setHistoryLimit(20); }}>Your games</button><button aria-pressed={historyMode === "community"} onClick={() => { setHistoryMode("community"); setHistoryLimit(20); }}>Community games</button></div>
-        {historyLoading ? <p role="status">Loading games…</p> : !history.length ? <p>No completed games yet.</p> : <div className="history-list">{history.map(item => <div className="history-item" key={item.id}><span><strong>{item.white_name} vs. {item.black_name}</strong><small>{item.minutes}+0 · {item.is_bot ? "Bot practice" : item.rated ? "Rated human game" : "Unrated human game"} · {new Date(item.finished_at!).toLocaleString()}</small><small>White {item.white_rating} ({item.white_delta>=0 ? "+" : ""}{item.white_delta}) · Black {item.black_rating} ({item.black_delta>=0 ? "+" : ""}{item.black_delta})</small></span><strong>{item.result}</strong><a href={`#online/review/${item.id}`}>Analyze & replay</a></div>)}</div>}
+        {historyLoading ? <p role="status">Loading games…</p> : !history.length ? <p>No completed games yet.</p> : <div className="history-list"><PagedItems pageSize={4} mobilePageSize={3} label="Community games">{history.map(item => <div className="history-item" key={item.id}><span><strong>{item.white_name} vs. {item.black_name}</strong><small>{item.minutes}+0 · {item.is_bot ? "Bot practice" : item.rated ? "Rated human game" : "Unrated human game"} · {new Date(item.finished_at!).toLocaleString()}</small><small>White {item.white_rating} ({item.white_delta>=0 ? "+" : ""}{item.white_delta}) · Black {item.black_rating} ({item.black_delta>=0 ? "+" : ""}{item.black_delta})</small></span><strong>{item.result}</strong><a href={`#online/review/${item.id}`}>Analyze & replay</a></div>)}</PagedItems></div>}
         {history.length >= historyLimit && <button disabled={historyLoading} onClick={() => setHistoryLimit(limit => limit+20)}>Load older games</button>}
       </section>
     </>}
     {game && !reviewing && <>
+      <nav className="arena-segmented online-battle-tabs" aria-label="Match panels">{[["match", "Board"], ["chat", "Chat"], ["looks", "Board & sound"]].map(([id, label]) => <button key={id} aria-pressed={battleTab === id} onClick={() => setBattleTab(id!)}>{label}</button>)}</nav>
       <div className="online-game-layout"><aside className="online-communication" aria-label="Game chat and emojis"><OnlineSocial userId={userId} game={game} /></aside><article className="cabinet online-cabinet" aria-label="Chess game">
         {([side === "w" ? "b" : "w",side] as const).map((clockSide,index) => <div key={clockSide} className={`online-clock ${displayGame?.turn === clockSide ? "online-clock-active" : ""} ${index === 0 ? "online-clock-opponent" : "online-clock-you"}`}><span>{clockSide === "w" ? game.white_name : game.black_name}<small>{clockSide === "w" ? game.white_rating : game.black_rating} Elo</small></span><time aria-label={`${clockSide === "w" ? "White" : "Black"} clock`}>{formatClock(clockRemaining(displayGame!,clockSide,now))}</time></div>)}
-        <div className="board-stage online-board-stage"><div ref={boardFrameRef} className="board-frame" style={{ "--board-square-light": light, "--board-square-dark": dark, "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px` } as CSSProperties}>
-        <div className="board-coordinates board-files-top">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
-        <div className="board-wrap"><div className="board-coordinates board-ranks">{Array.from({length:8},(_,index) => <span key={index}>{side === "w" ? 8-index : 1+index}</span>)}</div>
+        <div className="board-stage online-board-stage"><ChessBoardFrame frameRef={boardFrameRef} color={side} light={light} dark={dark} width={boardWidth} loading={loadingPieceStyle} onResize={onBoardResize}>
         <div className="online-board chessboard" role="group" aria-label="Online chessboard" onKeyDown={event => { if (event.key === "Escape") { setPremoves([]); setSelected(null); setPromotion(null); } }}>
           <BoardAnnotations color={side} positionKey={`${game.id}:${position.fen()}`} onCancelPremoves={() => { setPremoves([]); setSelected(null); setPromotion(null); }} />
           {Array.from({length:64},(_,index) => {
@@ -365,11 +346,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
               {target && <span className={`move-dot ${piece ? "move-capture" : ""}`} />}
             </BoardSquare>;
           })}
-        </div></div>
-        <div className="board-coordinates board-files-bottom">{Array.from({length:8},(_,index) => <span key={index}>{String.fromCharCode(97+(side === "w" ? index : 7-index))}</span>)}</div>
-        {loadingPieceStyle && <div className="piece-style-loading" role="status"><span className="piece-style-spinner" aria-hidden="true" /><span>Please wait</span></div>}
-        <BoardResizeHandle onResize={onBoardResize} fitToStageHeight={false} />
-        </div></div>
+        </div></ChessBoardFrame></div>
       </article><BoardPanel className="online-game-info side-panel">
         <p role="status">{error ? "Reconnecting; both clocks continue." : prediction ? prediction.status === "saving" ? "Saving move…" : "Move shown locally; reconnecting to confirm…" : displayGame?.turn === side ? "Your move" : game.is_bot ? "Bot is thinking…" : "Waiting for opponent…"}</p>
         {opponentReconnecting && <p className="online-reconnecting" role="status">Opponent reconnecting · {Math.max(0,Math.ceil((opponentDeadline!-now)/1000))} seconds remaining</p>}
@@ -381,7 +358,7 @@ export function OnlinePlay({ userId, route, navigate, theme, light, dark, appear
           {game.draw_offer && game.draw_offer !== userId && <><p>Opponent offered a draw.</p><button disabled={busy} onClick={() => void request("accept_draw")}>Accept draw</button><button disabled={busy} onClick={() => void request("decline_draw")}>Decline draw</button></>}
           {game.draw_offer === userId && <p>Draw offer sent.</p>}
           {resignConfirm ? <div><p>Resign this game?</p><button disabled={busy} onClick={() => void request("resign")}>Confirm resignation</button><button onClick={() => setResignConfirm(false)}>Keep playing</button></div> : <button disabled={busy} onClick={() => setResignConfirm(true)}>Resign</button>}
-        <h3>Moves</h3><ol className="online-moves">{moveHistory.map((move,index) => <li key={index}>{Math.floor(index/2)+1}{index%2 ? "…" : "."} {move.san}</li>)}</ol>
+        <h3>Moves</h3><div className="online-moves"><PagedItems list="ol" pageSize={10} mobilePageSize={6} focusIndex={moveHistory.length - 1} label="Moves">{moveHistory.map((move,index) => <li key={index}>{Math.floor(index/2)+1}{index%2 ? "…" : "."} {move.san}</li>)}</PagedItems></div>
         <div className="online-captures" aria-label="Captured pieces">
           {(["w", "b"] as const).map(color => <div key={color}>
             <span>{color === "w" ? "WHITE" : "BLACK"} LOST</span>

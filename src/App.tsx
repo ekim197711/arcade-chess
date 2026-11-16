@@ -1,4 +1,3 @@
-import { GameStartButton, PlayAvailability } from "./GameStartButton";
 import { playJukeboxClick } from "./jukeboxClicks";
 import { arcadeJukebox, type MusicTrack } from "./jukeboxMusic";
 import { CookieNotice } from "./CookieNotice";
@@ -13,7 +12,6 @@ import {
 } from "./progress";
 import {
   useEffect,
-  useCallback,
   useMemo,
   useRef,
   useState,
@@ -50,22 +48,19 @@ import {
   Zap,
 } from "lucide-react";
 import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
-import { BoardSquare, BoardPanel, PremoveControl } from "./BoardShared";
+import { BoardSquare, BoardPanel, ChessBoardFrame, PremoveControl } from "./BoardShared";
 import { PromotionMenu, type PromotionPiece, type PromotionPosition } from "./PromotionMenu";
-import { BoardResizeHandle } from "./BoardResizeHandle";
 import { BoardAnnotations } from "./BoardAnnotations";
-import { CoinInsertAnimation, type CoinInsertAnimationHandle } from "./CoinInsertAnimation";
-import { SegmentedCredits } from "./SegmentedCredits";
 import { GameReview } from "./GameReview";
 import { OnlinePlay } from "./OnlinePlay";
-import { OnlineHomeCard } from "./OnlineHomeCard";
-import { OnlineQuickStart } from "./OnlineQuickStart";
 const GambitTraining = lazy(() => import("./GambitTraining"));
-const LegendaryMatches = lazy(() => import("./LegendaryMatches"));
-const AstroidSolver = lazy(() => import("./AstroidSolver"));
 const StarshipRescue = lazy(() => import("./StarshipRescue"));
 const ChessPinball = lazy(() => import("./ChessPinball"));
-import { HomeDuelVideo } from "./HomeDuelVideo";
+import { ArenaHome } from "./ArenaHome";
+import { LaserDuel } from "./LaserDuel";
+import { MoveAnimationSetting } from "./moveAnimation";
+import { ScreenFit } from "./ScreenFit";
+import { PagedItems } from "./PagedItems";
 import { HumanElo } from "./HumanElo";
 import { HistoryPage } from "./HistoryPage";
 import { MatchHistory, MatchResult } from "./MatchHistory";
@@ -270,7 +265,7 @@ const BOSS_ARCHETYPES = [
       "Your endgame needs a sequel where you still have pieces.",
       "I hoard gold. Apparently you hoard positional problems.",
       "Your knight brought a wooden sword to a dragon fight.",
-      "Insert another coin. This one's paying for my snacks.",
+      "Another round? This one is for bragging rights.",
       "{pilot}, I sneezed and your kingside became a historical site.",
       "Your rook is crunchy. Is there another one?",
       "Your knight's brave speech lasted longer than your attack.",
@@ -319,8 +314,6 @@ const MUSIC_VOLUME_KEY = "neon-knights-music-volume-v1";
 const PIECE_THEME_KEY = "arcade-chess-piece-theme-v1";
 const BOARD_COLORS_KEY = "arcade-chess-board-colors-v1";
 const BOARD_SIZE_KEY = "arcade-chess-board-size-v1";
-const CREDIT_COUNT_KEY = "arcade-chess-credit-count-v1";
-const MAX_CREDITS = 99;
 const BOARD_PALETTES = [
   { id: "classic", label: "CLASSIC", light: "#d8bd91", dark: "#352317" },
   { id: "ocean", label: "OCEAN", light: "#c4e1ea", dark: "#345b7e" },
@@ -355,17 +348,6 @@ function readBoardSize(): number | undefined {
     return Number.isFinite(width) && width > 0 ? width : undefined;
   } catch {
     return undefined;
-  }
-}
-
-function readCoinCount(): number {
-  try {
-    const savedCredits = Number(localStorage.getItem(CREDIT_COUNT_KEY));
-    return Number.isFinite(savedCredits)
-      ? Math.min(MAX_CREDITS, Math.max(0, Math.floor(savedCredits)))
-      : 0;
-  } catch {
-    return 0;
   }
 }
 
@@ -518,8 +500,6 @@ type ArcadeSound =
   | "capture"
   | "lost"
   | "win"
-  | "coin"
-  | "coin-return"
   | "start"
   | "select"
   | "deselect"
@@ -660,11 +640,7 @@ function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
     if (context.state === "suspended") void context.resume();
     const now = context.currentTime;
     const notes =
-      kind === "coin"
-        ? [1318, 1760, 2349]
-        : kind === "coin-return"
-          ? [1047, 698, 392]
-          : kind === "capture"
+      kind === "capture"
             ? [220, 680, 1040]
             : kind === "lost"
               ? [520, 310, 150]
@@ -684,19 +660,13 @@ function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
                             ? [820]
                             : [430, 560];
     const duration =
-      kind === "coin"
-        ? 0.16
-        : kind === "coin-return"
-          ? 0.2
-          : kind === "ui"
+      kind === "ui"
             ? 0.075
             : kind === "select" || kind === "deselect"
               ? 0.11
               : 0.2;
     const volume =
-      kind === "coin" || kind === "coin-return"
-        ? 0.055
-        : kind === "move" ||
+      kind === "move" ||
             kind === "ui" ||
             kind === "select" ||
             kind === "deselect"
@@ -711,7 +681,6 @@ function playArcadeSound(kind: ArcadeSound, enabled: boolean) {
       oscillator.type =
         kind === "capture" ||
         kind === "lost" ||
-        kind === "coin-return" ||
         kind === "drag" ||
         kind === "ui"
           ? "square"
@@ -748,9 +717,8 @@ function resultFor(
 
 function readPageRoute() {
   const route = window.location.hash.slice(1);
-  if (/^history\/classic\/[\w-]+$/.test(route)) return route.replace("history/classic/", "legendary/classic/");
-  // Old anchor links and unknown routes should always land on a usable page.
-  return /^(home|roster|battle|gambits|astroid|starship|pinball|history|legendary|settings|statistics|administration)$/.test(route) || /^legendary\/[\w-]+(?:\/[\w-]+)?$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
+  // Retired games and historic archive links return to the human-play home.
+  return /^(home|roster|battle|gambits|starship|pinball|history|settings|statistics|administration)$/.test(route) || /^(review|result)(\/[^/]+)?$/.test(route) || /^online(?:\/(?:review\/)?[\w-]+|\/new\/(?:3|5|10|15)(?:\/(?:standard|freestyle))?)?$/.test(route)
     ? route
     : "home";
 }
@@ -880,7 +848,6 @@ function App() {
     BOARD_PALETTES.find((palette) => palette.id === boardPaletteId) ??
     BOARD_PALETTES[0];
   const [opponentColumnCollapsed, setOpponentColumnCollapsed] = useState(false);
-  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [playerColumnCollapsed, setPlayerColumnCollapsed] = useState(false);
   const [boardWidth, setBoardWidth] = useState<number | undefined>(readBoardSize);
   const [route, setRoute] = useState(readPageRoute);
@@ -888,13 +855,13 @@ function App() {
   const [homeRefreshToken, setHomeRefreshToken] = useState(0);
   const [homeRefreshing, setHomeRefreshing] = useState(false);
   const homeRefreshBusy = useRef(false);
-  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screen));
+  const { history, setHistory, forgetHistory, historyError, historyCloudError, refreshHistory, loadOlderHistory, historyHasMore, historyPending, historySyncing } = useMatchHistory(user?.id ?? (authReady ? null : undefined), !["home", "history", "starship", "pinball"].includes(screen));
   const [savedMatch, setSavedMatch] = useState<SavedMatch | null>(readSavedMatch);
   const matchId = useRef<string>(savedMatch?.id ?? crypto.randomUUID());
   const matchStarted = useRef(savedMatch?.startedAt ?? history.find((item) => item.id === savedMatch?.id)?.startedAt ?? new Date().toISOString());
   const matchSaveFailed = useRef(false);
-  const isReviewPage = (screen === "legendary" && !!route.split("/")[2]) || screen === "review" || (screen === "online" && route.split("/")[1] === "review");
-  const activeMusicTrack: MusicTrack = (screen === "battle" || screen === "astroid" || screen === "starship" || screen === "pinball") || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
+  const isReviewPage = screen === "review" || (screen === "online" && route.split("/")[1] === "review");
+  const activeMusicTrack: MusicTrack = (screen === "battle" || screen === "starship" || screen === "pinball") || (screen === "online" && !!route.split("/")[1] && !route.startsWith("online/review/")) ? "battle" : screen === "roster" ? "roster" : "home";
   const musicTrackRef = useRef(activeMusicTrack); musicTrackRef.current = activeMusicTrack;
   const jukeboxTitle = useSyncExternalStore(arcadeJukebox.subscribe, arcadeJukebox.getTitle);
   function setScreen(page: string) { window.location.hash = page; setRoute(page); }
@@ -922,11 +889,10 @@ function App() {
       : Math.min(ladderClears(readProgress(), playMode), BOSSES.length - 1),
   );
 
-  const [coinCount, setCoinCount] = useState(readCoinCount);
-  const creditMessageRef = useRef<HTMLSpanElement>(null);
-  const [coinAnimationReady, setCoinAnimationReady] = useState(false);
-  const coinAnimation = useRef<CoinInsertAnimationHandle>(null);
-  const markCoinAnimationReady = useCallback(() => setCoinAnimationReady(true), []);
+  const [battleTab, setBattleTab] = useState("opponent");
+  const [settingsTab, setSettingsTab] = useState("pieces");
+  const [authTab, setAuthTab] = useState("account");
+  const [ladderPage, setLadderPage] = useState(0);
   const [tauntIndex, setTauntIndex] = useState(savedMatch?.tauntIndex ?? 0);
   const [excuseIndex, setExcuseIndex] = useState(0);
   const [opponentLine, setOpponentLine] = useState<OpponentLine | null>(null);
@@ -958,9 +924,7 @@ function App() {
   const requestedUserId = useRef<string | null | undefined>(undefined);
   const loadSequence = useRef(0);
   const activeUserId = useRef<string | null>(null);
-  const rosterListRef = useRef<HTMLDivElement | null>(null);
   const moveLogRef = useRef<HTMLDivElement | null>(null);
-  const bossRowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const screenRef = useRef(screen);
   screenRef.current = screen;
 
@@ -1088,31 +1052,7 @@ function App() {
     boss.taunts[tauntIndex % boss.taunts.length] ?? "You're going down, rookie."
   ).replace("{pilot}", user ? playerName : "rookie");
 
-  useEffect(() => {
-    if (screen !== "roster") return;
-    const list = rosterListRef.current;
-    const row = bossRowRefs.current[bossIndex];
-    if (!list || !row) return;
-    const frame = window.requestAnimationFrame(() => {
-      const listTop = list.getBoundingClientRect().top;
-      const rowTop = row.getBoundingClientRect().top;
-      const targetTop =
-        list.scrollTop +
-        rowTop -
-        listTop -
-        (list.clientHeight - row.clientHeight) / 2;
-      list.scrollTo({
-        top: Math.max(
-          0,
-          Math.min(targetTop, list.scrollHeight - list.clientHeight),
-        ),
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [screen, bossIndex]);
+  useEffect(() => { setLadderPage(Math.floor(bossIndex / 5)); }, [screen, bossIndex]);
 
   useEffect(() => {
     if (!debugMode && screen !== "battle" && bossIndex > clearedBosses && !canResumeSelectedMatch) {
@@ -1208,13 +1148,6 @@ function App() {
     }
   }, [boardWidth]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(CREDIT_COUNT_KEY, String(coinCount));
-    } catch {
-      /* Credits remain available for the current session. */
-    }
-  }, [coinCount]);
 
   useEffect(() => {
     if (!musicEnabled) {
@@ -1358,7 +1291,7 @@ function App() {
         data?.progress as Partial<Progress> | undefined,
       );
       let pending = readPendingResults(userId);
-      for (const event of (["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) ? [] : pending.slice(0, 5))) {
+      for (const event of (["home", "history", "starship", "pinball"].includes(screenRef.current) ? [] : pending.slice(0, 5))) {
         const { data: updated, error: syncError } = await supabase.rpc(
           "record_game_result",
           {
@@ -1381,7 +1314,7 @@ function App() {
 
       const guest = readProgress();
       if (hasProgress(guest)) {
-        if ((["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current))) {
+        if ((["home", "history", "starship", "pinball"].includes(screenRef.current))) {
           syncedProgress = mergeProgress(syncedProgress, guest);
           setCloudSyncError(true);
         } else {
@@ -1483,7 +1416,7 @@ function App() {
       else latest = normalizeProgress(data?.progress);
     } catch { readFailed = true; }
 
-    for (const event of (["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) ? pending.slice(0, 5) : pending)) {
+    for (const event of (["home", "history", "starship", "pinball"].includes(screenRef.current) ? pending.slice(0, 5) : pending)) {
       try {
         const { data, error } = await supabase.rpc("record_game_result", {
           p_event_id: event.id,
@@ -1585,7 +1518,7 @@ function App() {
   useEffect(() => {
     const reconnect = () => {
       const userId = activeUserId.current;
-      if (!["home", "history", "legendary", "astroid", "starship", "pinball"].includes(screenRef.current) && !document.hidden && userId &&
+      if (!["home", "history", "starship", "pinball"].includes(screenRef.current) && !document.hidden && userId &&
         (readPendingResults(userId).length || hasProgress(readProgress()))) void retryPendingProgress(userId);
     };
     window.addEventListener("online", reconnect);
@@ -1705,30 +1638,9 @@ function App() {
   }
 
   function handleHomePlay(mode: PlayMode) {
-    if (coinCount < 1) return;
-    setCoinCount((count) => Math.max(0, count - 1));
     changePlayMode(mode);
     setScreen("roster");
     playArcadeSound("start", soundEnabled);
-  }
-
-  function insertCoin() {
-    if (coinCount >= MAX_CREDITS) {
-      playArcadeSound("coin-return", soundEnabled);
-      const message = creditMessageRef.current;
-      if (message && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        message.getAnimations().forEach((animation) => animation.cancel());
-        message.animate([
-          { transform: "scale(1) rotate(0deg)" },
-          { transform: "scale(1.08) rotate(-3deg)", offset: 0.3 },
-          { transform: "scale(1.05) rotate(2deg)", offset: 0.65 },
-          { transform: "scale(1) rotate(0deg)" },
-        ], { duration: 420, easing: "ease-out" });
-      }
-      return;
-    }
-    setCoinCount((count) => Math.min(MAX_CREDITS, count + 1));
-    if (!coinAnimation.current?.play()) playArcadeSound("coin", soundEnabled);
   }
 
   function toggleMusic() {
@@ -2098,108 +2010,13 @@ function App() {
     moveLog.scrollTop = moveLog.scrollHeight;
   }, [moveHistory.length, screen, reviewing]);
 
-  const battleAppearance = <>
-                      <section
-                        className="piece-theme-picker"
-                        aria-label="Piece designs"
-                      >
-                        <h3 className="piece-theme-heading">PIECE SET</h3>
-                        <div
-                          className="piece-theme-options piece-set-options"
-                          role="group"
-                          aria-label="Choose a chess piece design"
-                        >
-                          {PIECE_CHOICES.map((choice) => (
-                            <button
-                              className="piece-theme-option"
-                              type="button"
-                              key={choice.id}
-                              aria-label={`Use ${choice.label} piece design`}
-                              aria-pressed={pieceTheme === choice.id}
-                              disabled={loadingPieceStyle}
-                              onClick={() => void changePieceStyle(choice.id)}
-                            >
-                              <span
-                                className="piece-theme-icon"
-                                aria-hidden="true"
-                              >
-                                <PieceArtwork
-                                  type="q"
-                                  color="w"
-                                  theme={choice.id}
-                                />
-                              </span>
-                              <span>{choice.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                      <section
-                        className="piece-theme-picker board-color-picker"
-                        aria-label="Board color layouts"
-                      >
-                        <h3 className="piece-theme-heading">BOARD COLORS</h3>
-                        <div
-                          className="board-palette-options"
-                          role="group"
-                          aria-label="Choose a board color layout"
-                        >
-                          {BOARD_PALETTES.map((palette) => (
-                            <button
-                              className="piece-theme-option board-palette-option"
-                              type="button"
-                              key={palette.id}
-                              aria-label={`Use the ${palette.label.toLowerCase()} board colors`}
-                              aria-pressed={boardPaletteId === palette.id}
-                              onClick={() => setBoardPaletteId(palette.id)}
-                            >
-                              <span
-                                className="board-palette-preview"
-                                aria-hidden="true"
-                                style={
-                                  {
-                                    "--palette-light": palette.light,
-                                    "--palette-dark": palette.dark,
-                                  } as CSSProperties &
-                                    Record<`--${string}`, string>
-                                }
-                              >
-                                <i />
-                                <i />
-                                <i />
-                                <i />
-                              </span>
-                              <span>{palette.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                      <section
-                        className="piece-theme-picker sound-theme-picker"
-                        aria-label="Board sound theme"
-                      >
-                        <h3 className="piece-theme-heading">SOUND THEME</h3>
-                        <div
-                          className="sound-theme-options"
-                          role="group"
-                          aria-label="Choose board sound effects"
-                        >
-                          {SOUND_THEMES.map((theme) => (
-                            <button
-                              className="piece-theme-option sound-theme-option"
-                              type="button"
-                              key={theme.id}
-                              aria-pressed={soundTheme === theme.id}
-                              aria-label={`Use ${theme.name} sound theme`}
-                              title={theme.description}
-                              onClick={() => chooseSoundTheme(theme.id)}
-                            >
-                              {theme.name}
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-  </>;
+  const battleAppearance = <div className="battle-appearance-controls">
+    <MoveAnimationSetting />
+    <label>Piece set<select aria-label="Battle piece set" value={pieceTheme} disabled={loadingPieceStyle} onChange={event => void changePieceStyle(event.target.value as PieceStyle)}>{PIECE_CHOICES.map(choice => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
+    <label>Board colors<select aria-label="Battle board colors" value={boardPaletteId} onChange={event => setBoardPaletteId(event.target.value as BoardPaletteId)}>{BOARD_PALETTES.map(palette => <option key={palette.id} value={palette.id}>{palette.label}</option>)}</select></label>
+    <label>Sound theme<select aria-label="Battle sound theme" value={soundTheme} onChange={event => chooseSoundTheme(event.target.value as SoundTheme)}>{SOUND_THEMES.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</select></label>
+    <p className="review-note">Your setup follows you into every game.</p>
+  </div>;
 
   if (user && administration?.restriction) {
     const restriction = administration.restriction;
@@ -2213,7 +2030,8 @@ function App() {
   }
 
   return (
-    <PlayAvailability.Provider value={coinCount > 0}><div
+    <div
+      data-screen={screen}
       className={`app-shell ${screen === "battle" ? "app-shell-battle" : ""} ${
         ((screen === "review" || screen === "result") && selectedMatch
           ? selectedMatch.pgn.includes('[Variant "Chess960"]')
@@ -2237,15 +2055,7 @@ function App() {
       }}
     >
       <div className="crt-overlay" aria-hidden="true" />
-      <header className={`topbar${navigationCollapsed ? " is-collapsed" : ""}`}>
-        <button type="button" className="navigation-toggle"
-          aria-label={navigationCollapsed ? "Expand top navigation" : "Collapse top navigation"}
-          aria-expanded={!navigationCollapsed}
-          aria-controls="navigation-brand navigation-flow navigation-actions"
-          onClick={() => setNavigationCollapsed(value => !value)}>
-          <ChevronRight size={16} aria-hidden="true" />
-          <span>{navigationCollapsed ? "SHOW NAV" : "HIDE NAV"}</span>
-        </button>
+      <header className="topbar">
         <a
           id="navigation-brand"
           className="brand"
@@ -2258,15 +2068,10 @@ function App() {
             alt="Arcade Gambit"
           />
         </a>
-        <nav id="navigation-flow" className="top-nav" aria-label="Game flow">
-          <span className="nav-link nav-active" aria-current="step">
-            <span className="nav-pip" />
-            {screen === "battle"
-              ? "MATCH // 02"
-              : screen === "roster"
-                ? "CHOOSE A BOSS // 01"
-                : "ARCADE // READY"}
-          </span>
+        <nav id="navigation-flow" className="top-nav" aria-label="Main navigation">
+          <button aria-current={screen === "home" || screen === "online" ? "page" : undefined} onClick={() => setScreen("home")}>Play human</button>
+          <button aria-current={screen === "roster" || screen === "battle" ? "page" : undefined} onClick={() => handleHomePlay(playMode)}>Boss ladder</button>
+          <button aria-current={screen === "history" ? "page" : undefined} onClick={() => setScreen("history")}>Your games</button>
         </nav>
         <div id="navigation-actions" className="top-actions">
           <button
@@ -2313,7 +2118,7 @@ function App() {
               <ChevronRight size={14} />
             </button>
           ) : (
-            <button className="login-button" onClick={() => setAuthOpen(true)}>
+            <button className="login-button" aria-label="Log in" onClick={() => setAuthOpen(true)}>
               <LogIn size={15} /> <span>LOG IN</span>
             </button>
           )}
@@ -2321,13 +2126,12 @@ function App() {
       </header>
 
       <main id="top" className={screen === "home" ? "home-main" : isReviewPage ? "review-main" : screen === "online" ? "online-main" : undefined}>
-        {coinCount < 1 && (["gambits", "astroid", "starship", "pinball"].includes(screen) || (screen === "online" && (route === "online" || route.startsWith("online/new/")))) && <section className="game-review" aria-label="Coin required"><h2>Insert a coin to play</h2><p>All game modes need an available coin. Coins are free.</p><button onClick={() => setScreen("home")}>Back to arcade · Insert coin</button></section>}
-        {screen === "gambits" && coinCount > 0 && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme="granite-3d" light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
-        {screen === "pinball" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Chess Pinball…</p>}><ChessPinball key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} onClose={() => setScreen("home")} onScore={() => playBoardSound("capture", soundEnabled, soundTheme)} /></Suspense>}
-        {screen === "starship" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Starship Rescue…</p>}><StarshipRescue key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onRepair={() => playArcadeSound("win", soundEnabled)} /></Suspense>}
-        {screen === "astroid" && coinCount > 0 && <Suspense fallback={<p role="status">Loading Astroid Solver…</p>}><AstroidSolver key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onOutcome={won => playArcadeSound(won ? "win" : "lost", soundEnabled)} /></Suspense>}
+        <ScreenFit key={screen}>
+        {screen === "gambits" && <Suspense fallback={<p>Opening the Gambit Academy…</p>}><GambitTraining key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} /></Suspense>}
+        {screen === "pinball" && <Suspense fallback={<p role="status">Loading Chess Pinball…</p>}><ChessPinball key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} onClose={() => setScreen("home")} onScore={() => playBoardSound("capture", soundEnabled, soundTheme)} /></Suspense>}
+        {screen === "starship" && <Suspense fallback={<p role="status">Loading Starship Rescue…</p>}><StarshipRescue key={user?.id ?? "guest"} accountId={user?.id ?? "guest"} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} onClose={() => setScreen("home")} onRepair={() => playArcadeSound("win", soundEnabled)} /></Suspense>}
         {(screen === "statistics" || screen === "administration") && <Administration key={user?.id ?? "guest"} userId={user?.id} role={administrationRole} />}
-        {screen === "online" && (coinCount > 0 || (route !== "online" && !route.startsWith("online/new/"))) && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
+        {screen === "online" && (user && supabase ? <OnlinePlay key={`${user.id}:${route}`} userId={user.id} route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} appearance={battleAppearance} boardWidth={boardWidth} onBoardResize={setBoardWidth} loadingPieceStyle={loadingPieceStyle} onSound={(sound) => playBoardSound(sound, soundEnabled, soundTheme)} onMoveSound={(move, position, side) => playBoardSound(boardSoundForMove(move, position, side), soundEnabled, soundTheme)} /> : <section className="game-review"><h2>Play against human</h2><p>Sign in to find an opponent and save your online rating.</p><button onClick={() => setAuthOpen(true)}>Log in</button><button onClick={() => setScreen("home")}>Back to home</button></section>)}
         {screen === "settings" && (
           <section className="settings-page" aria-labelledby="settings-title">
             <div className="settings-page-heading">
@@ -2341,34 +2145,36 @@ function App() {
               </button>
             </div>
 
-            <div className="settings-grid">
-              <section className="settings-card" aria-label="Piece themes">
+            <nav className="settings-tabs arena-segmented" aria-label="Settings sections">{[["pieces", "Pieces"], ["board", "Board"], ["sounds", "Sounds"], ["audio", "Music & volume"], ["reactions", "Reactions"], ["more", "More"]].map(([id, label]) => <button key={id} aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id!)}>{label}</button>)}</nav>
+            <div className="settings-grid" data-tab={settingsTab}>
+              <section className="settings-card" aria-label="Piece themes" data-settings-section="pieces">
                 <h2>Piece set</h2>
+                <MoveAnimationSetting />
                 <p>Choose the look of your chess pieces.</p>
                 <div className="piece-theme-options piece-set-options" role="group" aria-label="Choose a chess piece design">
-                  {PIECE_CHOICES.map((choice) => (
+                  <PagedItems pageSize={18} mobilePageSize={6} label="Piece sets">{PIECE_CHOICES.map((choice) => (
                     <button className="piece-theme-option" type="button" key={choice.id} aria-label={`Use ${choice.label} piece design`} aria-pressed={pieceTheme === choice.id} disabled={loadingPieceStyle} onClick={() => void changePieceStyle(choice.id)}>
                       <span className="piece-theme-icon" aria-hidden="true"><PieceArtwork type="q" color="w" theme={choice.id} /></span>
                       <span>{choice.label}</span>
                     </button>
-                  ))}
+                  ))}</PagedItems>
                 </div>
               </section>
 
-              <section className="settings-card" aria-label="Board themes">
+              <section className="settings-card" aria-label="Board themes" data-settings-section="board">
                 <h2>Board colors</h2>
                 <p>Pick a palette for the chessboard.</p>
                 <div className="board-palette-options" role="group" aria-label="Choose a board color layout">
-                  {BOARD_PALETTES.map((palette) => (
+                  <PagedItems pageSize={12} mobilePageSize={6} label="Board palettes">{BOARD_PALETTES.map((palette) => (
                     <button className="piece-theme-option board-palette-option" type="button" key={palette.id} aria-label={`Use the ${palette.label.toLowerCase()} board colors`} aria-pressed={boardPaletteId === palette.id} onClick={() => setBoardPaletteId(palette.id)}>
                       <span className="board-palette-preview" aria-hidden="true" style={{ "--palette-light": palette.light, "--palette-dark": palette.dark } as CSSProperties & Record<`--${string}`, string>}><i /><i /><i /><i /></span>
                       <span>{palette.label}</span>
                     </button>
-                  ))}
+                  ))}</PagedItems>
                 </div>
               </section>
 
-              <section className="settings-card" aria-label="Sound theme">
+              <section className="settings-card" aria-label="Sound theme" data-settings-section="sounds">
                 <h2>Sound theme</h2>
                 <p>Choose a soft sound palette for every chess action.</p>
                 <div className="sound-theme-options" role="group" aria-label="Choose board sound effects">
@@ -2380,7 +2186,7 @@ function App() {
                 </div>
               </section>
 
-              <section className="settings-card settings-audio-card" aria-label="Audio settings">
+              <section className="settings-card settings-audio-card" aria-label="Audio settings" data-settings-section="audio">
                 <h2>Audio</h2>
                 <p>Control music and sound effects independently.</p>
                 <button className="settings-toggle" type="button" aria-pressed={musicEnabled} onClick={toggleMusic}>
@@ -2400,22 +2206,22 @@ function App() {
                 <input id="settings-sfx-volume" className="settings-range" type="range" min="0" max="100" step="1" value={sfxVolume} aria-label="Sound effects volume" onChange={(event) => setSfxVolume(Number(event.currentTarget.value))} />
               </section>
 
-              <div className="settings-card"><EmojiReactionSettings userId={user?.id} /></div>
-              <section className="settings-card settings-size-card" aria-label="Board size">
+              <div className="settings-card" data-settings-section="reactions"><EmojiReactionSettings userId={user?.id} /></div>
+              <section className="settings-card settings-size-card" aria-label="Board size" data-settings-section="more">
                 <h2>Board size</h2>
                 <p>Adjust the chessboard width during a match.</p>
                 <label className="settings-range-label" htmlFor="settings-board-size"><span>SIZE</span><strong>{boardWidth ?? 520}px</strong></label>
                 <input id="settings-board-size" className="settings-range" type="range" min="300" max="760" step="10" value={boardWidth ?? 520} onChange={(event) => setBoardWidth(Number(event.currentTarget.value))} />
                 <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>RESET TO AUTO SIZE</button>
               </section>
-              <section className="settings-card" aria-label="Cookies and storage">
+              <section className="settings-card" aria-label="Cookies and storage" data-settings-section="more">
                 <h2>Cookies & storage</h2>
                 <p>Reset the saved cookie notice acknowledgement to test the first-visit popup. Your game saves and settings stay intact.</p>
                 <button className="settings-reset" type="button" onClick={() => setCookieNoticeReset(value => value + 1)}>
                   RESET COOKIE ACKNOWLEDGEMENT
                 </button>
               </section>
-              {IS_DEVELOPMENT_ENVIRONMENT && <section className="settings-card" aria-label="Debug settings">
+              {IS_DEVELOPMENT_ENVIRONMENT && <section className="settings-card" aria-label="Debug settings" data-settings-section="more">
                 <h2>Debug mode</h2>
                 <p>Unlock every boss in both ladders and enable Auto checkmate during matches. Debug games are marked as tests and do not count toward stats or ladder progress.</p>
                 <button className="settings-toggle" type="button" aria-label="Debug mode" aria-pressed={debugMode} onClick={() => setDebugMode(value => !value)}>
@@ -2425,191 +2231,21 @@ function App() {
             </div>
           </section>
         )}
-        {screen === "home" && (
-          <div className="home-dashboard">
-          <aside className="home-play-cards home-options-panel" aria-label="Play and options">
-            <div className="home-options-body">
-            <section className="home-options" aria-labelledby="home-options-title">
-              <h2 id="home-options-title">Options</h2>
-              <nav className="home-options-actions" aria-label="Game options">
-                <button type="button" onClick={() => setScreen("settings")}>Game settings <Settings size={16} aria-hidden="true" /></button>
-                <button type="button" onClick={() => setScreen("history")}>Game history <ArrowRight size={16} aria-hidden="true" /></button>
-                <button type="button" onClick={() => setScreen("legendary")}>Legendary matches <ArrowRight size={16} aria-hidden="true" /></button>
-                <button type="button" onClick={() => setHelpOpen(true)}>How to play <Gamepad2 size={16} aria-hidden="true" /></button>
-                {administrationRole === "administrator" && <a className="admin-home-link" href="#administration">Administration <ArrowRight size={16} aria-hidden="true" /></a>}
-              </nav>
-            </section>
-            </div>
-
-          </aside>
-          <aside className="home-stats-panel" aria-label="Your progress">
-        {screen === "home" && (
-          <section className="hud-row" aria-label="Player stats">
-            <div className="hud-player">
-              <div className="hud-avatar">
-                <span>{playerAvatar}</span>
-                <i />
-              </div>
-              <div className="hud-player-info">
-                <div className="hud-player-name-row">
-                  <strong>{user ? playerName : "GUEST PLAYER"}</strong>
-                </div>
-                <HumanElo key={user?.id ?? "guest"} userId={user?.id} refreshToken={homeRefreshToken} />
-                {!savedMatch && user && (
-                  <span className="pilot-status">
-                    <span />{" "}
-                    {user
-                      ? cloudSyncError
-                        ? "SYNC PENDING — LOCAL COPY"
-                        : authReady
-                          ? "CLOUD SAVE ACTIVE"
-                          : "SYNCING ACCOUNT..."
-                      : null}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="hud-stat hud-stat-standard">
-              <span className="stat-icon stat-cyan">
-                <Trophy size={16} />
-              </span>
-              <div>
-                <span className="hud-label">STANDARD BOSSES BEATEN</span>
-                <strong>
-                  {String(progress.bossesDefeated).padStart(2, "0")}
-                  <small> / {BOSSES.length}</small>
-                </strong>
-              </div>
-            </div>
-            <div className="hud-stat hud-stat-freestyle">
-              <span className="stat-icon">
-                <Trophy size={16} />
-              </span>
-              <div>
-                <span className="hud-label">FREESTYLE BOSSES BEATEN</span>
-                <strong>
-                  {String(progress.freestyleBossesDefeated).padStart(2, "0")}
-                  <small> / {BOSSES.length}</small>
-                </strong>
-              </div>
-            </div>
-            <div className="hud-stat">
-              <span className="stat-icon stat-pink">
-                <Flame size={16} />
-              </span>
-              <div>
-                <span className="hud-label">Days playing a game in a row streak</span>
-                <strong>
-                  {String(progress.streak).padStart(2, "0")}
-                  <small> W</small>
-                </strong>
-              </div>
-            </div>
-          </section>
-        )}
-            <HomeDuelVideo />
-          </aside>
-          <div className="home-dashboard-content">
-            <section className="home-play-area" aria-label="Play options">
-              <div className="home-play-heading">
-                <div className="jukebox-title"><h1>Pick your next game</h1></div>
-            <section className="arcade-cabinet home-coin-card" aria-label="Coin slot">
-              <div className="arcade-cabinet-topline"><span className="arcade-cabinet-brand"><Gamepad2 size={17} /> COINS</span></div>
-              <CoinInsertAnimation ref={coinAnimation} volume={0.55 * sfxVolume / 100} muted={!soundEnabled} onReady={markCoinAnimationReady} />
-              <div className="arcade-control-deck">
-                <div className="arcade-credit-display">
-                <span className="arcade-control-label">CREDITS</span>
-                <output aria-live="polite" aria-label={`${coinCount} credits`}>
-                  <SegmentedCredits value={coinCount} />
-                </output>
-                <span ref={creditMessageRef} className={`arcade-credit-hint${coinCount >= MAX_CREDITS ? " arcade-credit-maximum" : ""}`} aria-live="polite">
-                  {coinCount >= MAX_CREDITS ? "Maximum credits achieved!" : coinCount > 0 ? "READY TO PLAY" : "INSERT COIN TO START"}
-                </span>
-              </div>
-
-              <div className="arcade-coin-control">
-              <button
-                className="arcade-coin-button"
-                type="button"
-                onClick={insertCoin}
-                disabled={!coinAnimationReady}
-                aria-label={`Insert one coin. ${coinCount} ${coinCount === 1 ? "credit" : "credits"} available`}
-              >
-                <span className="arcade-slot" aria-hidden="true">
-                  <i />
-                </span>
-                <span>INSERT COIN</span>
-                <small>
-                  {coinCount >= MAX_CREDITS ? "MAX CREDITS" : "+1 CREDIT"}
-                </small>
-              </button>
-              <p className="arcade-coin-note">Coins are free for now</p>
-              </div>
-              </div>
-            </section>
-              </div>
-              <div className="home-play-modes">
-            {user ? <OnlineHomeCard key={user.id} userId={user.id} refreshToken={homeRefreshToken} navigate={setScreen} /> :
-              <section className="online-home-card" aria-label="Play against human">
-                <p>Sign in to play against humans.</p>
-                <OnlineQuickStart onStart={(minutes, mode) => { setScreen(`online/new/${minutes}/${mode}`); setAuthOpen(true); }} />
-              </section>}
-
-            <section className="boss-run-card" aria-label="Boss Run">
-                <h2 className="jukebox-section-title">03 / Boss runs</h2>
-                <div className="boss-run-options">
-                  {(["standard", "freestyle"] as const).map((mode) => {
-                    const clears = ladderClears(progress, mode);
-                    const nextBoss = BOSSES[Math.min(clears, BOSSES.length - 1)]!;
-                    return (
-                    <div className={`boss-run-mode boss-run-${mode}`} key={mode}>
-                      <GameStartButton className="boss-run-button" size="large"
-                        onClick={() => handleHomePlay(mode)} disabled={coinCount < 1}>
-                        <img className="boss-run-portrait" src={bossThumbnail(nextBoss.character, __BOSS_PORTRAITS__)} width={112} height={112} alt="" decoding="async" />
-                        <span className="boss-run-label"><strong>Boss Run</strong><span>{mode === "standard" ? "Standard" : "Freestyle"} · {clears >= BOSSES.length ? "Replay" : "Next boss"}</span><b>{nextBoss.name}</b><small>{nextBoss.elo} Elo</small></span>
-                      </GameStartButton>
-                      {savedMatch && savedMode === mode && (
-                        <GameStartButton
-                          className="resume-match-button"
-                          size="large" tone="resume"
-                          onClick={() => resumeSavedMatch(savedMatch)}
-                          aria-label={`Resume saved match against ${BOSSES[savedMatch.bossIndex]!.name}`}
-                        >
-                          <span className="resume-match-copy">
-                            <strong>Resume boss battle</strong>
-                            <span>vs {BOSSES[savedMatch.bossIndex]!.name}</span>
-                            <small>{mode === "standard" ? "Standard" : "Freestyle"} · Saved game</small>
-                          </span>
-                        </GameStartButton>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-              </section>
-              <section className="gambit-academy-card" aria-label="Gambit Academy">
-                <h2 className="jukebox-section-title">04 / Practice</h2>
-                <GameStartButton className="gambit-training-button" onClick={() => setScreen("gambits")}>Train gambits</GameStartButton>
-                <GameStartButton className="astroid-home-button" onClick={() => setScreen("astroid")}>Astroid Solver</GameStartButton>
-                <GameStartButton className="starship-home-button" onClick={() => setScreen("starship")}>Starship Rescue</GameStartButton>
-                <GameStartButton className="pinball-home-button" onClick={() => setScreen("pinball")}>Chess Pinball</GameStartButton>
-              </section>
-              </div>
-            </section>
-
-
-
-        {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
-        {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
-          </div>
-          </div>
-        )}
+        {screen === "home" && <ArenaHome userId={user?.id} playerName={playerName} avatar={playerAvatar}
+          rating={<HumanElo key={user?.id ?? "guest"} userId={user?.id} refreshToken={homeRefreshToken} />}
+          progress={progress} refreshToken={homeRefreshToken} refreshing={homeRefreshing} onRefresh={() => void refreshSavedData()}
+          bosses={Object.fromEntries((["standard", "freestyle"] as const).map(mode => {
+            const entry = BOSSES[Math.min(ladderClears(progress, mode), BOSSES.length - 1)]!;
+            return [mode, { name: entry.name, elo: entry.elo, image: bossThumbnail(entry.character, __BOSS_PORTRAITS__) }];
+          })) as Record<PlayMode, { name: string; elo: number; image?: string }>}
+          navigate={setScreen} onBoss={handleHomePlay} onHuman={(minutes, mode) => { setScreen(`online/new/${minutes}/${mode}`); setAuthTab("account"); setAuthOpen(true); }}
+          resume={savedMatch ? { name: BOSSES[savedMatch.bossIndex]!.name, onClick: () => resumeSavedMatch(savedMatch) } : undefined}
+          onHelp={() => setHelpOpen(true)} administrator={administrationRole === "administrator"} />}
 
         {screen !== "home" && <>
         {historyError && <p role="alert">Game history could not be saved on this device. Keep this page open to retain your review.</p>}
         {user && historyCloudError && <p className="review-note" role="status">Game history is saved on this device. Use Refresh saved data on home to retry cloud sync.</p>}
         </>}
-        {screen === "legendary" && <Suspense fallback={<section className="game-review" role="status">Loading legendary matches…</section>}><LegendaryMatches route={route} navigate={setScreen} theme={pieceTheme} light={boardPalette.light} dark={boardPalette.dark} /></Suspense>}
         {screen === "history" && <HistoryPage navigate={setScreen}>
         {screen === "history" && <MatchHistory key={`history:${user?.id ?? "guest"}`} matches={history} refreshToken={homeRefreshToken} onRefresh={() => void refreshSavedData()} refreshing={homeRefreshing} userId={user?.id} onOnline={setScreen} onReview={(id) => setScreen(`review/${id}`)} onResume={(match) => resumeSavedMatch({ ...match, tauntIndex: 0 })} />}
         {screen === "history" && user && historyHasMore && <button type="button" disabled={historySyncing || homeRefreshing} onClick={() => void loadOlderHistory()}>Load older boss games</button>}
@@ -2689,20 +2325,17 @@ function App() {
 
                 <div
                   className="boss-select-list"
-                  ref={rosterListRef}
                   role="group"
                   aria-label={`${playMode === "freestyle" ? "Freestyle" : "Standard"} ladder. Select an unlocked row to start a match.`}
                 >
-                  {BOSSES.map((entry, index) => {
+                  {BOSSES.slice(ladderPage * 5, ladderPage * 5 + 5).map((entry, offset) => {
+                    const index = ladderPage * 5 + offset;
                     const locked = !debugMode && index > clearedBosses;
                     const cleared = index < clearedBosses;
                     const selected = index === bossIndex;
                     return (
                       <button
                         key={entry.name}
-                        ref={(node) => {
-                          bossRowRefs.current[index] = node;
-                        }}
                         type="button"
                         className={`boss-line boss-${entry.color} ${selected ? "boss-line-selected" : ""} ${locked ? "boss-line-locked" : ""} ${cleared ? "boss-line-cleared" : ""}`}
                         style={
@@ -2756,6 +2389,7 @@ function App() {
                       </button>
                     );
                   })}
+                  <nav className="ladder-pagination" aria-label="Boss ladder pages"><button disabled={ladderPage === 0} onClick={() => setLadderPage(page => Math.max(0, page - 1))} aria-label="Previous bosses"><ChevronLeft size={16} /></button><span>RUNGS {ladderPage * 5 + 1}–{Math.min(ladderPage * 5 + 5, BOSSES.length)} / {BOSSES.length}</span><button onClick={() => setLadderPage(Math.floor(bossIndex / 5))}>Current boss</button><button disabled={(ladderPage + 1) * 5 >= BOSSES.length} onClick={() => setLadderPage(page => page + 1)} aria-label="Next bosses"><ChevronRight size={16} /></button></nav>
                 </div>
               </section>
             )}
@@ -2793,8 +2427,9 @@ function App() {
                     </button>
                     <div
                       className="side-column-content"
-                      id="opponent-panel-content"
+                      id="opponent-panel-content" data-tab={battleTab}
                     >
+                      <nav className="battle-panel-tabs arena-segmented" aria-label="Battle panel">{[["opponent", "Opponent"], ["chat", "Chat"], ["looks", "Looks"]].map(([id, label]) => <button key={id} aria-pressed={battleTab === id} onClick={() => setBattleTab(id!)}>{label}</button>)}</nav>
                       <section className="player-bar opponent-bar">
                         <div className="opponent-summary">
                           <button
@@ -2875,34 +2510,14 @@ function App() {
                         </button>
                       </div>
                       <LocalBotSocial userId={user?.id} game={{ id: matchId.current, is_bot: true, pgn, ply_count: moveHistory.length, result: currentResult === "win" ? playerColor === "w" ? "1-0" : "0-1" : currentResult === "loss" ? playerColor === "w" ? "0-1" : "1-0" : currentResult === "draw" ? "1/2-1/2" : null, black_name: boss.name, botColor: boss.chessColor }} />
-                      {battleAppearance}
+                      {battleTab === "looks" && battleAppearance}
                     </div>
                   </BoardPanel>
                   <article className="cabinet" aria-label="Chess game">
                     {game.mode === "freestyle" && <p className="freestyle-notice">FREESTYLE · CHESS960 — To castle, move your king onto your rook.</p>}
                     <div className="cabinet-body">
                       <div className="board-stage">
-                        <div
-                          className="board-frame"
-                          style={
-                            {
-                              "--board-square-light": boardPalette.light,
-                              "--board-square-dark": boardPalette.dark,
-                              "--board-width": boardWidth === undefined ? undefined : `${boardWidth}px`,
-                            } as CSSProperties & Record<`--${string}`, string>
-                          }
-                        >
-                          <div className="board-coordinates board-files-top">
-                            {boardFiles.map((file) => (
-                              <span key={file}>{file}</span>
-                            ))}
-                          </div>
-                          <div className="board-wrap">
-                            <div className="board-coordinates board-ranks">
-                              {boardRanks.map((rank) => (
-                                <span key={rank}>{rank}</span>
-                              ))}
-                            </div>
+                        <ChessBoardFrame color={playerColor} light={boardPalette.light} dark={boardPalette.dark} width={boardWidth} loading={loadingPieceStyle} onResize={setBoardWidth}>
                             <div
                               className="chessboard"
                               role="group"
@@ -2952,22 +2567,8 @@ function App() {
                                 }),
                               )}
                             </div>
-                          </div>
-                          <div className="board-coordinates board-files-bottom">
-                            {boardFiles.map((file) => (
-                              <span key={file}>{file}</span>
-                            ))}
-                          </div>
 
-                          {loadingPieceStyle && (
-                            <div className="piece-style-loading" role="status" aria-live="polite">
-                              <span className="piece-style-spinner" aria-hidden="true" />
-                              <span>Please wait</span>
-                            </div>
-                          )}
-                          <BoardResizeHandle onResize={setBoardWidth} />
-
-                        </div>
+                        </ChessBoardFrame>
                       </div>
                     </div>
                   </article>
@@ -3135,7 +2736,7 @@ function App() {
                             <i />
                           </div>
                         ) : (
-                          moveHistory.map((move, index) => (
+                          <PagedItems pageSize={6} mobilePageSize={6} focusIndex={(reviewPly ?? moveHistory.length) - 1} label="Moves">{moveHistory.map((move, index) => (
                             <button
                               type="button"
                               className={`move-log-row ${index === (reviewPly ?? moveHistory.length) - 1 ? "move-log-current" : ""}`}
@@ -3159,7 +2760,7 @@ function App() {
                                 {move.from}→{move.to}
                               </span>
                             </button>
-                          ))
+                          ))}</PagedItems>
                         )}
                       </div>
                     </div>
@@ -3169,8 +2770,9 @@ function App() {
             )}
           </section>
         )}
+        </ScreenFit>
       </main>
-
+      {screen === "home" && <LaserDuel />}
       <footer className="site-footer">
         <span>Arcade Gambit</span>
         <CookieNotice resetRequest={cookieNoticeReset} />
@@ -3229,6 +2831,8 @@ function App() {
             <div className="modal-emblem">
               <Gamepad2 size={25} />
             </div>
+            {!user && !passwordRecovery && <nav className="auth-tabs arena-segmented" aria-label="Account sections">{[["account", "Sign in"], ["terms", "Terms of use"], ["plan", "Plans"]].map(([id, label]) => <button key={id} aria-pressed={authTab === id} onClick={() => setAuthTab(id!)}>{label}</button>)}</nav>}
+            <ScreenFit>
             {passwordRecovery ? (
               <>
                 <h2 id="auth-title">RESET YOUR PASSWORD</h2>
@@ -3285,16 +2889,15 @@ function App() {
                   <span /> ARCADE ID // OPTIONAL
                 </div>
                 <h2 id="auth-title">
-                  SAVE YOUR
-                  <br />
-                  <em>HIGH SCORE</em>
+                  JOIN THE <em>ARENA</em>
                 </h2>
                 <p className="modal-description">
                   Sign in to sync progress between machines. Or keep playing as
                   a guest — your run saves on this device.
                 </p>
-                <SignupPlans value={signupPlan} onChange={setSignupPlan} />
-                <SignupDisclaimer />
+                {authTab === "plan" && <SignupPlans value={signupPlan} onChange={setSignupPlan} />}
+                {authTab === "terms" && <SignupDisclaimer />}
+                <div className="auth-account-content" hidden={authTab !== "account"}>
                 <label className="signup-terms-acceptance">
                   <input
                     type="checkbox"
@@ -3323,6 +2926,7 @@ function App() {
                   setAuthMessage("");
                   setAuthOpen(false);
                 }} />
+                </div>
                 {authMessage && (
                   <p className="auth-message" role="alert">
                     {authMessage}
@@ -3339,6 +2943,7 @@ function App() {
                 </button>
               </>
             )}
+            </ScreenFit>
           </section>
         </div>
       )}
@@ -3413,7 +3018,7 @@ function App() {
           </section>
         </div>
       )}
-    </div></PlayAvailability.Provider>
+    </div>
   );
 }
 

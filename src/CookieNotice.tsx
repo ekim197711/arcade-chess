@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, Cookie } from "lucide-react";
@@ -61,7 +62,7 @@ export function CookieNotice({ resetRequest = 0 }: { resetRequest?: number }) {
           <h2 id="cookie-notice-title">Even arcades have cookies.</h2>
           <p>We use necessary browser storage to remember your progress, settings and sign-in.</p>
           {analyticsConfigured && <p className="cookie-analytics-summary">With your permission, Google Analytics uses cookies to measure visits and screen usage. Analytics is optional; the game works without it.</p>}
-          {details && <div id="cookie-notice-details" className="cookie-notice-details">
+          {details && <div id="cookie-notice-details" className="cookie-notice-details"><PagedItems pageSize={2} mobilePageSize={1} label="Storage details">
             <p><strong>What stays on your device?</strong> Guest saves, game history, preferences,
               sign-in sessions when you log in, and your acknowledgement of this notice.
               Guest saves use local storage, rather than cookies.</p>
@@ -73,7 +74,7 @@ export function CookieNotice({ resetRequest = 0 }: { resetRequest?: number }) {
               <p>You can change your choice here at any time. Choosing Necessary only stops analytics and clears its cookies, while keeping your saves and sign-in.
                 {" "}<a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer">How Google uses information</a>.</p>
             </>}
-          </div>}
+          </PagedItems></div>}
           <div className="cookie-notice-bottom">
             <div className="cookie-notice-actions">
               <button type="button" className="cookie-notice-more" aria-expanded={details}

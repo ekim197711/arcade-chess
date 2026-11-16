@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { NotationText } from "./ChessNotation";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Chess, type Move, type Square } from "./chess";
@@ -53,6 +54,7 @@ type Props = {
 };
 
 export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", closeLabel = "Back to home", playerName, theme, color, light, dark, onClose, onMoveSound, moveTimesMs, timingSource = "device" }: Props) {
+  const [reviewTab, setReviewTab] = useState("board");
   const [preferences, setPreferences] = useState(() => readReviewPreferences(theme));
   const { eventMode, moveSeconds, specialMoveSeconds, showCoordinates, theme: reviewTheme, boardWidth } = preferences;
   const boardFrame = useRef<HTMLDivElement>(null);
@@ -230,12 +232,13 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
   }
 
   return (
-    <section className="game-review" aria-labelledby="review-title">
+    <section className="game-review personal-review" data-review-tab={reviewTab} aria-labelledby="review-title">
       <header>
         <h2 id="review-title">Game review</h2>
         <button type="button" onClick={onClose} >{closeLabel}</button>
       </header>
-      <div className="review-layout">
+      <nav className="review-screen-tabs arena-segmented" aria-label="Review sections">{[["board", "Replay"], ["accuracy", "Accuracy"], ["skills", "Skills"], ["assistance", "Fair play"], ["options", "Options"]].map(([id, label]) => <button key={id} aria-pressed={reviewTab === id} onClick={() => setReviewTab(id!)}>{label}</button>)}</nav>
+      <div className="review-layout" hidden={reviewTab !== "board" && reviewTab !== "options"}>
         <aside className="review-move-column" aria-label="All game moves">
           <h3>Moves</h3>
           <div className="review-player-headings" aria-label="Move columns">
@@ -244,14 +247,14 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
               <strong>{side === color ? playerName : opponent}</strong>
             </div>)}
           </div>
-          <nav className="review-moves" aria-label="Review move list">
+          <nav className="review-moves" aria-label="Review move list"><PagedItems pageSize={8} mobilePageSize={4} focusIndex={ply - 1} label="Review moves">
             {moves.map((item, index) => <button key={index} disabled={preview} aria-current={ply === index + 1 ? "step" : undefined} onClick={() => jump(index + 1)}>
               <span className="review-move-notation">{Math.floor(index / 2) + 1}{item.color === "w" ? "." : "..."} {item.san}</span>
               <RatingBadge analysis={analyses[index]} />
               <AccuracyBadge analysis={analyses[index]} failed={failed} />
               {timings[index] !== null && <span className="review-move-time" aria-label={`Time spent: ${formatMoveTime(timings[index])}`}>{formatMoveTime(timings[index])}</span>}
             </button>)}
-          </nav>
+          </PagedItems></nav>
         </aside>
         <div className="review-board-column">
           {!preview && <section className="review-advantage" aria-label="Position evaluation">
@@ -287,7 +290,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
           {showCoordinates && <div className="review-axis review-file-axis" aria-label="Board files">{Array.from({ length: 8 }, (_, index) => <span key={index}>{String.fromCharCode(97 + (color === "w" ? index : 7 - index))}</span>)}</div>}
           <BoardResizeHandle onResize={resizeReviewBoard} fitToStageHeight={false} />
           </div>
-          <div className="review-board-size">
+          <div className="review-board-size" hidden={reviewTab !== "options"}>
             <label htmlFor="review-board-size">Board size <output>{boardWidth === null ? "Auto" : `${boardWidth}px`}</output></label>
             <input id="review-board-size" aria-label="Review board size" type="range" min="240" max="1200" step="10" value={boardWidth ?? Math.max(240, Math.min(1200, boardPixels))} onChange={event => resizeReviewBoard(Number(event.target.value))} />
             <button type="button" onClick={() => resizeReviewBoard(undefined)}>Auto-fit board</button>
@@ -352,7 +355,7 @@ export function GameReview({ pgn, opponent, opponentElo, opponentKind = "bot", c
             </div>
           </section>}
 
-          <div className="review-settings-bottom">
+          <div className="review-settings-bottom" hidden={reviewTab !== "options"}>
           <div className="review-appearance" role="group" aria-label="Review settings">
             <label>Review piece theme
               <select value={reviewTheme} disabled={themeLoading} onChange={(event) => void changeReviewTheme(event.target.value)}>

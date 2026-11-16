@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { roleLabel, type AppRole } from "./useAdministration";
@@ -134,7 +135,7 @@ function AdministratorManagement({ userId }: { userId: string }) {
     {error && <p role="alert">{error}</p>}
     <p role="status">{loading ? "Loading users…" : message}</p>
     {!loading && users.length === 0 && !error && <p>No users found.</p>}
-    <ul className="admin-user-list">{users.map(user => <li key={user.id}>
+    <div className="admin-user-list"><PagedItems list="ul" pageSize={3} mobilePageSize={2} label="Users">{users.map(user => <li key={user.id}>
       <div><strong>{user.email}</strong>{user.name && <span>{user.name}</span>}<span>{roleLabel(user.role)}{!user.verified && " · Email not verified"}</span>
         <span>{user.status === "banned" ? "Banned" : user.status === "suspended" ? `Suspended until ${user.until ? new Date(user.until).toLocaleString() : "further notice"}` : "Active"}</span>{user.reason && <span>{user.reason}</span>}</div>
       {user.id === userId ? <span className="admin-protected">Your account</span> : <div className="admin-user-actions"><button type="button" disabled={loading || !!saving || ((!user.verified || user.status !== "active") && user.role !== "administrator")} onClick={() => void changeRole(user)}>
@@ -145,7 +146,7 @@ function AdministratorManagement({ userId }: { userId: string }) {
           {action === "suspend" ? "Suspend user" : action === "ban" ? "Ban user" : "Restore access"}
         </button>)}
       </div>}
-    </li>)}</ul>
+    </li>)}</PagedItems></div>
     {moderation && <form className="admin-moderation" aria-label="Confirm account action" onSubmit={event => { event.preventDefault(); void moderate(); }}>
       <h3>{moderation.action === "ban" ? "Ban" : moderation.action === "suspend" ? "Suspend" : "Restore access for"} {moderation.user.email}?</h3>
       <p>{moderation.action === "ban" ? "This blocks the account until an administrator restores access." : moderation.action === "suspend" ? "The account regains access automatically when this period ends." : "This removes the account restriction."}</p>

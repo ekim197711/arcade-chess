@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { useEffect, useRef, useState } from "react";
 import { createPinball, launchBall, stepPinball, TARGETS, type PinballState } from "./pinballPhysics";
 import { drawPinball } from "./pinballCanvas";
@@ -5,6 +6,7 @@ import { usePinballScores } from "./usePinballScores";
 import "./chessPinball.css";
 
 export default function ChessPinball({accountId,onClose,onScore}:{accountId:string;onClose:()=>void;onScore:()=>void}){
+  const [panel,setPanel]=useState("table");
   const scores=usePinballScores(accountId);
   const state=useRef<PinballState>(createPinball()),canvas=useRef<HTMLCanvasElement>(null);
   const keys=useRef({left:false,right:false});const pausedRef=useRef(false),[paused,setPaused]=useState(false);
@@ -43,8 +45,9 @@ export default function ChessPinball({accountId,onClose,onScore}:{accountId:stri
     return()=>{cancelAnimationFrame(frame);window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);window.removeEventListener("blur",blur);document.removeEventListener("visibilitychange",visibility);};
   },[]);
   function leave(){if(state.current.score>0)scores.record(state.current.score);onClose();}
-  return <section className="chess-pinball">
+  return <section className="chess-pinball" data-panel={panel}>
     <header className="pinball-heading"><div><small>CHESS ARCADE / THE ROYAL TABLE</small><h1>Chess <em>Pinball</em></h1></div><button onClick={leave}>Back to arcade</button></header>
+    <nav className="mini-game-tabs arena-segmented" aria-label="Pinball panels">{[["table","Table"],["controls","How to play"],["scores","High scores"]].map(([id,label])=><button key={id} aria-pressed={panel===id} onClick={()=>{setPanel(id!);if(id!=="table")pause(true);}}>{label}</button>)}</nav>
     <div className="pinball-layout">
       <aside className="pinball-panel pinball-controls"><p className="section-kicker">SCORE</p><output className="pinball-score" aria-label="Pinball score">{snapshot.score.toLocaleString()}</output><p>Personal best <strong>{scores.best.toLocaleString()}</strong></p><div className="pinball-stats"><span>Ball <b>{snapshot.round} / 3</b></span><span>Captures <b>{snapshot.captures}</b></span><span>Mates <b>{snapshot.mates}</b></span></div>
         <div className="pinball-actions">{snapshot.phase==="over"?<button onClick={restart}>New game</button>:<button disabled={snapshot.phase!=="ready"||paused} onClick={launch}>Launch ball · Space</button>}<button onClick={()=>pause(!paused)}>{paused?"Resume":"Pause · P"}</button></div>
@@ -54,7 +57,7 @@ export default function ChessPinball({accountId,onClose,onScore}:{accountId:stri
       <div className="pinball-center"><div className="pinball-mobile-hud"><strong>{snapshot.score.toLocaleString()} points</strong><span>Ball {snapshot.round} / 3</span>{snapshot.phase==="over"?<button onClick={restart}>New game</button>:<button disabled={snapshot.phase!=="ready"||paused} onClick={launch}>Launch</button>}</div><div className="pinball-table"><canvas ref={canvas} width={480} height={720} tabIndex={0} aria-label="Chess pinball table. Left and right Shift control flippers. Space launches a ball. P pauses." data-phase={snapshot.phase} data-balls={snapshot.balls.length} data-left={snapshot.left>.5} data-right={snapshot.right>.5}/>{paused&&<div className="pinball-paused"><h2>PAUSED</h2><button onClick={()=>pause(false)}>Resume pinball</button></div>}</div><p className="pinball-message" role="status">{snapshot.message}</p>
         <div className="pinball-touch">{(["left","right"] as const).map(side=><button key={side} aria-label={`${side} flipper`} onPointerDown={event=>{event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);keys.current[side]=!pausedRef.current;}} onPointerUp={()=>{keys.current[side]=false;}} onPointerCancel={()=>{keys.current[side]=false;}} onLostPointerCapture={()=>{keys.current[side]=false;}} onKeyDown={event=>{if(event.code==="Enter"||event.code==="Space"){event.preventDefault();keys.current[side]=!pausedRef.current;}}} onKeyUp={()=>{keys.current[side]=false;}}>{side==="left"?"◀ Left flipper":"Right flipper ▶"}</button>)}</div>
       </div>
-      <aside className="pinball-panel pinball-leaderboard"><p className="section-kicker">HIGH SCORES</p><h2>The grandmasters</h2>{scores.personal&&<p>Your rank: <strong>#{scores.personal.rank}</strong> · {scores.personal.score.toLocaleString()}</p>}<ol>{scores.entries.map(entry=><li key={entry.rank}><span>{entry.rank}. {entry.name}</span><strong>{entry.score.toLocaleString()}</strong></li>)}</ol>{!scores.entries.length&&<p>No scores loaded yet. Set the first high score!</p>}<button onClick={()=>void scores.refresh()}>Refresh leaderboard</button>
+      <aside className="pinball-panel pinball-leaderboard"><p className="section-kicker">HIGH SCORES</p><h2>The grandmasters</h2>{scores.personal&&<p>Your rank: <strong>#{scores.personal.rank}</strong> · {scores.personal.score.toLocaleString()}</p>}<div className="pinball-score-list"><PagedItems list="ol" pageSize={5} mobilePageSize={5} label="High scores">{scores.entries.map(entry=><li key={entry.rank}><span>{entry.rank}. {entry.name}</span><strong>{entry.score.toLocaleString()}</strong></li>)}</PagedItems></div>{!scores.entries.length&&<p>No scores loaded yet. Set the first high score!</p>}<button onClick={()=>void scores.refresh()}>Refresh leaderboard</button>
         {accountId!=="guest"?<><label>Leaderboard name<input maxLength={24} value={scores.name} onChange={event=>scores.changeName(event.target.value)}/></label><button disabled={scores.busy||!scores.name.trim()} onClick={()=>void scores.upload()}>{scores.busy?"Saving…":"Save name & score"}</button><small>Your chosen name and best score are public.</small></>:<p>Guest high scores save on this device. Sign in from the arcade to compare your score on the shared leaderboard.</p>}
         <p className="pinball-save" role="status">{scores.status}</p>
       </aside>

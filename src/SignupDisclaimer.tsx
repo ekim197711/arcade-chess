@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 export const SIGNUP_TERMS_VERSION = "2026-10-25.2";
 
 export function SignupDisclaimer() {
@@ -9,7 +10,7 @@ export function SignupDisclaimer() {
         every free or paid tier. They limit liability where the law allows;
         your mandatory legal rights still apply.
       </p>
-      <div className="signup-terms-text" role="region" aria-label="Full terms of use and liability disclaimer" tabIndex={0}>
+      <div className="signup-terms-text" role="region" aria-label="Full terms of use and liability disclaimer" tabIndex={0}><PagedItems pageSize={2} mobilePageSize={1} label="Terms">
         <p>Version {SIGNUP_TERMS_VERSION}. In these terms, “Arcade Gambit” means the chess arcade application, its website, games, analysis, artwork, audio, account features, and related services. “We” means the application's operator. References to protected parties include its owners, developers, employees, contributors, and contractors, to the extent each can lawfully benefit from these terms.</p>
 
         <h4>1. Scope: every access method and plan</h4>
@@ -44,7 +45,7 @@ export function SignupDisclaimer() {
 
         <h4>9. Interpretation and acceptance</h4>
         <p>Each limitation applies only as far as the law permits. If a provision is invalid or unfair, it is not binding to that extent; the remaining provisions continue only where legally possible. No provision requires you to pay our legal costs merely for making a complaint or pursuing a lawful claim. By checking the acceptance box and continuing with a signup or login provider, you agree to this version of the terms. That agreement is separate from any purchase authorization and does not establish acceptance of future changes without any further steps required by law.</p>
-      </div>
+      </PagedItems></div>
     </section>
   );
 }

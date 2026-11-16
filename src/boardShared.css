@@ -7,3 +7,10 @@
  --board-move-from-fill: color-mix(in srgb, var(--board-highlight-base) 85%, var(--accent-info, #72e9ff));
  --board-move-to-fill: color-mix(in srgb, var(--board-move-from-fill) 89%, white);
 }
+
+/* Moving artwork may cross squares without affecting their hit targets. */
+.chessboard .drag-square { overflow: visible; }
+.chessboard .drag-square .chess-piece { z-index: 2; }
+.move-animation-setting { display: flex; flex-direction: column; gap: 6px; font-size: 13px; margin: 10px 0; }
+.move-animation-setting input { width: 100%; accent-color: #85e7ff; }
+.move-animation-setting small { font-size: 11px; opacity: .8; }

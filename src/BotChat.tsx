@@ -1,3 +1,4 @@
+import { PagedItems } from "./PagedItems";
 import { ChatEmojiPicker, EmojiChatBody } from "./ChatEmoji";
 import { useEffect, useRef, useState } from "react";
 
@@ -13,7 +14,7 @@ export function BotChat({ name, messages, onMessages, emojisEnabled }: { name:st
     <p className="review-note">{name} is a bot with short preset replies. This conversation stays on this device during this game.</p>
     <div className="social-chat-log" role="log" aria-label={`Chat with ${name}`} ref={log}>
       {!visible.length && <p>Say hello or wish your opponent good luck!</p>}
-      {visible.map(message => <p key={message.id} className={message.author === "You" ? "social-message-own" : undefined}><strong>{message.author}</strong><EmojiChatBody body={message.body}/></p>)}
+      <PagedItems pageSize={3} mobilePageSize={2} focusIndex={visible.length - 1} label="Bot messages">{visible.map(message => <p key={message.id} className={message.author === "You" ? "social-message-own" : undefined}><strong>{message.author}</strong><EmojiChatBody body={message.body}/></p>)}</PagedItems>
     </div>
     <form className="social-chat-form" onSubmit={event => {
       event.preventDefault(); const body = draft.trim(); if (!body) return;

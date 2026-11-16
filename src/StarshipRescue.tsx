@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Chess, type Square } from "./chess";
-import { BoardSquare, BoardPanel } from "./BoardShared";
+import { BoardSquare, BoardPanel, ChessBoardFrame } from "./BoardShared";
 import { PromotionMenu, type PromotionPiece } from "./PromotionMenu";
 import type { PieceStyle } from "./PieceArtwork";
 import { REPAIRS, repairsWithMove } from "./starshipRules";
@@ -69,8 +69,10 @@ export default function StarshipRescue({ accountId, theme, light, dark, onClose,
   const files = repair.puzzle.side === "b" ? "hgfedcba" : "abcdefgh";
   const ranks = repair.puzzle.side === "b" ? "12345678" : "87654321";
   const hintControls = <><button disabled={hint === 2} onClick={() => setHint(previous => Math.min(2, previous + 1))}>{hint === 0 ? "Hint" : hint === 1 ? "Show mating move" : "Hint revealed"}</button><p className="rescue-hint" aria-live="polite">{hint === 1 ? `Look for a check with the piece on ${solution.from}.` : hint === 2 ? `Move ${solution.from} to ${solution.to}: ${solution.san}` : "Need a hand? Hints are free."}</p></>;
-  return <section className="starship-rescue">
+  const [panel, setPanel] = useState("mission");
+  return <section className="starship-rescue" data-panel={panel}>
     <header className="rescue-heading"><div><small>CHESS ARCADE / MINI MISSION</small><h1>Starship <em>Rescue</em></h1></div><button onClick={onClose}>Back to arcade</button></header>
+    <nav className="mini-game-tabs arena-segmented" aria-label="Starship panels">{[["mission", "Mission"], ["systems", "Systems"], ["log", "Pilot log"]].map(([id,label]) => <button key={id} aria-pressed={panel===id} onClick={() => setPanel(id!)}>{label}</button>)}</nav>
     <div className="rescue-layout">
       <BoardPanel className="rescue-controls">
         <p className="section-kicker">REPAIR MANIFEST</p><h2>{save.repaired} / 6 systems</h2>
@@ -82,7 +84,7 @@ export default function StarshipRescue({ accountId, theme, light, dark, onClose,
       </BoardPanel>
       <div className="rescue-center">
         {playing ? <><div className="rescue-board-caption"><strong>{repair.puzzle.side === "w" ? "White" : "Black"} to move</strong><span>Checkmate in one</span></div>
-          <div className="rescue-board chessboard" role="group" aria-label="Starship repair chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties}>
+          <div className="rescue-board-stage board-stage"><ChessBoardFrame color={side} light={light} dark={dark}><div className="rescue-board chessboard" role="group" aria-label="Starship repair chessboard" style={{ "--board-square-light": light, "--board-square-dark": dark } as CSSProperties}>
             {[...ranks].flatMap(rank => [...files].map(file => {
               const square = `${file}${rank}` as Square; const piece = board.get(square);
               return <BoardSquare key={square} square={square} piece={piece} theme={theme} positionKey={board.fen()} canDrag={active && !promotion && piece?.color === side} disabled={!active || !!promotion}
@@ -93,7 +95,7 @@ export default function StarshipRescue({ accountId, theme, light, dark, onClose,
                   else setSelected(piece?.color === side && selected !== square ? square : null);
                 }} onKeyDown={event => { if (event.key === "Escape") { setSelected(null); setPromotion(null); } }}><small className="rescue-coordinate" aria-hidden="true">{square}</small></BoardSquare>;
             }))}
-          </div><p className="rescue-feedback" role="status">{message || "Choose a piece, then its destination. Dragging works too."}</p>
+          </div></ChessBoardFrame></div><p className="rescue-feedback" role="status">{message || "Choose a piece, then its destination. Dragging works too."}</p>
           {active && <div className="rescue-mobile-hints">{hintControls}</div>}
           {solvedFen && <button className="rescue-next" onClick={() => { clearPuzzle(); if (replay !== null) setReplay(replay < 5 ? replay + 1 : null); }}>{index === 5 ? "Return to ship" : "Next repair"}</button>}
         </> : <div className="rescue-story"><CrashSite repaired={save.repaired} launched={save.launched} /><p className="section-kicker">{save.launched ? "MISSION COMPLETE" : save.repaired === 6 ? "READY FOR LIFTOFF" : "MAYDAY! MAYDAY!"}</p><h2>{save.launched ? "Next stop: home." : save.repaired === 6 ? "You fixed the ship!" : "A rough landing. A clever escape."}</h2><p>{save.launched ? "Nova and the little starship are safely on their way. All six repairs are saved." : save.repaired === 6 ? "Nova is back in the cockpit. Every system is green. Time to leave this dusty moon behind." : "Pilot Nova has crashed on a remote moon. The ship’s repair computer is locked by chess puzzles. Find six checkmates to rebuild the ship and fly home."}</p>
