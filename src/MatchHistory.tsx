@@ -93,7 +93,7 @@ export function MatchHistory({ matches, userId, onReview, onResume, onOnline, re
         <span>{filter === "all" ? `${entries.length} saved` : `${visible.length} of ${entries.length} saved`}</span>
       </div>
     </header>
-    <p className="review-note">{userId ? "Your boss, human and practice games in one place. Resume unfinished games or replay any match on another device." : "Every move is saved automatically in this browser. Sign in to keep your games across devices and play humans."}</p>
+    <p className="review-note">{userId ? "Resume a game or review your moves." : "Games are saved on this device. Sign in to sync across devices."}</p>
     {onlineError && <p className="review-note" role="status">Online game history is unavailable. Use Refresh saved data to retry.</p>}
     {!visible.length ? <p>{query.trim() ? "No saved games match your search." : filter === "all" ? "Your games will appear here when you start playing." : "No games of this type yet."}</p> : <div className="history-list"><PagedItems key={`${filter}:${query}`} pageSize={4} mobilePageSize={3} label="Saved games">{visible.map(entry =>
       <div className={`history-item history-type-${entry.type}`} key={entry.id}>
@@ -161,7 +161,7 @@ export function MatchResult({ match, onReview, onHome, theme, light, dark }: { m
       <div><dt>Captures</dt><dd>{moves.filter((move) => move.captured).length}</dd></div>
       <div><dt>Final move</dt><dd>{moves.at(-1)?.san ?? "None"}</dd></div>
     </dl>
-    <p className="review-note">{new Date(match.startedAt).toLocaleString()} ? Replay every move and explore the suggested alternatives.</p>
+    <p className="review-note">{new Date(match.startedAt).toLocaleString()}</p>
     </div>
   </section>;
 }

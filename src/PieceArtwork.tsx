@@ -96,3 +96,11 @@ export const PieceArtwork = memo(function PieceArtwork({
     />
   );
 });
+
+/** Show both armies so a set can be judged before it is applied. */
+export function BishopPreview({ theme }: { theme: PieceStyle }) {
+  return <span className="bishop-preview" aria-hidden="true">
+    <span className="bishop-preview-light"><PieceArtwork type="b" color="w" theme={theme} /></span>
+    <span className="bishop-preview-dark"><PieceArtwork type="b" color="b" theme={theme} /></span>
+  </span>;
+}

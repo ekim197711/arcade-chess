@@ -47,7 +47,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
+import { BishopPreview, PieceArtwork, PIECE_CHOICES, loadPieceStyle, type PieceStyle } from "./PieceArtwork";
 import { BoardSquare, BoardPanel, ChessBoardFrame, PremoveControl } from "./BoardShared";
 import { PromotionMenu, type PromotionPiece, type PromotionPosition } from "./PromotionMenu";
 import { BoardAnnotations } from "./BoardAnnotations";
@@ -2012,10 +2012,10 @@ function App() {
 
   const battleAppearance = <div className="battle-appearance-controls">
     <MoveAnimationSetting />
-    <label>Piece set<select aria-label="Battle piece set" value={pieceTheme} disabled={loadingPieceStyle} onChange={event => void changePieceStyle(event.target.value as PieceStyle)}>{PIECE_CHOICES.map(choice => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
+    <label className="battle-piece-choice">Piece set<BishopPreview theme={pieceTheme} /><select aria-label="Battle piece set" value={pieceTheme} disabled={loadingPieceStyle} onChange={event => void changePieceStyle(event.target.value as PieceStyle)}>{PIECE_CHOICES.map(choice => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
     <label>Board colors<select aria-label="Battle board colors" value={boardPaletteId} onChange={event => setBoardPaletteId(event.target.value as BoardPaletteId)}>{BOARD_PALETTES.map(palette => <option key={palette.id} value={palette.id}>{palette.label}</option>)}</select></label>
     <label>Sound theme<select aria-label="Battle sound theme" value={soundTheme} onChange={event => chooseSoundTheme(event.target.value as SoundTheme)}>{SOUND_THEMES.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</select></label>
-    <p className="review-note">Your setup follows you into every game.</p>
+
   </div>;
 
   if (user && administration?.restriction) {
@@ -2135,12 +2135,12 @@ function App() {
           <section className="settings-page" aria-labelledby="settings-title">
             <div className="settings-page-heading">
               <div>
-                <span className="settings-eyebrow"><i /> ARCADE // OPTIONS</span>
+
                 <h1 id="settings-title">Game <em>settings</em></h1>
-                <p>Choose your board, pieces, and arcade sound.</p>
+                <p>Changes are saved automatically.</p>
               </div>
               <button className="settings-back" type="button" onClick={() => setScreen("home")}>
-                <ChevronLeft size={15} /> BACK TO ARCADE
+                <ChevronLeft size={15} /> Back to home
               </button>
             </div>
 
@@ -2149,11 +2149,11 @@ function App() {
               <section className="settings-card" aria-label="Piece themes" data-settings-section="pieces">
                 <h2>Piece set</h2>
                 <MoveAnimationSetting />
-                <p>Choose the look of your chess pieces.</p>
+
                 <div className="piece-theme-options piece-set-options" role="group" aria-label="Choose a chess piece design">
-                  <PagedItems pageSize={18} mobilePageSize={6} focusIndex={PIECE_CHOICES.findIndex(choice => choice.id === pieceTheme)} label="Piece sets">{PIECE_CHOICES.map((choice) => (
+                  <PagedItems pageSize={12} mobilePageSize={6} focusIndex={PIECE_CHOICES.findIndex(choice => choice.id === pieceTheme)} label="Piece sets">{PIECE_CHOICES.map((choice) => (
                     <button className="piece-theme-option" type="button" key={choice.id} aria-label={`Use ${choice.label} piece design`} aria-pressed={pieceTheme === choice.id} disabled={loadingPieceStyle} onClick={() => void changePieceStyle(choice.id)}>
-                      <span className="piece-theme-icon" aria-hidden="true"><PieceArtwork type="q" color="w" theme={choice.id} /></span>
+                      <BishopPreview theme={choice.id} />
                       <span>{choice.label}</span>
                     </button>
                   ))}</PagedItems>
@@ -2162,7 +2162,7 @@ function App() {
 
               <section className="settings-card" aria-label="Board themes" data-settings-section="board">
                 <h2>Board colors</h2>
-                <p>Pick a palette for the chessboard.</p>
+
                 <div className="board-palette-options" role="group" aria-label="Choose a board color layout">
                   <PagedItems pageSize={12} mobilePageSize={6} label="Board palettes">{BOARD_PALETTES.map((palette) => (
                     <button className="piece-theme-option board-palette-option" type="button" key={palette.id} aria-label={`Use the ${palette.label.toLowerCase()} board colors`} aria-pressed={boardPaletteId === palette.id} onClick={() => setBoardPaletteId(palette.id)}>
@@ -2175,7 +2175,7 @@ function App() {
 
               <section className="settings-card" aria-label="Sound theme" data-settings-section="sounds">
                 <h2>Sound theme</h2>
-                <p>Choose a soft sound palette for every chess action.</p>
+
                 <div className="sound-theme-options" role="group" aria-label="Choose board sound effects">
                   {SOUND_THEMES.map((theme) => (
                     <button className="piece-theme-option sound-theme-option" type="button" key={theme.id} aria-pressed={soundTheme === theme.id} aria-label={`Use ${theme.name} sound theme`} title={theme.description} onClick={() => chooseSoundTheme(theme.id)}>
@@ -2187,7 +2187,7 @@ function App() {
 
               <section className="settings-card settings-audio-card" aria-label="Audio settings" data-settings-section="audio">
                 <h2>Audio</h2>
-                <p>Control music and sound effects independently.</p>
+
                 <button className="settings-toggle" type="button" aria-pressed={musicEnabled} onClick={toggleMusic}>
                   <span><Music2 size={17} /> Arcade music</span><b>{musicEnabled ? "ON" : "OFF"}</b>
                 </button>
@@ -2211,7 +2211,7 @@ function App() {
                 <p>Adjust the chessboard width during a match.</p>
                 <label className="settings-range-label" htmlFor="settings-board-size"><span>SIZE</span><strong>{boardWidth ?? 520}px</strong></label>
                 <input id="settings-board-size" className="settings-range" type="range" min="300" max="760" step="10" value={boardWidth ?? 520} onChange={(event) => setBoardWidth(Number(event.currentTarget.value))} />
-                <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>RESET TO AUTO SIZE</button>
+                <button className="settings-reset" type="button" onClick={() => setBoardWidth(undefined)}>Fit to screen</button>
               </section>
               <section className="settings-card" aria-label="Cookies and storage" data-settings-section="more">
                 <h2>Cookies & storage</h2>
@@ -2268,7 +2268,7 @@ function App() {
               >
                 <div className="roster-heading">
                   <div>
-                    <div className="section-kicker">CHOOSE AN OPPONENT</div>
+
                     <h1 id="boss-select-title">
                       {playMode === "freestyle" ? "FREESTYLE" : "STANDARD"} <em>LADDER</em>
                     </h1>
@@ -2277,8 +2277,8 @@ function App() {
                 </div>
 
                 <aside className="roster-options-panel" aria-label="Ladder options">
-                    <p>Beat each challenger to unlock the next in this ladder. Standard and Freestyle progress independently.</p>
-                    <p>Ratings are strength targets. Beginner bosses below 1320 Elo use approximate difficulty.</p>
+                    <p>Win to unlock the next boss. Each ladder has separate progress.</p>
+                    <details className="ladder-help"><summary>About boss ratings</summary><p>Ratings are strength targets. Beginner bosses below 1320 Elo use approximate difficulty.</p></details>
                     {debugMode && <p role="status">DEBUG MODE · All bosses unlocked · Test matches</p>}
                     <div className="play-mode-picker">
                       <label htmlFor="play-mode">PLAY MODE</label>
@@ -2286,10 +2286,10 @@ function App() {
                         <option value="standard">Standard chess</option>
                         <option value="freestyle">Freestyle chess (Chess960)</option>
                       </select>
-                      <p>{playMode === "freestyle"
+                      <details className="ladder-help"><summary>How this mode works</summary><p>{playMode === "freestyle"
                         ? "A random starting position with matching back ranks, opposite-color bishops, and the king between the rooks. Normal chess rules apply. To castle, move your king onto your rook; they finish on g/f or c/d."
-                        : "The traditional starting position and standard chess rules."}</p>
-                      {savedMatch && <small>Resume keeps the saved position. Earlier unfinished games remain available in Game history.</small>}
+                        : "The traditional starting position and standard chess rules."}</p></details>
+                      {savedMatch && <small>Find other unfinished games in Your games.</small>}
                     </div>
                   <div className="roster-fight-dock">
                     <div className="roster-fight-target">
@@ -2612,7 +2612,7 @@ function App() {
                               ? "Reviewing an earlier position."
                               : currentResult === "win"
                               ? "Boss down. Next challenger?"
-                              : "Your move, challenger."}
+                              : "Your move."}
                           </span>
                           <span className="player-turn">
                             <span
@@ -2854,7 +2854,7 @@ function App() {
                 <p className="modal-description">
                   {cloudSyncError
                     ? "Some progress is saved locally and will retry when connectivity returns."
-                    : "Your arcade run is synced. Keep climbing the leaderboard."}
+                    : "Your progress is synced."}
                 </p>
                 <div className="account-stats">
                   {administrationRole && <span>ROLE: {roleLabel(administrationRole).toUpperCase()}</span>}
@@ -2888,7 +2888,7 @@ function App() {
                   <span /> ARCADE ID // OPTIONAL
                 </div>
                 <h2 id="auth-title">
-                  JOIN THE <em>ARENA</em>
+                  Sign in
                 </h2>
                 <p className="modal-description">
                   Sign in to sync progress between machines. Or keep playing as
