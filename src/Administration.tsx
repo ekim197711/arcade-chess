@@ -9,6 +9,7 @@ type Statistics = { users: number; online: number; games: { today: number; hour:
 type ManagedUser = { id: string; email: string; name?: string; role: AppRole; verified: boolean; status: "active" | "banned" | "suspended"; until?: string | null; reason?: string | null };
 
 export function Administration({ userId, role }: { userId?: string; role: AppRole | null }) {
+  const [section, setSection] = useState("overview");
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,7 +48,9 @@ export function Administration({ userId, role }: { userId?: string; role: AppRol
     </div>
     {!allowed ? <p role="status">{!userId ? "Sign in with an administrator account to view statistics." : role === "user" ? "Administrator access is required to view this page." : "Checking administrator access. If this continues, check your connection and reload the page."}</p> : <>
       <p className="admin-role">{roleLabel(role!)}</p>
-      <BuildVersion />
+      <nav className="arena-segmented admin-screen-tabs" aria-label="Administration sections">{[["overview", "Overview"], ["users", "Users"], ["release", "Build information"]].map(([id, label]) => <button key={id} aria-pressed={section === id} onClick={() => setSection(id!)}>{label}</button>)}</nav>
+      <div hidden={section !== "release"}><BuildVersion /></div>
+      <div hidden={section !== "overview"}>
       {error && <p role="alert">{error}</p>}
       {!statistics && loading && <p role="status">Loading statistics…</p>}
       {statistics && <>
@@ -62,7 +65,7 @@ export function Administration({ userId, role }: { userId?: string; role: AppRol
       </>}
       <p className="admin-note">Online now counts signed-in users active in a visible tab within the last 90 seconds, once per account. Total users includes unconfirmed signups and excludes deleted accounts.</p>
       <p className="admin-note">Game totals count completed Standard, Freestyle, human and practice bot games saved to the server. Each match counts once. Debug games and guest games stored only on a device are excluded. Today starts at midnight in Europe/Copenhagen; week and month mean the last 7 and 30 days.</p>
-      <AdministratorManagement userId={userId!} />
+      </div><div hidden={section !== "users"}><AdministratorManagement userId={userId!} /></div>
     </>}
   </section>;
 }

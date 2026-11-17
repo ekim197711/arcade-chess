@@ -1,6 +1,6 @@
 /* The arcade shell owns the viewport. Longer collections use tabs and pages. */
 html, body, #root { width: 100%; height: 100%; min-width: 280px; overflow: hidden; overscroll-behavior: none; }
-.app-shell[data-screen][data-screen] {
+.app-shell[data-screen] {
   --bg: #080d15; --panel: #111b29; --panel-2: #192638; --line: #2b3d50;
   --text-primary: #edf4fc; --text-secondary: #b7c7d7; --text-muted: #92a6ba;
   --text-on-control: #e9f4ff; --surface-card: #101a28; --surface-raised: #172437;
@@ -27,7 +27,6 @@ html, body, #root { width: 100%; height: 100%; min-width: 280px; overflow: hidde
 .app-shell[data-screen] .top-actions { gap: 8px; margin: 0; align-items: center; }
 .app-shell[data-screen] .top-actions .sound-button, .app-shell[data-screen] .top-actions .login-button, .app-shell[data-screen] .profile-chip { min-height: 35px; padding: 8px 10px; font: 10px var(--mono); gap: 7px; border-radius: 3px; }
 .app-shell[data-screen] .top-actions .sound-button span { display: none; }
-.app-shell[data-screen] .top-actions .settings-button span { display: inline; }
 .app-shell[data-screen] .top-actions .profile-chip { max-width: 170px; }
 .app-shell[data-screen] .avatar, .arena-avatar { border-radius: 50%; }
 .app-shell[data-screen] > main, .app-shell[data-screen] > main.home-main, .app-shell[data-screen] > main.online-main, .app-shell[data-screen] > main.review-main, .app-shell[data-screen].app-shell-battle > main {
@@ -317,7 +316,6 @@ html, body, #root { width: 100%; height: 100%; min-width: 280px; overflow: hidde
   .app-shell[data-screen] .brand { flex-basis: 140px; width: 140px; }
   .app-shell[data-screen] .brand-logo { width: 140px; }
   .app-shell[data-screen] .top-nav button { padding: 8px 10px; font-size: 11px; }
-  .app-shell[data-screen] .top-actions .settings-button span { display: none; }
   .arena-status { display: none; }
   .arena-play-grid { grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 14px; }
   .arena-bottom-row { gap: 12px; }
@@ -485,7 +483,7 @@ html, body, #root { width: 100%; height: 100%; min-width: 280px; overflow: hidde
 .app-shell[data-screen] .battle-panel-tabs button { padding: 5px; min-height: 28px; font-size: 9px; }
 .app-shell[data-screen] .online-quick-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .app-shell[data-screen] .move-log > .paged-items { width: 100%; }
-.app-shell[data-screen] .top-actions .settings-button { min-width: 35px; }
+.app-shell[data-screen] .top-actions .settings-button { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; min-width: 36px; padding: 0; }
 .app-shell[data-screen] .game-start-button { text-shadow: none; }
 .app-shell[data-screen] .signup-terms-text .paged-items-content p { margin: 0; }
 .app-shell[data-screen] .signup-terms-text h4 { margin: 0; }
@@ -856,4 +854,81 @@ html, body, #root { width: 100%; height: 100%; min-width: 280px; overflow: hidde
   .app-shell[data-screen] .online-clock { min-height: 32px; padding: 4px 8px; }
   .app-shell[data-screen] .online-clock time { font-size: 20px; }
   .app-shell[data-screen] .online-clock span { font-size: 10px; }
+}
+
+/* Palette specificity stays separate from responsive viewport dimensions. */
+.app-shell[data-screen][data-screen] {
+  --bg:#080d15; --panel:#111b29; --panel-2:#192638; --line:#2b3d50;
+  --text-primary:#edf4fc; --text-secondary:#b7c7d7; --text-muted:#92a6ba; --text-on-control:#e9f4ff;
+  --surface-card:#101a28; --surface-raised:#172437; --surface-control:#172638; --surface-control-hover:#214158; --surface-dialog:#101b2a;
+  --border-default:#2c4055; --border-control:#3b5369; --accent-info:#77e7ed; --accent-success:#c5f783; --focus-ring:#a0f1f4;
+}
+@media (max-height:720px) and (max-width:599px) {
+  .app-shell[data-screen] .arena-home { grid-template-rows:54px minmax(0,1fr)66px; gap:8px; }
+  .app-shell[data-screen] .arena-heading h1 { font-size:23px; margin:4px 0; }
+  .app-shell[data-screen] .arena-heading p { font-size:8px; }
+  .app-shell[data-screen] .arena-heading .arena-eyebrow { font-size:7px; }
+  .app-shell[data-screen] .arena-play-grid { grid-template-rows:minmax(184px,1.2fr) minmax(120px,1fr); gap:8px; }
+  .app-shell[data-screen] .arena-play-grid:has(.arena-resume) { grid-template-rows:minmax(184px,1.2fr) minmax(145px,1fr); }
+  .app-shell[data-screen] .human-arena, .app-shell[data-screen] .ladder-arena { padding:10px; }
+  .app-shell[data-screen] .arena-card-heading h2 { font-size:17px; }
+  .app-shell[data-screen] .arena-card-icon { height:29px; width:29px; flex-basis:29px; }
+  .app-shell[data-screen] .human-arena .online-quick-start { margin-top:6px; gap:6px; }
+  .app-shell[data-screen] .human-arena .arena-segmented { padding:3px; }
+  .app-shell[data-screen] .human-arena .arena-segmented button { min-height:24px; padding:4px; font-size:9px; }
+  .app-shell[data-screen] .online-quick-mode legend { font-size:6px; margin-bottom:6px; }
+  .app-shell[data-screen] .online-quick-times .game-start-button { padding:6px 4px; min-height:0; }
+  .app-shell[data-screen] .online-quick-times .game-start-content { gap:2px; }
+  .app-shell[data-screen] .online-quick-times .game-start-content > svg { display:none; }
+  .app-shell[data-screen] .online-quick-times .online-quick-button-time strong { font-size:25px; line-height:1; }
+  .app-shell[data-screen] .online-quick-times .online-quick-button-mode { font-size:8px; line-height:1; }
+  .app-shell[data-screen] .arena-fair-play { padding-top:6px; font-size:6px; }
+  .app-shell[data-screen] .ladder-arena { grid-template-rows:28px minmax(0,1fr)14px; gap:5px 8px; }
+  .app-shell[data-screen] .ladder-arena:has(.arena-resume) { grid-template-rows:28px minmax(0,1fr)14px 20px; }
+  .app-shell[data-screen] .ladder-arena .arena-segmented { padding:2px; }
+  .app-shell[data-screen] .ladder-arena .arena-segmented button { min-height:22px; padding:3px; font-size:8px; }
+  .app-shell[data-screen] .boss-art-button { min-height:45px; }
+  .app-shell[data-screen] .boss-art-button > img { height:48px; width:48px; }
+  .app-shell[data-screen] .boss-art-copy { gap:3px; }
+  .app-shell[data-screen] .boss-art-copy strong { font-size:14px; }
+  .app-shell[data-screen] .boss-art-copy > small { font-size:6px; }
+  .app-shell[data-screen] .boss-art-copy > span { font-size:10px; }
+  .app-shell[data-screen] .arena-resume { min-height:20px; height:20px; margin:0; padding:3px 6px; font-size:8px; }
+  .app-shell[data-screen] .ladder-progress > span { font-size:6px; }
+  .app-shell[data-screen] .ladder-progress > div { margin-top:4px; }
+  .app-shell[data-screen] .arena-bottom-row { grid-template-rows:30px 30px; gap:6px; }
+  .app-shell[data-screen] .arena-avatar { height:22px; flex-basis:22px; }
+  .app-shell[data-screen] .arena-player strong { font-size:10px; }
+  .app-shell[data-screen] .arena-record { font-size:6px; }
+  .app-shell[data-screen] .arena-record b { font-size:11px; }
+}
+
+.app-shell[data-screen] .administration-page { padding:18px; }
+.app-shell[data-screen] .admin-screen-tabs { margin:12px 0; }
+.app-shell[data-screen] .admin-heading h1 { font:600 27px "Space Grotesk",sans-serif; }
+.app-shell[data-screen] .admin-users { margin:12px 0; padding:0; border:0; }
+.app-shell[data-screen] .admin-users > h2 { font-size:18px; }
+.app-shell[data-screen] .admin-users > p { font-size:11px; }
+.app-shell[data-screen] .admin-stat { padding:12px; }
+.app-shell[data-screen] .admin-stat h2 { font-size:11px; }
+.app-shell[data-screen] .admin-note { font-size:10px; line-height:1.5; }
+.app-shell[data-screen] .admin-user-list { margin:8px 0; }
+.app-shell[data-screen] .admin-user-list .paged-items-content > li { padding:9px; font-size:11px; background:var(--surface-raised); }
+.app-shell[data-screen] .admin-user-actions button { padding:6px; font-size:10px; }
+
+.app-shell[data-screen] .gambit-briefing-layout:not([data-brief-tab="moves"]) .gambit-idea-stages { display:none; }
+.app-shell[data-screen] .gambit-briefing-layout:not([data-brief-tab="idea"]) .gambit-big-idea { display:none; }
+.app-shell[data-screen] .gambit-briefing-layout:not([data-brief-tab="plans"]) .gambit-plan-comparison { display:none; }
+
+.app-shell[data-screen] .match-result .final-position-frame { width:min(100%,440px,max(120px,calc(100dvh - 350px))); }
+@media (max-height:500px) and (min-width:600px) {
+  .app-shell[data-screen] .personal-review { padding:8px; gap:6px; }
+  .app-shell[data-screen] .personal-review > .rating-legend { display:none; }
+  .app-shell[data-screen] .personal-review header h2 { font-size:16px; }
+  .app-shell[data-screen] .personal-review .review-screen-tabs button { min-height:23px; padding:4px; }
+  .app-shell[data-screen] .personal-review .review-layout { grid-template-columns:minmax(0,1.7fr) minmax(180px,1fr); grid-template-rows:minmax(0,1fr); }
+  .app-shell[data-screen] .personal-review .review-board-column { grid-column:1; grid-row:1; }
+  .app-shell[data-screen] .personal-review .review-details { grid-column:2; grid-row:1; }
+  .app-shell[data-screen] .personal-review .review-board-frame { width:min(100%,140px); padding-bottom:4px; }
+  .app-shell[data-screen] .personal-review .review-advantage, .app-shell[data-screen] .personal-review .review-scrubber { display:none; }
 }

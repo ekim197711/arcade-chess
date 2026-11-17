@@ -2,7 +2,7 @@
 
 ## Product purpose
 
-Arcade Gambit is a browser-based chess arcade: players first choose a cartoon boss from a one-per-row ladder, then enter a separate chess battle screen. Keep the experience simple, focused, and styled like a polished dark 16-bit Amiga/demoscene game—not a generic chess dashboard.
+Arcade Gambit is a browser-based chess arcade centered on human Standard and Chess960 matches, with independent cartoon boss ladders for solo play. The UI uses a dark navy arena, cyan/lime accents, original AI artwork, and square mechanical controls. All pages must fit one viewport without document or panel scrolling; use tabs and pagination for longer collections.
 
 ## Product requirements and direction
 
@@ -17,7 +17,9 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 ## Architecture
 
 - `src/App.tsx`: app UI, ladder/progression, game flow, auth and progress sync.
-- `src/CoinInsertAnimation.tsx`: home-page integration of the public coin-insert animation component and its matching audio; preserves credit accounting, mute/volume controls, and navigation cleanup.
+- `src/ArenaHome.tsx`: human-first home, solo ladder entry, progress and retained practice links. All play is free of coin/credit gates.
+- `src/LaserDuel.tsx`: locally animated AI chess artwork on home only. Active games keep the extra board space. Preserve pause, saved preference and reduced-motion support.
+- `src/ScreenFit.tsx`, `src/PagedItems.tsx`, `src/arena.css`: viewport layout, bounded collection pages and the current UI. Legacy styles load before the arena overrides.
 - `src/progress.ts`: independent ladder counts, legacy migrations, guest merges, and queued result application.
 - `src/bot.ts`: local lightweight minimax/search opponent.
 - `src/bot.worker.ts`: runs bot search off the UI thread; the UI has a legal-move fallback if worker startup fails.
@@ -31,7 +33,7 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 ## UI palette
 
 - Use the semantic text, surface, border, control and status variables in `src/ui-colors.css` for new UI styles. Keep foreground/background pairs together; avoid hardcoded component text colors. Theme overrides belong on `.app-shell`. Chessboard palettes remain independently selectable. Verify settings text contrast with `node settings-palette-check.mjs`.
-- `src/jukeboxControls.css` styles non-Play action buttons (including dialog, promotion and cookie controls) as smoked-enamel jukebox keys with pressed, selected, disabled and keyboard-focus states. Preserve the separate ivory `GameStartButton`, chessboard squares and spatial resize grips. Embedded comic controls mirror this treatment in `public/animations/comic-duels/strip.css`.
+- `src/arena.css` owns current button surfaces, cyan hover lighting, pressed depth, selected/disabled states and keyboard focus. Keep primary clock keys square and avoid applying generic control effects to `[data-square]` or spatial resize grips. Board palettes remain independent. Legacy jukebox presentation CSS is no longer imported; music and mechanical click audio remain enabled.
 
 ## Important behavior and data rules
 
@@ -71,10 +73,10 @@ Arcade Gambit is a browser-based chess arcade: players first choose a cartoon bo
 
 ## Shared board UI
 
-- `src/BoardShared.tsx` owns interactive square artwork, board panel surfaces and premove cancellation controls for boss, online and academy games. Keep mode-specific layouts and game rules in their existing components. Use `PromotionMenu` for every playable board, including promotion at premove execution.
+- `src/BoardShared.tsx` owns `ChessBoardFrame`, interactive square artwork, board panel surfaces and premove cancellation controls for boss, online, academy and starship chess. Human and boss games use the same coordinate frame, loading state, size preference and resize grip. Keep mode-specific layouts and game rules in their existing components. Use `PromotionMenu` for every playable board, including promotion at premove execution.
 - `src/boardShared.css` derives paired last-move fills from the selected board palette. The origin is slightly darker than the destination on both light and dark squares. Preserve separate guidance fills and hollow legal-destination markers. Run `node board-consistency-check.mjs` and `node movement-highlights-check.mjs` when changing these interactions.
 
 ## Dedicated game history
 
 - Game history navigates to `#history`; do not mount personal history rows on home. Keep personal games scoped to the active account, with bounded paging and explicit refresh. History browsing also defers pending progress uploads until explicit refresh.
-- `#legendary` is the separate Legendary matches page. `src/LegendaryMatches.tsx` loads the local PGN Mentor catalog only on this page and individual tournament files only on selection. `#legendary/:event/:game` reuses game review without inventing historic ratings or move timing; legacy `#history/classic/:id` links still work. Keep Game history limited to personal games. Browsing the archive must not flush pending personal saves or progress. `npm run import:legendary` refreshes the factual mainline scores and import report in `public/legendary/`; invalid scores and unplayed forfeits are excluded. Run `node history-page-check.mjs` and `node frontpage-budget-check.mjs` when changing this flow.
+- Asteroid Solver and the historic/Legendary matches archive are retired from navigation and route handling. Legacy links fall back to home. Personal game history and personal game review remain available; page the saved games and moves instead of scrolling.

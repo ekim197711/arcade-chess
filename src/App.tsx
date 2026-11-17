@@ -2082,8 +2082,7 @@ function App() {
             title="Settings"
             aria-current={screen === "settings" ? "page" : undefined}
           >
-            <Settings size={17} />
-            <span>SETTINGS</span>
+            <Settings size={18} aria-hidden="true" />
           </button>
           <button
             className={`sound-button ${musicEnabled ? "sound-on" : ""}`}
@@ -2152,7 +2151,7 @@ function App() {
                 <MoveAnimationSetting />
                 <p>Choose the look of your chess pieces.</p>
                 <div className="piece-theme-options piece-set-options" role="group" aria-label="Choose a chess piece design">
-                  <PagedItems pageSize={18} mobilePageSize={6} label="Piece sets">{PIECE_CHOICES.map((choice) => (
+                  <PagedItems pageSize={18} mobilePageSize={6} focusIndex={PIECE_CHOICES.findIndex(choice => choice.id === pieceTheme)} label="Piece sets">{PIECE_CHOICES.map((choice) => (
                     <button className="piece-theme-option" type="button" key={choice.id} aria-label={`Use ${choice.label} piece design`} aria-pressed={pieceTheme === choice.id} disabled={loadingPieceStyle} onClick={() => void changePieceStyle(choice.id)}>
                       <span className="piece-theme-icon" aria-hidden="true"><PieceArtwork type="q" color="w" theme={choice.id} /></span>
                       <span>{choice.label}</span>
